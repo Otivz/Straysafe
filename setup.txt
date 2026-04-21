@@ -1,0 +1,89 @@
+STRAYSAFE Project Setup Guide
+=============================
+
+This guide provides step-by-step instructions on how to set up and run both the Backend and Frontend of the STRAYSAFE application.
+
+---
+
+## 1. Database Setup (MySQL)
+
+The backend connects to a local MySQL database. You need to create this database before running the backend.
+
+1. Ensure MySQL is installed and running on your machine (e.g., via XAMPP, WAMP, or MySQL Workbench).
+2. The backend connects using the `root` user with an empty password by default. If your setup is different, you will need to update the connection details in `backend/Database.py`.
+3. Create the database by running the following SQL command in your MySQL tool:
+
+   CREATE DATABASE stray_safe;
+
+4. You will also need to create the necessary tables (like the `users` table referenced in `auth.py`). Here is a basic structure based on your code:
+
+   USE stray_safe;
+   CREATE TABLE users (
+       user_id INT AUTO_INCREMENT PRIMARY KEY,
+       name VARCHAR(255) NOT NULL,
+       email VARCHAR(255) UNIQUE NOT NULL,
+       password VARCHAR(255) NOT NULL
+   );
+
+---
+
+## 2. Backend Setup (FastAPI)
+
+Your backend is built with FastAPI and runs using Python within a virtual environment.
+
+### Prerequisites:
+- Python 3.12 (as per your current setup)
+- Virtual Environment (already exists in your `backend/venv` folder)
+
+### Steps to Run the Backend:
+
+1. Open a new terminal in VS Code (Terminal -> New Terminal).
+2. Navigate to the `backend` directory:
+   cd backend
+
+3. Activate the virtual environment:
+   # For Windows PowerShell / CMD
+   .\venv\Scripts\activate
+
+   (You should see `(venv)` appear at the beginning of your terminal prompt)
+
+4. Once activated, start the development server using uvicorn:
+   uvicorn main:app --reload
+
+   Note: Make sure your `main.py` has the FastAPI app instance initialized like `app = FastAPI()`.
+
+5. The backend will now be running. You can access the API at `http://127.0.0.1:8000`.
+6. You can view the automatic interactive API documentation at `http://127.0.0.1:8000/docs`.
+
+---
+
+## 3. Frontend Setup (React/Vite)
+
+Your frontend is built with React and Vite.
+
+### Prerequisites:
+- Node.js installed on your system.
+
+### Steps to Run the Frontend:
+
+1. Open another new terminal in VS Code (Terminal -> New Terminal). Do not close the backend terminal.
+2. Navigate to the `frontend` directory:
+   cd frontend
+
+3. Since you already have a `node_modules` folder, packages are likely installed. However, to be safe, you can run:
+   npm install
+
+4. Start the frontend development server:
+   npm run dev
+
+5. The terminal will output a local URL (usually `http://localhost:5173/`).
+6. Ctrl + Click on that URL to open the frontend application in your web browser.
+
+---
+
+## Troubleshooting "Cannot find module" Errors in VS Code
+If you see missing imports (like `fastapi` or `mysql.connector`), ensure your VS Code interpreter is set to the `venv`:
+1. Open any Python file (like `main.py`).
+2. Press `Ctrl + Shift + P`.
+3. Select `Python: Select Interpreter`.
+4. Choose the one pointing to `.\backend\venv\Scripts\python.exe`.
