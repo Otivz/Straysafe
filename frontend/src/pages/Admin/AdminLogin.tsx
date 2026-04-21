@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/Button';
 
@@ -9,6 +9,17 @@ const AdminLogin = () => {
     const [keepSignedIn, setKeepSignedIn] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    
+    // Auto-redirect if already logged in
+    useEffect(() => {
+        const isAuthenticated = 
+            localStorage.getItem('admin_user') !== null || 
+            sessionStorage.getItem('admin_user') !== null;
+        
+        if (isAuthenticated) {
+            navigate('/admin/dashboard');
+        }
+    }, [navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

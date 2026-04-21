@@ -1,16 +1,24 @@
 import { Routes, Route } from 'react-router-dom';
 import AdminLogin from '../pages/Admin/AdminLogin';
 import AdminDashboard from '../pages/Admin/AdminDashboard';
-import AdminUser from '../pages/Admin/AdminUserManagement';
+import AdminUserManagement from '../pages/Admin/AdminUserManagement';
+import ProtectedRoute from '../components/ProtectedRoute';
 
 const AppRoutes = () => {
     return (
         <Routes>
+            {/* Public Routes */}
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/" element={<AdminLogin />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/users" element={<AdminUser />} />
 
+            {/* Protected Admin Routes */}
+            <Route element={<ProtectedRoute />}>
+                <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                <Route path="/admin/users" element={<AdminUserManagement />} />
+            </Route>
+
+            {/* Catch-all Redirect to Login */}
+            <Route path="*" element={<AdminLogin />} />
         </Routes>
     );
 };
