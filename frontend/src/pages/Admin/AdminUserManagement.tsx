@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import AdminSidebar from '../../components/AdminSidebar';
-import AdminNavbar from '../../components/AdminNavbar';
+import AdminNavbar from '../../components/Navbars/AdminNavbar';
+import SuccessModal from '../../components/Modals/SuccessModal';
 import Button from '../../components/Button';
+import Select from '../../components/Dropdown';
 
 interface User {
     user_id: number;
@@ -14,6 +16,7 @@ interface User {
     barangay: string;
     city: string;
     address: string | null;
+    position: string | null;
     status: string;
     is_verified: boolean;
     created_at: string;
@@ -42,10 +45,11 @@ const AdminUserManagement = () => {
         password: '',
         phone: '',
         role_id: 1,
-        barangay: 'Unknown',
-        city: 'Unknown',
+        barangay: 'San Vicente',
+        city: 'Santa Maria, Bulacan',
         address: '',
-        subdivision_id: '',
+        position: '',
+        subdivision_id: '1',
         status: 'Active'
     });
 
@@ -64,6 +68,15 @@ const AdminUserManagement = () => {
     };
 
     useEffect(() => {
+        if (showSuccess) {
+            const timer = setTimeout(() => {
+                setShowSuccess(false);
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [showSuccess]);
+
+    useEffect(() => {
         fetchUsers();
     }, []);
 
@@ -79,6 +92,7 @@ const AdminUserManagement = () => {
                 barangay: user.barangay,
                 city: user.city,
                 address: user.address || '',
+                position: user.position || '',
                 subdivision_id: user.subdivision_id?.toString() || '',
                 status: user.status
             });
@@ -90,10 +104,11 @@ const AdminUserManagement = () => {
                 password: '',
                 phone: '',
                 role_id: 1,
-                barangay: 'Unknown',
-                city: 'Unknown',
+                barangay: 'San Vicente',
+                city: 'Santa Maria, Bulacan',
                 address: '',
-                subdivision_id: '',
+                position: '',
+                subdivision_id: '1',
                 status: 'Active'
             });
         }
@@ -105,11 +120,11 @@ const AdminUserManagement = () => {
         try {
             const cleanData = {
                 ...formData,
-                barangay: formData.barangay.trim() || 'Unknown',
-                city: formData.city.trim() || 'Unknown',
-                address: formData.address.trim() || null,
+                barangay: formData.barangay.trim() || 'San Vicente',
+                city: formData.city.trim() || 'Santa Maria, Bulacan',
+                address: formData.address.trim() || '',
                 phone: formData.phone.trim() || null,
-                subdivision_id: formData.subdivision_id ? parseInt(formData.subdivision_id) : null
+                subdivision_id: 1 // Automatically set to 1 (Selera Homes)
             };
 
             if (editingUser) {
@@ -156,8 +171,8 @@ const AdminUserManagement = () => {
     };
 
     const filteredUsers = users.filter(u => {
-        const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                             u.email.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            u.email.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesRole = roleFilter === 'all' || u.role_id === roleFilter;
         const matchesStatus = statusFilter === 'all' || u.status === statusFilter;
         return matchesSearch && matchesRole && matchesStatus;
@@ -166,7 +181,7 @@ const AdminUserManagement = () => {
     return (
         <div className="flex h-screen bg-[#F8FAFC]">
             <AdminSidebar />
-            
+
             <div className="flex-1 flex flex-col overflow-hidden">
                 <AdminNavbar />
 
@@ -203,41 +218,29 @@ const AdminUserManagement = () => {
                                 />
                             </div>
                             <div className="flex items-center space-x-2">
-                                <div className="relative">
-                                    <select 
-                                        className="bg-gray-50 border border-gray-100 rounded-xl pl-4 pr-10 py-2 text-sm text-gray-600 font-bold outline-none focus:ring-2 focus:ring-[#F97316] appearance-none cursor-pointer group"
-                                        value={roleFilter}
-                                        onChange={(e) => setRoleFilter(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
-                                    >
-                                        <option value="all">All Roles</option>
-                                        <option value={4}>Admin</option>
-                                        <option value={3}>Barangay</option>
-                                        <option value={2}>Leader</option>
-                                        <option value={1}>Citizen</option>
-                                    </select>
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div className="relative">
-                                    <select 
-                                        className="bg-gray-50 border border-gray-100 rounded-xl pl-4 pr-10 py-2 text-sm text-gray-600 font-bold outline-none focus:ring-2 focus:ring-[#F97316] appearance-none cursor-pointer group"
-                                        value={statusFilter}
-                                        onChange={(e) => setStatusFilter(e.target.value)}
-                                    >
-                                        <option value="all">All Status</option>
-                                        <option value="Active">Active</option>
-                                        <option value="Inactive">Inactive</option>
-                                        <option value="Deactivated">Deactivated</option>
-                                    </select>
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                        </svg>
-                                    </div>
-                                </div>
+                                <Select
+                                    value={roleFilter}
+                                    onChange={(e) => setRoleFilter(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
+                                    options={[
+                                        { value: 'all', label: 'All Roles' },
+                                        { value: 4, label: 'Admin' },
+                                        { value: 3, label: 'Barangay' },
+                                        { value: 2, label: 'Leader' },
+                                        { value: 1, label: 'Citizen' }
+                                    ]}
+                                    className="w-[140px]"
+                                />
+                                <Select
+                                    value={statusFilter}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                    options={[
+                                        { value: 'all', label: 'All Status' },
+                                        { value: 'Active', label: 'Active' },
+                                        { value: 'Inactive', label: 'Inactive' },
+                                        { value: 'Deactivated', label: 'Deactivated' }
+                                    ]}
+                                    className="w-[140px]"
+                                />
                             </div>
                         </div>
 
@@ -266,7 +269,14 @@ const AdminUserManagement = () => {
                                                         {user.name.charAt(0)}
                                                     </div>
                                                     <div>
-                                                        <p className="text-sm font-semibold text-gray-900 leading-none">{user.name}</p>
+                                                        <div className="flex items-center space-x-2">
+                                                            <p className="text-sm font-semibold text-gray-900 leading-none">{user.name}</p>
+                                                            {user.position && user.role_id !== 1 && (
+                                                                <span className="text-[9px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded uppercase font-black tracking-tighter border border-gray-200">
+                                                                    {user.position}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <p className="text-xs text-gray-400 mt-1">{user.email}</p>
                                                     </div>
                                                 </div>
@@ -278,12 +288,11 @@ const AdminUserManagement = () => {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${
-                                                    user.role_id === 4 ? 'bg-red-50 text-red-600 border-red-100' :
+                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${user.role_id === 4 ? 'bg-red-50 text-red-600 border-red-100' :
                                                     user.role_id === 3 ? 'bg-purple-50 text-purple-600 border-purple-100' :
-                                                    user.role_id === 2 ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                                                    'bg-amber-50 text-amber-600 border-amber-100'
-                                                }`}>
+                                                        user.role_id === 2 ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                                            'bg-amber-50 text-amber-600 border-amber-100'
+                                                    }`}>
                                                     {ROLE_MAP[user.role_id] || 'User'}
                                                 </span>
                                             </td>
@@ -297,31 +306,30 @@ const AdminUserManagement = () => {
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end space-x-1">
-                                                    <button 
+                                                    <button
                                                         onClick={() => handleOpenModal(user)}
-                                                        className="p-2 text-gray-400 hover:text-[#F97316] transition-colors rounded-lg hover:bg-orange-50" 
+                                                        className="p-2 text-gray-400 hover:text-[#F97316] transition-colors rounded-lg hover:bg-orange-50"
                                                         title="Edit User"
                                                     >
                                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                                         </svg>
                                                     </button>
-                                                    <button 
+                                                    <button
                                                         onClick={() => toggleStatus(user)}
-                                                        className={`p-2 transition-all rounded-lg group/power ${
-                                                            user.status === 'Active' 
-                                                            ? 'text-green-500 bg-green-50 hover:bg-green-100' 
+                                                        className={`p-2 transition-all rounded-lg group/power ${user.status === 'Active'
+                                                            ? 'text-green-500 bg-green-50 hover:bg-green-100'
                                                             : 'text-red-500 bg-red-50 hover:bg-red-100'
-                                                        }`}
+                                                            }`}
                                                         title={user.status === 'Active' ? 'Deactivate User' : 'Activate User'}
                                                     >
                                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 transition-transform group-hover/power:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                                         </svg>
                                                     </button>
-                                                    <button 
+                                                    <button
                                                         onClick={() => handleDelete(user.user_id)}
-                                                        className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50" 
+                                                        className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50"
                                                         title="Delete User"
                                                     >
                                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -359,115 +367,118 @@ const AdminUserManagement = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-1.5">
                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
-                                    <input 
+                                    <input
                                         type="text" required
                                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
                                         value={formData.name}
-                                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         placeholder="e.g. John Doe"
                                     />
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
-                                    <input 
+                                    <input
                                         type="email" required
                                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
                                         value={formData.email}
-                                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                         placeholder="john@example.com"
                                     />
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Password {editingUser && '(Leave blank to keep current)'}</label>
-                                    <input 
+                                    <input
                                         type="password" required={!editingUser}
                                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
                                         value={formData.password}
-                                        onChange={(e) => setFormData({...formData, password: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                         placeholder="••••••••"
                                     />
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Phone Number</label>
-                                    <input 
+                                    <input
                                         type="text"
                                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
                                         value={formData.phone}
-                                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                         placeholder="0917XXXXXXX"
                                     />
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">User Role</label>
-                                    <select 
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all appearance-none"
-                                        value={formData.role_id}
-                                        onChange={(e) => setFormData({...formData, role_id: parseInt(e.target.value)})}
-                                    >
-                                        <option value={1}>Citizen</option>
-                                        <option value={2}>Leader</option>
-                                        <option value={3}>Barangay Staff</option>
-                                        <option value={4}>Administrator</option>
-                                    </select>
-                                </div>
-                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Account Status</label>
-                                    <select 
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all appearance-none"
-                                        value={formData.status}
-                                        onChange={(e) => setFormData({...formData, status: e.target.value})}
-                                    >
-                                        <option value="Active">Active</option>
-                                        <option value="Inactive">Inactive</option>
-                                        <option value="Deactivated">Deactivated</option>
-                                    </select>
-                                </div>
+                                <Select
+                                    label="User Role"
+                                    value={formData.role_id}
+                                    onChange={(e) => setFormData({ ...formData, role_id: parseInt(e.target.value) })}
+                                    options={[
+                                        { value: 1, label: 'Citizen' },
+                                        { value: 2, label: 'Leader' },
+                                        { value: 3, label: 'Barangay Staff' },
+                                        { value: 4, label: 'Administrator' }
+                                    ]}
+                                />
+                                <Select
+                                    label="Account Status"
+                                    value={formData.status}
+                                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                    options={[
+                                        { value: 'Active', label: 'Active' },
+                                        { value: 'Inactive', label: 'Inactive' },
+                                        { value: 'Deactivated', label: 'Deactivated' }
+                                    ]}
+                                />
                                 <div className="space-y-1.5">
                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">City</label>
-                                    <input 
+                                    <input
                                         type="text"
                                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
                                         value={formData.city}
-                                        onChange={(e) => setFormData({...formData, city: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                                         placeholder="City Name"
                                     />
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Barangay</label>
-                                    <input 
+                                    <input
                                         type="text"
                                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
                                         value={formData.barangay}
-                                        onChange={(e) => setFormData({...formData, barangay: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, barangay: e.target.value })}
                                         placeholder="Barangay Name"
                                     />
                                 </div>
-                                <div className="space-y-1.5 font-bold text-[10px]">
-                                    <label className="text-gray-400 uppercase tracking-widest ml-1">Subdivision ID (Optional)</label>
-                                    <span className="ml-2 text-orange-500 lowercase">(Must match existing subdivision)</span>
-                                    <input 
-                                        type="number"
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
-                                        value={formData.subdivision_id}
-                                        onChange={(e) => setFormData({...formData, subdivision_id: e.target.value})}
-                                        placeholder="e.g. 1"
-                                    />
+                                <div className="space-y-1.5 opacity-60 pointer-events-none">
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Subdivision (Fixed for Research)</label>
+                                    <div className="w-full px-4 py-3 bg-gray-100 border border-gray-100 rounded-2xl text-sm font-bold text-[#F97316]">
+                                        Selera Homes (ID: 1)
+                                    </div>
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Complete Address</label>
-                                    <input 
+                                    <input
                                         type="text"
                                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
                                         value={formData.address}
-                                        onChange={(e) => setFormData({...formData, address: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                                         placeholder="Street, House No., etc."
                                     />
                                 </div>
+                                {formData.role_id !== 1 && (
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Position / Designation</label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
+                                            value={formData.position}
+                                            onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                                            placeholder="e.g. Barangay Captain, Purok Leader, etc."
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             <div className="mt-8 pt-6 border-t border-gray-50 flex items-center justify-end space-x-3">
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     onClick={() => setIsModalOpen(false)}
                                     className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
                                 >
@@ -482,47 +493,10 @@ const AdminUserManagement = () => {
                 </div>
             )}
 
-            {/* Success Notification Overlay */}
-            {showSuccess && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-white/60 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-white rounded-3xl shadow-2xl p-10 flex flex-col items-center max-w-sm w-full animate-in zoom-in-95 duration-300 border border-gray-100">
-                        {/* Animated Checkmark */}
-                        <div className="w-24 h-24 mb-6 relative">
-                            <div className="absolute inset-0 bg-[#22C55E]/10 rounded-full animate-ping duration-1000"></div>
-                            <div className="relative w-24 h-24 bg-[#22C55E] rounded-full flex items-center justify-center shadow-lg shadow-[#22C55E]/20">
-                                <svg 
-                                    className="w-12 h-12 text-white" 
-                                    fill="none" 
-                                    viewBox="0 0 24 24" 
-                                    stroke="currentColor" 
-                                    strokeWidth={4}
-                                >
-                                    <path 
-                                        strokeLinecap="round" 
-                                        strokeLinejoin="round" 
-                                        d="M5 13l4 4L19 7" 
-                                        className="animate-[draw_0.6s_ease-in-out_forwards]"
-                                        style={{ 
-                                            strokeDasharray: 50, 
-                                            strokeDashoffset: 50 
-                                        }}
-                                    />
-                                </svg>
-                            </div>
-                        </div>
-                        <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Success!</h3>
-                        <p className="text-gray-500 font-bold text-center text-sm">{successMessage}</p>
-                    </div>
-                </div>
-            )}
-
-            <style>{`
-                @keyframes draw {
-                    to {
-                        stroke-dashoffset: 0;
-                    }
-                }
-            `}</style>
+            <SuccessModal
+                isOpen={showSuccess}
+                message={successMessage}
+            />
         </div>
     );
 };

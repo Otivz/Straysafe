@@ -28,6 +28,7 @@ class User(Base):
     barangay = Column(String(100), default='Unknown')
     city = Column(String(100), default='Unknown')
     address = Column(String(255), nullable=True)
+    position = Column(String(100), nullable=True)
 
     profile_picture = Column(String(255), nullable=True)
     status = Column(String(20), default="Active")

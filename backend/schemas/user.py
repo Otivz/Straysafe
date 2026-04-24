@@ -11,6 +11,7 @@ class UserBase(BaseModel):
     barangay: Optional[str] = "Unknown"
     city: Optional[str] = "Unknown"
     address: Optional[str] = None
+    position: Optional[str] = None
     status: Optional[str] = "Active"
     is_verified: Optional[bool] = False
 
@@ -27,6 +28,7 @@ class UserUpdate(BaseModel):
     barangay: Optional[str] = None
     city: Optional[str] = None
     address: Optional[str] = None
+    position: Optional[str] = None
     status: Optional[str] = None
     is_verified: Optional[bool] = None
 

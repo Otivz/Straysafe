@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/Button';
+import { EyeIcon, EyeOffIcon } from '../../components/icon';
 
 const AdminLogin = () => {
     const navigate = useNavigate();
@@ -9,6 +10,7 @@ const AdminLogin = () => {
     const [keepSignedIn, setKeepSignedIn] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     
     // Auto-redirect if already logged in as admin
     useEffect(() => {
@@ -107,14 +109,22 @@ const AdminLogin = () => {
 
                         {/* Security Key */}
                         <div className="space-y-1">
-                            <div className="relative">
+                            <div className="relative group">
                                 <input
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-lg px-4 py-4 focus:ring-2 focus:ring-[#F97316] focus:border-transparent outline-none font-medium placeholder-gray-400 transition-all"
+                                    className="w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-lg pl-4 pr-12 py-4 focus:ring-2 focus:ring-[#F97316] focus:border-transparent outline-none font-medium placeholder-gray-400 transition-all"
                                     placeholder="Password"
+                                    required
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#F97316] transition-colors"
+                                >
+                                    {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+                                </button>
                             </div>
                         </div>
 
