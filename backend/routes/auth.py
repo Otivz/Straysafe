@@ -38,13 +38,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Check if user has Admin role (role_id = 4)
-    if user.role_id != 4:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied. Only administrators can access this portal.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    # Access control is handled by the frontend routes based on the returned role_id
     
     return {
         "user_id": user.user_id,

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import AdminSidebar from '../../components/AdminSidebar';
-import AdminNavbar from '../../components/AdminNavbar';
+import AdminNavbar from '../../components/Navbars/AdminNavbar';
 import Button from '../../components/Button';
 
 interface User {
@@ -13,6 +13,7 @@ interface User {
     barangay: string;
     city: string;
     address: string | null;
+    position: string | null;
     status: string;
     profile_picture: string | null;
 }
@@ -28,7 +29,8 @@ const AdminAccountSettings = () => {
         phone: '',
         city: '',
         barangay: '',
-        address: ''
+        address: '',
+        position: ''
     });
 
     const API_URL = 'http://localhost:8000/users';
@@ -48,7 +50,8 @@ const AdminAccountSettings = () => {
                     phone: data.phone || '',
                     city: data.city || 'Unknown',
                     barangay: data.barangay || 'Unknown',
-                    address: data.address || ''
+                    address: data.address || '',
+                    position: data.position || ''
                 });
             }
         } catch (error) {
@@ -74,7 +77,7 @@ const AdminAccountSettings = () => {
             };
 
             await axios.put(`${API_URL}/${userData.user_id}`, cleanData);
-            
+
             // Update local storage if email/name changed
             const userStr = localStorage.getItem('admin_user') || sessionStorage.getItem('admin_user');
             if (userStr) {
@@ -108,10 +111,10 @@ const AdminAccountSettings = () => {
     return (
         <div className="flex h-screen bg-[#F8FAFC]">
             <AdminSidebar />
-            
+
             <div className="flex-1 flex flex-col overflow-hidden">
                 <AdminNavbar />
- 
+
                 <main className="flex-1 overflow-y-auto p-8">
                     <div className="max-w-7xl mx-auto">
                         <form onSubmit={handleSave}>
@@ -131,22 +134,27 @@ const AdminAccountSettings = () => {
                                             )}
                                         </div>
                                     </div>
- 
+
                                     {/* Info section */}
                                     <div className="flex-1 space-y-2">
                                         <div className="flex items-center space-x-3">
                                             <span className="inline-block px-3 py-1 bg-red-50 text-red-600 text-[10px] font-bold uppercase tracking-widest rounded-md border border-red-100">
                                                 {userData?.role_id === 4 ? 'System Administrator' : 'Staff'}
                                             </span>
+                                            {userData?.position && (
+                                                <span className="inline-block px-3 py-1 bg-amber-50 text-amber-600 text-[10px] font-bold uppercase tracking-widest rounded-md border border-amber-100">
+                                                    {userData.position}
+                                                </span>
+                                            )}
                                             <span className="inline-block px-3 py-1 bg-green-50 text-green-600 text-[10px] font-bold uppercase tracking-widest rounded-md border border-green-100 italic">
                                                 {userData?.status}
                                             </span>
                                         </div>
                                         {isEditing ? (
-                                            <input 
+                                            <input
                                                 className="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight bg-transparent border-b-2 border-orange-200 focus:border-orange-500 outline-none w-full py-1"
                                                 value={formData.name}
-                                                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                                 autoFocus
                                             />
                                         ) : (
@@ -154,7 +162,7 @@ const AdminAccountSettings = () => {
                                         )}
                                         <p className="text-lg md:text-xl text-gray-400 font-medium">Administrator Access Level 4</p>
                                     </div>
- 
+
                                     {/* Edit Button */}
                                     <div className="hidden md:block">
                                         {isEditing ? (
@@ -172,19 +180,19 @@ const AdminAccountSettings = () => {
                                         )}
                                     </div>
                                 </div>
- 
+
                                 {/* Divider */}
                                 <div className="h-px bg-gray-100 w-full mb-10"></div>
- 
+
                                 {/* Bottom Section: Contact & Identity Details */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-10 gap-x-12 md:gap-x-16 px-2">
                                     <div className="space-y-3">
                                         <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Email Address</h3>
                                         {isEditing ? (
-                                            <input 
+                                            <input
                                                 className="text-lg font-semibold text-gray-800 tracking-tight bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 w-full focus:ring-2 focus:ring-orange-500 outline-none"
                                                 value={formData.email}
-                                                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                             />
                                         ) : (
                                             <p className="text-lg font-semibold text-gray-800 tracking-tight">{userData?.email}</p>
@@ -193,10 +201,10 @@ const AdminAccountSettings = () => {
                                     <div className="space-y-3">
                                         <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Phone Number</h3>
                                         {isEditing ? (
-                                            <input 
+                                            <input
                                                 className="text-lg font-semibold text-gray-800 tracking-tight bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 w-full focus:ring-2 focus:ring-orange-500 outline-none"
                                                 value={formData.phone}
-                                                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                             />
                                         ) : (
                                             <p className="text-lg font-semibold text-gray-800 tracking-tight">{userData?.phone || 'Not provided'}</p>
@@ -205,10 +213,10 @@ const AdminAccountSettings = () => {
                                     <div className="space-y-3">
                                         <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">City</h3>
                                         {isEditing ? (
-                                            <input 
+                                            <input
                                                 className="text-lg font-semibold text-gray-800 tracking-tight bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 w-full focus:ring-2 focus:ring-orange-500 outline-none"
                                                 value={formData.city}
-                                                onChange={(e) => setFormData({...formData, city: e.target.value})}
+                                                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                                             />
                                         ) : (
                                             <p className="text-lg font-semibold text-gray-800 tracking-tight">{userData?.city}</p>
@@ -217,10 +225,10 @@ const AdminAccountSettings = () => {
                                     <div className="space-y-3">
                                         <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Barangay</h3>
                                         {isEditing ? (
-                                            <input 
+                                            <input
                                                 className="text-lg font-semibold text-gray-800 tracking-tight bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 w-full focus:ring-2 focus:ring-orange-500 outline-none"
                                                 value={formData.barangay}
-                                                onChange={(e) => setFormData({...formData, barangay: e.target.value})}
+                                                onChange={(e) => setFormData({ ...formData, barangay: e.target.value })}
                                             />
                                         ) : (
                                             <p className="text-lg font-semibold text-gray-800 tracking-tight">{userData?.barangay}</p>
@@ -229,17 +237,30 @@ const AdminAccountSettings = () => {
                                     <div className="space-y-3 lg:col-span-2">
                                         <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Complete Address</h3>
                                         {isEditing ? (
-                                            <input 
+                                            <input
                                                 className="text-lg font-semibold text-gray-800 tracking-tight bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 w-full focus:ring-2 focus:ring-orange-500 outline-none"
                                                 value={formData.address}
-                                                onChange={(e) => setFormData({...formData, address: e.target.value})}
+                                                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                                             />
                                         ) : (
                                             <p className="text-lg font-semibold text-gray-800 tracking-tight">{userData?.address || 'No address provided'}</p>
                                         )}
                                     </div>
+                                    <div className="space-y-3">
+                                        <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Position / Designation</h3>
+                                        {isEditing ? (
+                                            <input
+                                                className="text-lg font-semibold text-gray-800 tracking-tight bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 w-full focus:ring-2 focus:ring-orange-500 outline-none"
+                                                value={formData.position}
+                                                onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                                                placeholder="e.g. Barangay Captain"
+                                            />
+                                        ) : (
+                                            <p className="text-lg font-semibold text-gray-800 tracking-tight">{userData?.position || 'Not specified'}</p>
+                                        )}
+                                    </div>
                                 </div>
-                                
+
                                 {/* Mobile Controls */}
                                 <div className="mt-10 md:hidden space-y-3">
                                     {isEditing ? (
@@ -265,21 +286,21 @@ const AdminAccountSettings = () => {
                         <div className="w-24 h-24 mb-6 relative">
                             <div className="absolute inset-0 bg-[#22C55E]/10 rounded-full animate-ping duration-1000"></div>
                             <div className="relative w-24 h-24 bg-[#22C55E] rounded-full flex items-center justify-center shadow-lg shadow-[#22C55E]/20">
-                                <svg 
-                                    className="w-12 h-12 text-white" 
-                                    fill="none" 
-                                    viewBox="0 0 24 24" 
-                                    stroke="currentColor" 
+                                <svg
+                                    className="w-12 h-12 text-white"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
                                     strokeWidth={4}
                                 >
-                                    <path 
-                                        strokeLinecap="round" 
-                                        strokeLinejoin="round" 
-                                        d="M5 13l4 4L19 7" 
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M5 13l4 4L19 7"
                                         className="animate-[draw_0.6s_ease-in-out_forwards]"
-                                        style={{ 
-                                            strokeDasharray: 50, 
-                                            strokeDashoffset: 50 
+                                        style={{
+                                            strokeDasharray: 50,
+                                            strokeDashoffset: 50
                                         }}
                                     />
                                 </svg>

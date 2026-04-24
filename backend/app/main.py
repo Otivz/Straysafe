@@ -7,7 +7,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.database import engine, Base
-from routes import auth, users
+from routes import auth, users, incidents
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -26,6 +26,7 @@ app.add_middleware(
 # Include routes
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(incidents.router)
 
 @app.get("/")
 def read_root():
