@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from typing import List
 from app.database import get_db
 from models.user import User
@@ -35,11 +36,18 @@ def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
     user_data = user_in.model_dump()
     user_data["password"] = hashed_password
     
-    db_user = User(**user_data)
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
+    try:
+        db_user = User(**user_data)
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        return db_user
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=400, 
+            detail="Database integrity error. Check if subdivision ID and other data are correct."
+        )
 
 @router.put("/{user_id}", response_model=UserResponse)
 def update_user(user_id: int, user_in: UserUpdate, db: Session = Depends(get_db)):
@@ -55,9 +63,16 @@ def update_user(user_id: int, user_in: UserUpdate, db: Session = Depends(get_db)
     for field, value in update_data.items():
         setattr(db_user, field, value)
         
-    db.commit()
-    db.refresh(db_user)
-    return db_user
+    try:
+        db.commit()
+        db.refresh(db_user)
+        return db_user
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=400, 
+            detail="Database integrity error. Check if subdivision ID and other data are correct."
+        )
 
 @router.patch("/{user_id}/status", response_model=UserResponse)
 def update_user_status(user_id: int, status_in: str, db: Session = Depends(get_db)):

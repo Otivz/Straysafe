@@ -34,6 +34,8 @@ const AdminUserManagement = () => {
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [showSuccess, setShowSuccess] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -101,27 +103,32 @@ const AdminUserManagement = () => {
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            const cleanData = {
+                ...formData,
+                barangay: formData.barangay.trim() || 'Unknown',
+                city: formData.city.trim() || 'Unknown',
+                address: formData.address.trim() || null,
+                phone: formData.phone.trim() || null,
+                subdivision_id: formData.subdivision_id ? parseInt(formData.subdivision_id) : null
+            };
+
             if (editingUser) {
                 // Update
-                const updateData = { 
-                    ...formData,
-                    subdivision_id: formData.subdivision_id ? parseInt(formData.subdivision_id) : null
-                };
-                if (!updateData.password) delete (updateData as any).password;
-                await axios.put(`${API_URL}/${editingUser.user_id}`, updateData);
+                if (!cleanData.password) delete (cleanData as any).password;
+                await axios.put(`${API_URL}/${editingUser.user_id}`, cleanData);
             } else {
                 // Create
-                const createData = {
-                    ...formData,
-                    subdivision_id: formData.subdivision_id ? parseInt(formData.subdivision_id) : null
-                };
-                await axios.post(API_URL, createData);
+                await axios.post(API_URL, cleanData);
             }
             setIsModalOpen(false);
+            setSuccessMessage(editingUser ? 'Successfully Edited User!' : 'Successfully Created User!');
+            setShowSuccess(true);
+            setTimeout(() => setShowSuccess(false), 3000);
             fetchUsers();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error saving user:', error);
-            alert('Failed to save user. Check console for details.');
+            const errorMessage = error.response?.data?.detail || 'Failed to save user. Check console for details.';
+            alert(errorMessage);
         }
     };
 
@@ -240,6 +247,7 @@ const AdminUserManagement = () => {
                                 <thead>
                                     <tr className="bg-gray-50 border-b border-gray-100">
                                         <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">User Details</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Location</th>
                                         <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Role</th>
                                         <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status</th>
                                         <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
@@ -261,6 +269,12 @@ const AdminUserManagement = () => {
                                                         <p className="text-sm font-semibold text-gray-900 leading-none">{user.name}</p>
                                                         <p className="text-xs text-gray-400 mt-1">{user.email}</p>
                                                     </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div>
+                                                    <p className="text-xs font-semibold text-gray-900 leading-none">{user.barangay}, {user.city}</p>
+                                                    <p className="text-[10px] text-gray-400 mt-1 truncate max-w-[150px]">{user.address || 'N/A'}</p>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
@@ -428,8 +442,9 @@ const AdminUserManagement = () => {
                                         placeholder="Barangay Name"
                                     />
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Subdivision ID (Optional)</label>
+                                <div className="space-y-1.5 font-bold text-[10px]">
+                                    <label className="text-gray-400 uppercase tracking-widest ml-1">Subdivision ID (Optional)</label>
+                                    <span className="ml-2 text-orange-500 lowercase">(Must match existing subdivision)</span>
                                     <input 
                                         type="number"
                                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
@@ -466,6 +481,48 @@ const AdminUserManagement = () => {
                     </div>
                 </div>
             )}
+
+            {/* Success Notification Overlay */}
+            {showSuccess && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-white/60 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white rounded-3xl shadow-2xl p-10 flex flex-col items-center max-w-sm w-full animate-in zoom-in-95 duration-300 border border-gray-100">
+                        {/* Animated Checkmark */}
+                        <div className="w-24 h-24 mb-6 relative">
+                            <div className="absolute inset-0 bg-[#22C55E]/10 rounded-full animate-ping duration-1000"></div>
+                            <div className="relative w-24 h-24 bg-[#22C55E] rounded-full flex items-center justify-center shadow-lg shadow-[#22C55E]/20">
+                                <svg 
+                                    className="w-12 h-12 text-white" 
+                                    fill="none" 
+                                    viewBox="0 0 24 24" 
+                                    stroke="currentColor" 
+                                    strokeWidth={4}
+                                >
+                                    <path 
+                                        strokeLinecap="round" 
+                                        strokeLinejoin="round" 
+                                        d="M5 13l4 4L19 7" 
+                                        className="animate-[draw_0.6s_ease-in-out_forwards]"
+                                        style={{ 
+                                            strokeDasharray: 50, 
+                                            strokeDashoffset: 50 
+                                        }}
+                                    />
+                                </svg>
+                            </div>
+                        </div>
+                        <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Success!</h3>
+                        <p className="text-gray-500 font-bold text-center text-sm">{successMessage}</p>
+                    </div>
+                </div>
+            )}
+
+            <style>{`
+                @keyframes draw {
+                    to {
+                        stroke-dashoffset: 0;
+                    }
+                }
+            `}</style>
         </div>
     );
 };

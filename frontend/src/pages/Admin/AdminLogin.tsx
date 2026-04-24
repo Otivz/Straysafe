@@ -10,14 +10,26 @@ const AdminLogin = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     
-    // Auto-redirect if already logged in
+    // Auto-redirect if already logged in as admin
     useEffect(() => {
-        const isAuthenticated = 
-            localStorage.getItem('admin_user') !== null || 
-            sessionStorage.getItem('admin_user') !== null;
+        const rawUser = 
+            localStorage.getItem('admin_user') || 
+            sessionStorage.getItem('admin_user');
         
-        if (isAuthenticated) {
-            navigate('/admin/dashboard');
+        if (rawUser) {
+            try {
+                const user = JSON.parse(rawUser);
+                if (user && user.role_id === 4) {
+                    navigate('/admin/dashboard');
+                } else {
+                    // Clear non-admin session data
+                    localStorage.removeItem('admin_user');
+                    sessionStorage.removeItem('admin_user');
+                }
+            } catch {
+                localStorage.removeItem('admin_user');
+                sessionStorage.removeItem('admin_user');
+            }
         }
     }, [navigate]);
 
