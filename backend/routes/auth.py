@@ -30,8 +30,25 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    # Check if account is inactive
+    if user.status == "Inactive":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account inactive. Please contact the administrator for assistance.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Check if user has Admin role (role_id = 4)
+    if user.role_id != 4:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Only administrators can access this portal.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     return {
         "user_id": user.user_id,
         "email": user.email,
-        "name": user.name
+        "name": user.name,
+        "role_id": user.role_id
     }

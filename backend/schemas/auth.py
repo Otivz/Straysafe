@@ -9,4 +9,5 @@ class LoginResponse(BaseModel):
     user_id: int
     email: EmailStr
     name: Optional[str] = None
+    role_id: int
     # Add other fields as needed (e.g., token)

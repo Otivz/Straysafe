@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import AdminLogin from '../pages/Admin/AdminLogin';
 import AdminDashboard from '../pages/Admin/AdminDashboard';
 import AdminUserManagement from '../pages/Admin/AdminUserManagement';
+import AdminAccountSettings from '../pages/Admin/AdminAccountSettings';
 import ProtectedRoute from '../components/ProtectedRoute';
 
 const AppRoutes = () => {
@@ -15,6 +16,7 @@ const AppRoutes = () => {
             <Route element={<ProtectedRoute />}>
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/users" element={<AdminUserManagement />} />
+                <Route path="/admin/account-settings" element={<AdminAccountSettings />} />
             </Route>
 
             {/* Catch-all Redirect to Login */}
