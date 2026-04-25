@@ -1,6 +1,8 @@
 import AdminSidebar from '../../components/AdminSidebar';
 import AdminNavbar from '../../components/Navbars/AdminNavbar';
-import Button from '../../components/Button';
+
+import MapComponent from '../../components/MapComponent';
+
 
 const AdminDashboard = () => {
     return (
@@ -13,11 +15,16 @@ const AdminDashboard = () => {
                 {/* TOP NAVIGATION */}
                 <AdminNavbar />
 
-                {/* SCROLLABLE AREA */}
-                <div className="flex-1 overflow-auto p-8 flex gap-8">
+                {/* SCROLLABLE AREA with Custom Scrollbar */}
+                <div className="flex-1 overflow-y-auto p-8 flex flex-col gap-8 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
 
-                    {/* LEFT TWO-THIRDS */}
-                    <div className="flex-1 flex flex-col space-y-8">
+
+
+                    {/* TWO COLUMN CONTENT SECTION BELOW MAP */}
+                    <div className="flex gap-8">
+                        {/* LEFT TWO-THIRDS */}
+                        <div className="flex-1 flex flex-col space-y-8">
+
                         {/* Header Block */}
                         <div className="flex justify-between items-end">
                             <div>
@@ -235,39 +242,20 @@ const AdminDashboard = () => {
                                 </div>
                             </div>
 
-                            <div className="w-full h-80 rounded-2xl overflow-hidden relative border border-gray-100 bg-[#1A4543]">
-                                {/* Using a placeholder SVG or CSS gradients to mimic the heatmap look from the image since we don't have the actual map image */}
-                                <div className="absolute inset-0 opacity-80" style={{
-                                    backgroundImage: `radial-gradient(ellipse at 50% 50%, #ea580c 0%, #facc15 20%, #4ade80 40%, transparent 60%),
-                                                      radial-gradient(ellipse at 30% 70%, #ef4444 0%, #f97316 20%, transparent 50%),
-                                                      radial-gradient(ellipse at 80% 30%, #ef4444 0%, #facc15 30%, transparent 60%)`,
-                                    filter: 'blur(30px)'
-                                }}></div>
-
-                                {/* Map visual markers overlay */}
-                                <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-30">
-                                    {/* Mock continent shapes */}
-                                    <svg viewBox="0 0 1000 500" className="w-full h-full fill-current text-white"><path d="M400,200 Q450,150 500,200 T600,300 M200,100... (Mock Paths)" /></svg>
-                                </div>
-
-                                {/* Zoom controls */}
-                                <div className="absolute bottom-4 right-4 flex flex-col space-y-2">
-                                    <Button variant="light" size="icon" className="shadow-lg text-gray-600 border-none">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" /></svg>
-                                    </Button>
-                                    <Button variant="light" size="icon" className="shadow-lg text-gray-600 border-none">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" /></svg>
-                                    </Button>
-                                </div>
+                            <div className="w-full h-[500px] rounded-2xl overflow-hidden relative border border-gray-100 shadow-lg bg-gray-50 shrink-0">
+                                <MapComponent 
+                                    center={[14.8093, 121.0028]} 
+                                    zoom={16}
+                                />
 
                                 {/* Peak Hotspot Box */}
-                                <div className="absolute bottom-4 left-4 bg-white rounded-lg p-3 shadow-lg">
+                                <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-xl z-[1000] border border-white/50">
                                     <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest flex items-center">
-                                        Peak Hotspot <span className="text-red-500 ml-1">+12%</span>
+                                        Peak Hotspot <span className="text-red-500 ml-1 font-black">+12.4%</span>
                                     </p>
-                                    <p className="text-sm font-bold text-gray-900 mt-1">Industrial District</p>
-                                    <div className="w-full h-1 bg-gray-200 mt-2 rounded">
-                                        <div className="w-[80%] h-1 bg-[#B45309] rounded"></div>
+                                    <p className="text-sm font-black text-gray-900 mt-1">San Vicente District</p>
+                                    <div className="w-full h-1 bg-gray-100 mt-2 rounded-full overflow-hidden">
+                                        <div className="w-[82%] h-full bg-[#B45309] rounded-full"></div>
                                     </div>
                                 </div>
                             </div>
@@ -369,8 +357,11 @@ const AdminDashboard = () => {
                     </div>
 
                 </div>
-            </main>
-        </div>
+            </div>
+        </main>
+    </div>
+
+
     );
 };
 

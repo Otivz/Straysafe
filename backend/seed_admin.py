@@ -44,8 +44,8 @@ def seed_db():
         db.commit()
 
         # 3. Seed Admin User
-        admin_email = os.getenv("ADMIN_EMAIL", "admin@straysafe.com")
-        admin_password = os.getenv("ADMIN_PASSWORD", "password123")
+        admin_email = os.getenv("ADMIN_EMAIL")
+        admin_password = os.getenv("ADMIN_PASSWORD")
         
         # Look for existing admin by email
         admin = db.query(User).filter(User.email == admin_email).first()
