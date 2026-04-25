@@ -1,0 +1,27 @@
+PURPOSE OF KEY FILES IN STRAYSAFE PROJECT
+
+1. frontend\src\pages\Admin\AdminDashboard.tsx
+Purpose: This is the central administrative hub of the StraySafe application. It provides a comprehensive, real-time overview of the system's operations. Key features include:
+- Operational Metrics: Displays high-level stats like Total Reports, Active Cases, and Resolution Rate.
+- Data Visualization: Includes charts for "Reports Over Time", "Reports by Category", and "Species Distribution" (Dog vs. Cat).
+- Live Heatmap: An interactive map that visualizes stray density and hotspots in real-time.
+- AI Smart Insights: A panel that uses AI logic to highlight anomalies, efficiency gains, and predictive forecasts for stray activity.
+
+2. backend\seed_admin.py
+Purpose: This is the primary database initialization script. Its main functions are:
+- Schema Creation: Ensures all database tables are created according to the models.
+- Core Data Seeding: Populates the system with essential reference data, specifically:
+  - Roles: Citizen (1), Leader (2), Barangay (3), and Admin (4).
+  - Subdivisions: Initializes "Selera Homes" as the default subdivision.
+- Admin Creation: Creates or updates the primary administrator account using the email and password defined in your .env file. This script must be run before almost everything else.
+
+3. backend\seed_incidents.py
+Purpose: This is a data-generation script used to populate the dashboard with realistic test data.
+- It creates sample "Incident" records (e.g., injured dogs, stray cats, dehydrated animals).
+- It assigns these incidents to the Admin user (created by seed_admin.py).
+- This is crucial for developers to see how the dashboard charts and the heatmap look when the system is "alive" with data.
+
+4. backend\verify_login.py
+Purpose: This is a diagnostic and testing utility for the backend API.
+- Functionality: It sends a POST request to the FastAPI login endpoint (http://127.0.0.1:8000/auth/login) using the credentials in your .env file.
+- Goal: It verifies that the backend server is running correctly and that the authentication system is properly validating admin credentials against the database.
