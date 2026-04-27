@@ -10,6 +10,7 @@ import LandingPage from '../pages/citizen/LandingPage';
 import ResidentsLogin from '../pages/citizen/ResidentsLogin';
 import ResiHomePage from '../pages/citizen/ResiHomePage';
 
+
 const AppRoutes = () => {
     return (
         <Routes>
@@ -25,10 +26,14 @@ const AppRoutes = () => {
                 <Route path="/admin/incidents" element={<AdminReport />} />
             </Route>
 
+            {/* Protected Barangay/Subdivision Routes */}
+
+
             {/* Landing Page Route */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<ResidentsLogin />} />
             <Route path="/resident-home" element={<ResiHomePage />} />
+
 
             {/* Catch-all Redirect to Login */}
             <Route path="*" element={<AdminLogin />} />
