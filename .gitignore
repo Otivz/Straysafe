@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 .env
+__pycache__/
+*.py[cod]
+*$py.class
+
 setup.txt
 
 # Editor directories and files
@@ -25,6 +29,37 @@ setup.txt
 *.sln
 *.sw?
 
-.env
-setup.txt
+setup.md
 database_query.txt
+
+# Environments
+venv/
+.venv/
+env/
+
+# OS Files
+[Tt]humbs.db
+*.db
+.DS_Store
+
+# Testing and Coverage
+htmlcov/
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+.mypy_cache/
+
+# TypeScript/Frontend
+*.tsbuildinfo
+.eslintcache
+build/
+
+# Project specific / Temporary
+purpose_of_files.txt
+*.local
+Scripts
