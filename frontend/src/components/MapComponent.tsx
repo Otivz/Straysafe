@@ -1,5 +1,6 @@
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useEffect } from 'react';
 import L from 'leaflet';
 
 // Fix for default marker icon issue in React Leaflet
@@ -28,6 +29,15 @@ interface MapComponentProps {
     showHeatmap?: boolean;
 }
 
+// Internal component to handle view changes
+const ChangeView = ({ center, zoom }: { center: [number, number], zoom: number }) => {
+    const map = useMap();
+    useEffect(() => {
+        map.setView(center, zoom);
+    }, [center, zoom, map]);
+    return null;
+};
+
 // Mock heatmap data for San Vicente, Santa Maria, Bulacan
 const mockHeatmapPoints: [number, number, number][] = [
     [14.8093, 121.0028, 1.0], // Core hotspot
@@ -52,6 +62,7 @@ const MapComponent = ({
             scrollWheelZoom={false} 
             style={{ height: height, width: '100%' }}
         >
+            <ChangeView center={center} zoom={zoom} />
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -66,7 +77,7 @@ const MapComponent = ({
 
             <Marker position={center}>
                 <Popup>
-                    Active Incident Area <br /> San Vicente, Bulacan.
+                    Location: {center[0].toFixed(4)}, {center[1].toFixed(4)}
                 </Popup>
             </Marker>
         </MapContainer>

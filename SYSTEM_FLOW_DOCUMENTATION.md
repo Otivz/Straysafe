@@ -1,112 +1,251 @@
-# STRAY-SAFE SYSTEM DOCUMENTATION
+STRAY-SAFE
+Smart Stray Animal Reporting and Rescue System
+System Planning Document
+DETECT
+VALIDATE
+RESCUE
+MONITOR
+PROTECT
 
-STRAY-SAFE is a role-based, AI-assisted reporting and rescue system designed to streamline the management of stray animals through community involvement and intelligent automation.
 
----
+1.  System Overview
+STRAY-SAFE is a web-based, role-based, AI-assisted reporting and rescue management system designed to improve the reporting, validation, rescue, and monitoring of stray animals within communities.
 
-## 👥 User Roles & Responsibilities
+The system connects citizens, subdivision leaders, barangay staff, and administrators in one coordinated rescue workflow supported by mapping, analytics, and artificial intelligence.
 
-### 🏙️ Citizen (Reporter)
-The primary source of information. Citizens report stray animal sightings in their community.
-- **Submit Reports:** Provide image, location (GPS), and description.
-- **Track Status:** View real-time updates on reported cases.
-- **Notifications:** Receive alerts regarding the progress of their reports.
+Core Framework
 
-### 🏘️ Subdivision Leader (Validator Layer)
-Acts as a middle validation layer to reduce noise and ensure high-quality data before it reaches local authorities.
-- **Review Reports:** Filter out fake or duplicate reports.
-- **Validate Legitimacy:** Confirm the accuracy of the incident.
-- **Escalate:** Forward valid reports to the Barangay for formal action.
-- **Monitor Area:** Oversee all cases within their assigned subdivision.
+📋
+Report
+✅
+Validate
+🚑
+Rescue
+📊
+Monitor
 
-### 🏢 Barangay Staff (Action Layer)
-The response team responsible for field operations and animal welfare.
-- **Rescue Operations:** Approve or reject rescue requests based on urgency and resources.
-- **Field Action:** Perform the physical pickup of the animal.
-- **Lifecycle Management:** Update the case status through the following stages:
-  - `Pending` ➔ `Approved` ➔ `Picked Up` ➔ `Under Observation (3 Days)` ➔ `Impounded` ➔ `Resolved / Released`
 
-### 🛡️ Admin (System Controller)
-Oversees the entire ecosystem to ensure performance and data integrity.
-- **RBAC Management:** Manage user accounts and permissions.
-- **System Oversight:** Monitor all reports and system performance.
-- **Analytics:** View heatmaps and density data to identify high-risk areas.
-- **Configuration:** Manage system-wide settings and Barangay coordination.
+2.  User Roles and Functionalities
 
----
+A.  Citizen (Reporter)
+Citizens serve as the primary reporting source of stray animal incidents.
 
-## 🤖 AI Capabilities
+Citizen — Reporter
+Primary source for stray animal incident reports
+Features
+• Submit stray animal reports with image, GPS, and description
+• View and track report status in real time
+• Receive notifications and updates
+• Choose Public or Private report visibility
+• View report location on interactive map
+• Contribute to community heatmap data
+• Comment section with subdivision leaders and barangay staff
+Actions / Status
+→ Submitted
+→ Under Validation
+→ Escalated to Barangay
+→ Rescue In Progress
+→ Picked Up
+→ Resolved
 
-The system leverages **TensorFlow.js** for real-time image analysis and decision support.
 
-1.  **Animal Type Identification**
-    - Detects whether the animal in the image is a **Dog** or a **Cat**.
-2.  **Condition Detection**
-    - Analyzes visible features to classify the animal's state: **Injured**, **Weak/Sick**, or **Normal**.
-3.  **Automatic Case Prioritization**
-    - **High Priority:** Injured animals requiring immediate attention.
-    - **Regular Priority:** Healthy/Normal stray sightings.
-4.  **Decision Support for Authorities**
-    - Helps leaders and staff prioritize their response based on data-driven insights.
+B.  Subdivision Leader (Validation Layer)
+Subdivision leaders serve as the validation and filtering layer before reports reach barangay authorities.
 
----
+Subdivision Leader — Validation Layer
+Filters and validates reports before escalation
+Features
+• Review incoming reports from citizens
+• Detect and filter fake or duplicate reports
+• Validate legitimacy and verify submitted location
+• Monitor reports within assigned subdivision
+• Notify citizens once action is initiated
+Actions / Status
+→ Approve
+→ Reject
+→ Escalate
+→ Request Clarification
 
-## 🔄 System Workflow
 
-```mermaid
-graph TD
-    A[Citizen Submits Report] --> B[AI Processing]
-    B -->|Detect Type & Condition| C[Priority Assignment]
-    C --> D[Subdivision Leader Review]
-    D -->|Reject| E[Case Closed]
-    D -->|Validate & Escalate| F[Barangay Action]
-    F -->|Approve & Rescue| G[Status Tracking]
-    G --> H[Resolved / Released]
-    G --> I[Analytics & Heatmaps Update]
-```
+C.  Barangay Staff (Action Layer)
+Barangay staff handle rescue operations and case management.
 
-1.  **Submission:** Citizen uploads image + GPS + description.
-2.  **Processing:** AI automatically classifies the animal and condition.
-3.  **Review:** Subdivision Leader filters noise and validates the request.
-4.  **Action:** Barangay conducts the rescue and updates status.
-5.  **Analytics:** Data contributes to real-time heatmaps and performance dashboards.
+Barangay Staff — Action Layer
+Manages rescue operations and case lifecycle
+Features
+• Receive validated rescue requests
+• Approve or reject rescue operations
+• Generate rescue request and endorsement letters
+• Dispatch response team to the field
+• Perform field rescue and animal pickup
+• Update rescue case status and notify stakeholders
+Actions / Status
+→ Pending
+→ Approved
+→ Team Dispatched
+→ Picked Up
+→ Under Observation
+→ Impounded
+→ Resolved / Released
 
----
 
-## 🧩 Core System Modules
+D.  Admin (System Controller)
+Admin oversees the entire system, ensuring operational integrity and data accuracy.
 
-| Module | Description |
-| :--- | :--- |
-| **Reporting** | Image/GPS submission and real-time category tagging. |
-| **Validation** | Subdivision review system with duplicate/fake report filtering. |
-| **Rescue Management** | Barangay approval workflow and status lifecycle tracking. |
-| **AI-Assisted** | Image classification, condition detection, and priority scoring. |
-| **Monitoring & Dashboard** | Map visualization, heatmaps, and analytical charts. |
-| **Notification** | Real-time status updates and priority alerts. |
-| **User Management** | Role-Based Access Control (RBAC) and account security. |
-| **History & Records** | Comprehensive incident logs and animal report history. |
+Admin — System Controller
+Full system oversight, configuration, and management
+Features
+• Manage users with Role-Based Access Control (RBAC)
+• Add, edit, and deactivate accounts
+• Monitor all reports and rescue cases system-wide
+• View heatmaps and analytics dashboards
+• Configure system settings and parameters
+• Monitor barangay and subdivision performance
+• Access audit logs and complete records
 
----
 
-## 🛠️ Tech Stack
 
-- **Frontend:** React (Vite)
-- **Backend:** FastAPI (Python)
-- **Database:** MySQL
-- **AI Engine:** TensorFlow.js
-- **Services:** Google Maps API, Geolocation API
 
----
+3.  AI-Assisted Features
 
-## 🎨 UI Color Palette
+3.1
+Animal TypeIdentification
+Detects: Dog / Cat
+3.2
+ConditionDetection
+Injured / Sick / Normal
+3.3
+AutomaticPrioritization
+High / Medium / Regular
+3.4
+DecisionSupport
+Prioritize, identify, accelerate
 
-| Color | Hex | Purpose |
-| :--- | :--- | :--- |
-| 🟠 **Burnt Orange** | `#F97316` | Rescues, Urgency, Warmth |
-| 🟡 **Soft Amber** | `#FACC15` | Hope, Positivity |
-| 🟢 **Sage Green** | `#86EFAC` | Care, Healing |
-| ⚪ **Off White** | `#FAFAF9` | Clean Background |
-| 🔴 **Soft Red** | `#EF4444` | Urgent / Injured Alerts |
 
----
-*Document Version: 1.0.0*
+Priority Levels
+
+HIGH PRIORITY
+Injured animal
+MEDIUM PRIORITY
+Weak or sick animal
+REGULAR PRIORITY
+Normal condition
+
+
+4.  System Workflow
+The following step-by-step process describes how a stray animal incident moves through the STRAY-SAFE system from initial report to full resolution.
+
+Step 01  Citizen submits report with image, GPS location, and description
+Step 02  Report stored in database and assigned a tracking ID
+Step 03  AI module analyzes image — identifies animal type, condition, and assigns priority
+Step 04  Subdivision leader reviews and validates the report
+Step 05  Validated report forwarded to barangay staff
+Step 06  Barangay approves the case and dispatches a response team
+Step 07  Response team performs field rescue and animal pickup
+Step 08  Case status updated to Picked Up / Resolved
+Step 09  Notifications sent to all stakeholders
+Step 10  Heatmaps and analytics dashboards updated automatically
+
+
+5.  Core System Modules
+
+A  Reporting Module
+• Report submission with GPS and image capture
+• Category tagging and Public/Private option
+• Comment section and real-time map reporting
+B  Validation Module
+• Report verification and duplicate detection
+• Fake report filtering
+• Escalation workflow management
+C  Rescue Management Module
+• Rescue approval and dispatch management
+• Case lifecycle tracking
+• Rescue documentation and records
+D  AI-Assisted Module
+• Animal classification (dog/cat)
+• Condition detection
+• Automatic priority scoring
+E  Monitoring & Dashboard Module
+• Interactive map visualization
+• Heatmaps for stray density
+• Analytics charts and hotspot monitoring
+F  Notification Module
+• Status updates and new report alerts
+• Priority alerts for urgent cases
+• Rescue and pickup notifications
+G  User Management Module
+• Role-Based Access Control (RBAC)
+• Account administration and role assignment
+H  History & Records Module
+• Incident logs and rescue history
+• Case tracking records and audit trails
+
+
+6.  Technology Stack
+
+Layer
+Technology
+Handles
+Frontend
+React (Vite)
+User dashboards, forms, maps, notifications, interactive UI
+Backend
+FastAPI
+APIs, business logic, authentication, workflow processing
+Database
+MySQL
+Users, reports, AI results, rescue records, notifications, analytics
+AI Module
+TensorFlow.js
+Animal image analysis, condition detection, priority scoring
+Mapping
+Google Maps Platform
+Map pinning, heatmaps, location services
+Geolocation
+Geolocation API
+Precise GPS capture for report submissions
+
+
+7.  UI Color Palette
+
+Swatch
+Name
+Usage
+#F97316
+Burnt Orange
+Primary — Rescue, urgency, warmth
+#FACC15
+Soft Amber
+Primary — Hope, positivity
+#86EFAC
+Sage Green
+Secondary — Care, healing
+#FAFAF9
+Off White
+Secondary — Clean interface background
+#EF4444
+Soft Red
+Alert — Urgent or injured animal reports
+
+
+8.  Key Innovations
+
+01  Multi-layer report validation through subdivision leaders ensures accuracy before barangay action
+02  AI-assisted animal detection and condition-based prioritization speeds up rescue response
+03  Heatmap-based stray monitoring helps authorities identify high-density problem areas
+04  Community reporting with Public/Private options protects privacy while enabling broad coverage
+05  Real-time rescue workflow with full case lifecycle tracking from report to resolution
+06  Decision support for local authorities reduces response time and improves outcomes
+
+
+
+
+
+System Framework
+DETECT
+VALIDATE
+RESCUE
+MONITOR
+PROTECT
+
+
