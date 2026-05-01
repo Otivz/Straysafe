@@ -8,12 +8,11 @@ class UserBase(BaseModel):
     phone: Optional[str] = None
     role_id: int
     subdivision_id: Optional[int] = None
-    barangay: Optional[str] = "Unknown"
-    city: Optional[str] = "Unknown"
+    position_id: Optional[int] = None
     address: Optional[str] = None
-    position: Optional[str] = None
     status: Optional[str] = "Active"
     is_verified: Optional[bool] = False
+    profile_picture: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str
@@ -25,10 +24,8 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = None
     role_id: Optional[int] = None
     subdivision_id: Optional[int] = None
-    barangay: Optional[str] = None
-    city: Optional[str] = None
+    position_id: Optional[int] = None
     address: Optional[str] = None
-    position: Optional[str] = None
     status: Optional[str] = None
     is_verified: Optional[bool] = None
 

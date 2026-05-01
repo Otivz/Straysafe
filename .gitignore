@@ -30,7 +30,7 @@ setup.txt
 *.sw?
 
 setup.md
-database_query.txt
+
 
 # Environments
 venv/
@@ -63,3 +63,4 @@ build/
 purpose_of_files.txt
 *.local
 Scripts
+backend/uploads/

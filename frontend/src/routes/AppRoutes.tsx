@@ -6,9 +6,15 @@ import AdminAccountSettings from '../pages/Admin/AdminAccountSettings';
 import AdminReport from '../pages/Admin/AdminReport';
 import ProtectedRoute from '../components/ProtectedRoute';
 
+import CommunityStaffLogin from '../pages/Subd_Leaders/CommunityStaffLogin';
+import SubdDashboard from '../pages/Subd_Leaders/SubdDashboard';
+import SubdReports from '../pages/Subd_Leaders/SubdReports';
+
 import LandingPage from '../pages/citizen/LandingPage';
 import ResidentsLogin from '../pages/citizen/ResidentsLogin';
 import ResiHomePage from '../pages/citizen/ResiHomePage';
+import BrgyDashboard from '../pages/Barangay_Staff/BrgyDashboard';
+import BrgyRescueRequests from '../pages/Barangay_Staff/BrgyRescueRequests';
 
 
 const AppRoutes = () => {
@@ -27,6 +33,13 @@ const AppRoutes = () => {
             </Route>
 
             {/* Protected Barangay/Subdivision Routes */}
+            <Route path="/staff/login" element={<CommunityStaffLogin />} />
+            <Route path="/staff/dashboard" element={<SubdDashboard />} />
+            <Route path="/staff/incidents" element={<SubdReports />} />
+
+            {/* Barangay Staff Routes */}
+            <Route path="/brgy/dashboard" element={<BrgyDashboard />} />
+            <Route path="/brgy/rescue-requests" element={<BrgyRescueRequests />} />
 
 
             {/* Landing Page Route */}

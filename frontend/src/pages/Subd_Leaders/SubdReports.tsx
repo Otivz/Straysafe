@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import AdminSidebar from '../../components/AdminSidebar';
-import AdminNavbar from '../../components/Navbars/AdminNavbar';
+import { useNavigate } from 'react-router-dom';
+import SubdSidebar from '../../components/SubdSidebar';
+import SubdNavbar from '../../components/Navbars/SubdNavbar';
 import Button from '../../components/Button';
 import SuccessModal from '../../components/Modals/SuccessModal';
 import Select from '../../components/Dropdown';
@@ -26,7 +27,7 @@ interface Report {
 }
 
 const statusMap: Record<number, string> = {
-    1: 'Pending', 2: 'Verified', 3: 'Rejected', 
+    1: 'Pending', 2: 'Verified', 3: 'Rejected',
     4: 'Escalated to Barangay', 5: 'Rescue In Progress', 6: 'Resolved',
     7: 'Picked Up', 8: 'Under Observation', 9: 'Impounded'
 };
@@ -35,7 +36,9 @@ const categoryMap: Record<number, string> = {
     4: 'Roaming Pack', 5: 'Animal Rescue Needed'
 };
 
-const AdminReport = () => {
+const SubdReports = () => {
+    const navigate = useNavigate();
+
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -46,20 +49,33 @@ const AdminReport = () => {
     const [viewingReportId, setViewingReportId] = useState<number | null>(null);
     const [isEscalateModalOpen, setIsEscalateModalOpen] = useState(false);
     const [escalatingReportId, setEscalatingReportId] = useState<number | null>(null);
-    const [escalationData, setEscalationData] = useState({
-        title: '',
-        description: '',
-        endorsement_letter: null as File | null
-    });
+    const [endorsementFile, setEndorsementFile] = useState<File | null>(null);
+    const [isEscalating, setIsEscalating] = useState(false);
+    const [escalationTitle, setEscalationTitle] = useState('');
+    const [escalationDescription, setEscalationDescription] = useState('');
     const menuRef = useRef<HTMLDivElement>(null);
 
-    const userStr = localStorage.getItem('admin_user') || localStorage.getItem('user');
+    const userStr = localStorage.getItem('staff_user') || sessionStorage.getItem('staff_user');
     const currentUser = userStr ? JSON.parse(userStr) : null;
     const currentUserId = currentUser ? currentUser.user_id : 1;
 
     const [commentInputs, setCommentInputs] = useState<Record<number, string>>({});
     const [replyingTo, setReplyingTo] = useState<Record<number, { commentId: number, userName: string } | null>>({});
     const [expandedComments, setExpandedComments] = useState<Record<number, boolean>>({});
+
+    useEffect(() => {
+        if (!userStr) {
+            navigate('/staff/login');
+        } else {
+            try {
+                if (currentUser.role_id !== 2) {
+                    navigate('/staff/login');
+                }
+            } catch {
+                navigate('/staff/login');
+            }
+        }
+    }, [navigate, userStr, currentUser]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -115,54 +131,61 @@ const AdminReport = () => {
             fetchReports(); // Refresh to get the latest comments
         } catch (error) {
             console.error('Error adding comment:', error);
+            alert('Failed to post comment.');
         }
     };
 
-    const handleEscalate = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!escalatingReportId || !escalationData.endorsement_letter) {
-            alert('Please provide an endorsement letter.');
-            return;
-        }
-
+    const handleUpdateStatus = async (id: number, newStatusId: number) => {
         try {
-            // 1. Upload the letter
-            const formData = new FormData();
-            formData.append('file', escalationData.endorsement_letter);
-            await axios.post(`${API_URL}/${escalatingReportId}/media`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-
-            // 2. Create the Rescue Request
-            await axios.post('http://localhost:8000/rescue-requests/', {
-                report_id: escalatingReportId,
-                leader_id: currentUserId,
-                title: escalationData.title || 'Official Rescue Escalation',
-                description: escalationData.description || 'Barangay rescue requested for this incident.',
-                status_id: 1 // Pending
-            });
-
-            // 3. Update the report status to "Escalated to Barangay" (4)
-            await axios.patch(`${API_URL}/${escalatingReportId}/status`, { status_id: 4 });
-
-            setIsEscalateModalOpen(false);
-            setEscalatingReportId(null);
-            setEscalationData({ title: '', description: '', endorsement_letter: null });
-            fetchReports();
-            alert('Incident successfully escalated to Barangay.');
-        } catch (error) {
-            console.error('Error escalating report:', error);
-            alert('Failed to escalate report.');
-        }
-    };
-
-    const handleUpdateStatus = async (reportId: number, statusId: number) => {
-        try {
-            await axios.patch(`${API_URL}/${reportId}/status`, { status_id: statusId });
+            await axios.patch(`${API_URL}/${id}/status`, { status_id: newStatusId });
             fetchReports();
         } catch (error) {
             console.error('Error updating status:', error);
             alert('Failed to update status. Please try again.');
+        }
+    };
+
+    const handleEscalate = async () => {
+        if (!escalatingReportId || !endorsementFile) {
+            alert('Please select an endorsement letter file.');
+            return;
+        }
+
+        try {
+            setIsEscalating(true);
+
+            // 1. Upload the letter
+            const formData = new FormData();
+            formData.append('file', endorsementFile);
+            await axios.post(`${API_URL}/${escalatingReportId}/media`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            // 2. Update status to Escalated (4)
+            await axios.patch(`${API_URL}/${escalatingReportId}/status`, { status_id: 4 });
+
+            // 3. Create official Rescue Request record
+            await axios.post('http://localhost:8000/rescue-requests/', {
+                report_id: escalatingReportId,
+                leader_id: currentUserId,
+                title: escalationTitle,
+                description: escalationDescription,
+                status_id: 1 // Pending
+            });
+
+            setIsEscalateModalOpen(false);
+            setEscalatingReportId(null);
+            setEndorsementFile(null);
+            setEscalationTitle('');
+            setEscalationDescription('');
+            setShowSuccess(true);
+            fetchReports();
+            setTimeout(() => setShowSuccess(false), 3000);
+        } catch (error) {
+            console.error('Error escalating report:', error);
+            alert('Failed to escalate report. Please try again.');
+        } finally {
+            setIsEscalating(false);
         }
     };
 
@@ -180,14 +203,12 @@ const AdminReport = () => {
     const handleSaveReport = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const userStr = localStorage.getItem('admin_user') || sessionStorage.getItem('admin_user');
-            if (!userStr) throw new Error('User not authenticated');
-            const user = JSON.parse(userStr);
+            if (!currentUser) throw new Error('User not authenticated');
 
             await axios.post(API_URL, {
                 ...formData,
-                user_id: user.user_id,
-                subdivision_id: 1,
+                user_id: currentUser.user_id,
+                subdivision_id: currentUser.subdivision_id || 1,
                 animal_count: 1,
                 visibility: 'Public',
                 status_id: 1,
@@ -219,6 +240,7 @@ const AdminReport = () => {
         const matchesSearch = catName.includes(searchTerm.toLowerCase()) || land.includes(searchTerm.toLowerCase()) || reporter.includes(searchTerm.toLowerCase());
         const statName = statusMap[rep.status_id] || '';
         const matchesStatus = statusFilter === 'all' || statName.toLowerCase() === statusFilter.toLowerCase();
+        // optionally filter by subdId: if (rep.subdivision_id !== currentUser?.subdivision_id) return false;
         return matchesSearch && matchesStatus;
     });
 
@@ -246,18 +268,19 @@ const AdminReport = () => {
 
     return (
         <div className="flex h-screen bg-[#F8FAFC]">
-            <AdminSidebar />
+            <SubdSidebar />
 
             <div className="flex-1 flex flex-col overflow-hidden">
-                <AdminNavbar />
+                {/* TOP NAVIGATION */}
+                <SubdNavbar />
 
-                <main className="flex-1 overflow-y-auto p-8">
+                <main className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                     <div className="max-w-7xl mx-auto">
                         {/* Header */}
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                             <div>
-                                <h1 className="text-2xl font-bold text-gray-900">Incident Reports</h1>
-                                <p className="text-gray-500 text-sm mt-1">Monitor and manage reported animal incidents across subdivisions.</p>
+                                <h1 className="text-2xl font-bold text-gray-900">Community Incident Reports</h1>
+                                <p className="text-gray-500 text-sm mt-1">Monitor and manage reported animal incidents in your subdivision.</p>
                             </div>
                             <div className="flex items-center space-x-3">
                                 <Button variant="light" className="flex items-center space-x-2" onClick={fetchReports}>
@@ -266,7 +289,7 @@ const AdminReport = () => {
                                     </svg>
                                     <span>Refresh</span>
                                 </Button>
-                                <Button variant="primary" className="flex items-center space-x-2 px-6" onClick={() => setIsModalOpen(true)}>
+                                <Button variant="primary" className="flex items-center space-x-2 px-6 !bg-[#F97316] hover:!bg-[#EA580C] !border-[#F97316]" onClick={() => setIsModalOpen(true)}>
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                         <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                                     </svg>
@@ -323,7 +346,7 @@ const AdminReport = () => {
                                 </thead>
                                 <tbody className="divide-y divide-gray-50 text-gray-700">
                                     {loading ? (
-                                        <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-500">Loading reports...</td></tr>
+                                        <tr><td colSpan={8} className="px-6 py-10 text-center text-gray-500">Loading reports...</td></tr>
                                     ) : filteredReports.length === 0 ? (
                                         <tr><td colSpan={8} className="px-6 py-10 text-center text-gray-500">No incident reports found.</td></tr>
                                     ) : filteredReports.map((rep) => (
@@ -333,7 +356,7 @@ const AdminReport = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center space-x-2">
-                                                    <span className="w-2 h-2 rounded-full bg-orange-400"></span>
+                                                    <span className="w-2 h-2 rounded-full bg-[#F97316]"></span>
                                                     <span className="text-sm font-bold text-gray-900">{categoryMap[rep.category_id] || 'Other'}</span>
                                                 </div>
                                             </td>
@@ -386,7 +409,7 @@ const AdminReport = () => {
                                                             <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
                                                         </svg>
                                                     </button>
-                                                    
+
                                                     {openMenuId === rep.report_id && (
                                                         <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
                                                             <button
@@ -456,7 +479,7 @@ const AdminReport = () => {
                                 </svg>
                             </button>
                         </div>
-                        
+
                         <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
                             {(() => {
                                 const viewReport = reports.find(r => r.report_id === viewingReportId);
@@ -489,7 +512,7 @@ const AdminReport = () => {
                                             </div>
                                             <div>
                                                 <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Priority</span>
-                                                <span className={`text-sm font-bold ${getPriorityColor(viewReport.priority_level).replace('bg-','text-').replace('-50','-600')}`}>
+                                                <span className={`text-sm font-bold ${getPriorityColor(viewReport.priority_level).replace('bg-', 'text-').replace('-50', '-600')}`}>
                                                     {viewReport.priority_level}
                                                 </span>
                                             </div>
@@ -517,8 +540,8 @@ const AdminReport = () => {
                                         <div>
                                             <h5 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Incident Location Map</h5>
                                             <div className="w-full h-64 rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50">
-                                                <MapComponent 
-                                                    center={[viewReport.latitude, viewReport.longitude]} 
+                                                <MapComponent
+                                                    center={[viewReport.latitude, viewReport.longitude]}
                                                     zoom={17}
                                                     showHeatmap={false}
                                                 />
@@ -589,7 +612,7 @@ const AdminReport = () => {
                                         {/* Comments Section */}
                                         <div className="bg-white border border-gray-100 rounded-2xl p-6 pt-5 shadow-sm">
                                             {viewReport.comments && viewReport.comments.length > 0 && (
-                                                <button 
+                                                <button
                                                     onClick={() => setExpandedComments(prev => ({ ...prev, [viewReport.report_id]: !prev[viewReport.report_id] }))}
                                                     className="text-[10px] font-black text-gray-400 hover:text-[#F97316] uppercase tracking-widest transition-colors flex items-center gap-2 mb-6"
                                                 >
@@ -599,147 +622,147 @@ const AdminReport = () => {
                                                     {expandedComments[viewReport.report_id] ? 'Hide Comments' : `View all ${viewReport.comments.length} comments`}
                                                 </button>
                                             )}
-                                            
+
                                             {(expandedComments[viewReport.report_id] || !viewReport.comments || viewReport.comments.length === 0) && (
                                                 <div className="space-y-2 mb-6 max-h-72 overflow-y-auto custom-scrollbar pr-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                {viewReport.comments && viewReport.comments.length > 0 ? (
-                                                    viewReport.comments.filter((c: any) => !c.parent_comment_id).map((c: any) => {
-                                                        const replies = viewReport.comments?.filter((reply: any) => reply.parent_comment_id === c.comment_id) || [];
-                                                        return (
-                                                            <div key={c.comment_id} className="mb-4 last:mb-0">
-                                                                <div className="flex gap-3 relative">
-                                                                    {/* Parent Avatar & Vertical Line */}
-                                                                    <div className="relative flex flex-col items-center shrink-0">
-                                                                        <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-[#F97316] font-black text-xs z-10 ring-4 ring-white border border-orange-100">
-                                                                            {c.user_name?.charAt(0).toUpperCase() || 'U'}
-                                                                        </div>
-                                                                        {(replies.length > 0 || replyingTo[viewReport.report_id]?.commentId === c.comment_id) && (
-                                                                            <div className="absolute top-8 bottom-[-16px] left-1/2 -translate-x-1/2 w-[2px] bg-gray-100 z-0"></div>
-                                                                        )}
-                                                                    </div>
-                                                                    
-                                                                    <div className="flex-1 pb-1">
-                                                                        {/* Parent Bubble */}
-                                                                        <div className="bg-[#FAFAF9] rounded-[1.5rem] p-3.5 px-4 border border-gray-50 shadow-sm inline-block">
-                                                                            <span className="block text-[11px] font-black text-[#1a1208] mb-0.5">{c.user_name || 'User'}</span>
-                                                                            <p className="text-xs font-semibold text-gray-700 leading-relaxed pr-6">{c.message}</p>
-                                                                        </div>
-                                                                        {/* Parent Actions */}
-                                                                        <div className="flex items-center gap-4 mt-1.5 ml-3">
-                                                                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{new Date(c.created_at).toLocaleDateString()}</span>
-                                                                            <button 
-                                                                                onClick={() => setReplyingTo(prev => ({ ...prev, [viewReport.report_id]: { commentId: c.comment_id, userName: c.user_name || 'User' } }))}
-                                                                                className="text-[10px] font-bold text-gray-500 hover:text-[#F97316] transition-colors"
-                                                                            >
-                                                                                Reply
-                                                                            </button>
-                                                                        </div>
-
-                                                                        {/* Replies Container */}
-                                                                        {replies.length > 0 && (
-                                                                            <div className="mt-4 space-y-4">
-                                                                                {replies.map((reply: any, index: number) => (
-                                                                                    <div key={reply.comment_id} className="flex gap-3 relative">
-                                                                                        {/* Horizontal connector curve */}
-                                                                                        <div className="absolute top-[-10px] left-[-28px] w-[28px] h-[26px] border-b-[2px] border-l-[2px] border-gray-100 rounded-bl-[12px] z-0 pointer-events-none"></div>
-                                                                                        
-                                                                                        {/* Mask to hide vertical line below the last reply */}
-                                                                                        {index === replies.length - 1 && replyingTo[viewReport.report_id]?.commentId !== c.comment_id && (
-                                                                                            <div className="absolute top-[16px] bottom-[-100px] left-[-30px] w-[6px] bg-white z-0 pointer-events-none"></div>
-                                                                                        )}
-
-                                                                                        {/* Child Avatar */}
-                                                                                        <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 font-bold text-[10px] z-10 mt-1 ring-4 ring-white border border-gray-100 shrink-0">
-                                                                                            {reply.user_name?.charAt(0).toUpperCase() || 'U'}
-                                                                                        </div>
-                                                                                        
-                                                                                        <div className="flex-1">
-                                                                                            {/* Child Bubble */}
-                                                                                            <div className="bg-[#FAFAF9] rounded-[1.2rem] p-3 px-4 border border-gray-50 shadow-sm inline-block">
-                                                                                                <span className="block text-[10px] font-black text-gray-800 mb-0.5">{reply.user_name || 'User'}</span>
-                                                                                                <p className="text-[11px] font-semibold text-gray-600 leading-relaxed pr-4">{reply.message}</p>
-                                                                                            </div>
-                                                                                            {/* Child Actions */}
-                                                                                            <div className="flex items-center gap-4 mt-1.5 ml-3">
-                                                                                                <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{new Date(reply.created_at).toLocaleDateString()}</span>
-                                                                                                <button 
-                                                                                                    onClick={() => setReplyingTo(prev => ({ ...prev, [viewReport.report_id]: { commentId: c.comment_id, userName: reply.user_name || 'User' } }))}
-                                                                                                    className="text-[9px] font-bold text-gray-500 hover:text-[#F97316] transition-colors"
-                                                                                                >
-                                                                                                    Reply
-                                                                                                </button>
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                ))}
+                                                    {viewReport.comments && viewReport.comments.length > 0 ? (
+                                                        viewReport.comments.filter((c: any) => !c.parent_comment_id).map((c: any) => {
+                                                            const replies = viewReport.comments?.filter((reply: any) => reply.parent_comment_id === c.comment_id) || [];
+                                                            return (
+                                                                <div key={c.comment_id} className="mb-4 last:mb-0">
+                                                                    <div className="flex gap-3 relative">
+                                                                        {/* Parent Avatar & Vertical Line */}
+                                                                        <div className="relative flex flex-col items-center shrink-0">
+                                                                            <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-[#F97316] font-black text-xs z-10 ring-4 ring-white border border-orange-100">
+                                                                                {c.user_name?.charAt(0).toUpperCase() || 'U'}
                                                                             </div>
-                                                                        )}
+                                                                            {(replies.length > 0 || replyingTo[viewReport.report_id]?.commentId === c.comment_id) && (
+                                                                                <div className="absolute top-8 bottom-[-16px] left-1/2 -translate-x-1/2 w-[2px] bg-gray-100 z-0"></div>
+                                                                            )}
+                                                                        </div>
 
-                                                                        {/* Inline Reply Input */}
-                                                                        {replyingTo[viewReport.report_id]?.commentId === c.comment_id && (
-                                                                            <div className="mt-4 flex items-center gap-3 relative z-10 animate-in fade-in slide-in-from-top-2 duration-200">
-                                                                                <div className="absolute top-[-10px] left-[-28px] w-[28px] h-[24px] border-b-[2px] border-l-[2px] border-gray-100 rounded-bl-[12px] z-0 pointer-events-none"></div>
-                                                                                <div className="absolute top-[14px] bottom-[-100px] left-[-30px] w-[6px] bg-white z-0 pointer-events-none"></div>
+                                                                        <div className="flex-1 pb-1">
+                                                                            {/* Parent Bubble */}
+                                                                            <div className="bg-[#FAFAF9] rounded-[1.5rem] p-3.5 px-4 border border-gray-50 shadow-sm inline-block">
+                                                                                <span className="block text-[11px] font-black text-[#1a1208] mb-0.5">{c.user_name || 'User'}</span>
+                                                                                <p className="text-xs font-semibold text-gray-700 leading-relaxed pr-6">{c.message}</p>
+                                                                            </div>
+                                                                            {/* Parent Actions */}
+                                                                            <div className="flex items-center gap-4 mt-1.5 ml-3">
+                                                                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{new Date(c.created_at).toLocaleDateString()}</span>
+                                                                                <button
+                                                                                    onClick={() => setReplyingTo(prev => ({ ...prev, [viewReport.report_id]: { commentId: c.comment_id, userName: c.user_name || 'User' } }))}
+                                                                                    className="text-[10px] font-bold text-gray-500 hover:text-[#F97316] transition-colors"
+                                                                                >
+                                                                                    Reply
+                                                                                </button>
+                                                                            </div>
 
-                                                                                <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-[#F97316] font-black text-[10px] shrink-0 border border-orange-200 z-10 bg-white ring-4 ring-white">
-                                                                                    {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'A'}
+                                                                            {/* Replies Container */}
+                                                                            {replies.length > 0 && (
+                                                                                <div className="mt-4 space-y-4">
+                                                                                    {replies.map((reply: any, index: number) => (
+                                                                                        <div key={reply.comment_id} className="flex gap-3 relative">
+                                                                                            {/* Horizontal connector curve */}
+                                                                                            <div className="absolute top-[-10px] left-[-28px] w-[28px] h-[26px] border-b-[2px] border-l-[2px] border-gray-100 rounded-bl-[12px] z-0 pointer-events-none"></div>
+
+                                                                                            {/* Mask to hide vertical line below the last reply */}
+                                                                                            {index === replies.length - 1 && replyingTo[viewReport.report_id]?.commentId !== c.comment_id && (
+                                                                                                <div className="absolute top-[16px] bottom-[-100px] left-[-30px] w-[6px] bg-white z-0 pointer-events-none"></div>
+                                                                                            )}
+
+                                                                                            {/* Child Avatar */}
+                                                                                            <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 font-bold text-[10px] z-10 mt-1 ring-4 ring-white border border-gray-100 shrink-0">
+                                                                                                {reply.user_name?.charAt(0).toUpperCase() || 'U'}
+                                                                                            </div>
+
+                                                                                            <div className="flex-1">
+                                                                                                {/* Child Bubble */}
+                                                                                                <div className="bg-[#FAFAF9] rounded-[1.2rem] p-3 px-4 border border-gray-50 shadow-sm inline-block">
+                                                                                                    <span className="block text-[10px] font-black text-gray-800 mb-0.5">{reply.user_name || 'User'}</span>
+                                                                                                    <p className="text-[11px] font-semibold text-gray-600 leading-relaxed pr-4">{reply.message}</p>
+                                                                                                </div>
+                                                                                                {/* Child Actions */}
+                                                                                                <div className="flex items-center gap-4 mt-1.5 ml-3">
+                                                                                                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{new Date(reply.created_at).toLocaleDateString()}</span>
+                                                                                                    <button
+                                                                                                        onClick={() => setReplyingTo(prev => ({ ...prev, [viewReport.report_id]: { commentId: c.comment_id, userName: reply.user_name || 'User' } }))}
+                                                                                                        className="text-[9px] font-bold text-gray-500 hover:text-[#F97316] transition-colors"
+                                                                                                    >
+                                                                                                        Reply
+                                                                                                    </button>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ))}
                                                                                 </div>
-                                                                                <div className="flex-1 relative flex items-center">
-                                                                                    <input 
-                                                                                        type="text" 
-                                                                                        autoFocus
-                                                                                        placeholder={`Replying to ${replyingTo[viewReport.report_id]?.userName}...`}
-                                                                                        className="w-full bg-[#FAFAF9] border border-gray-100 rounded-[1.2rem] pl-4 pr-10 py-2 text-[11px] font-semibold text-[#1a1208] focus:outline-none focus:border-orange-200 focus:bg-white transition-all placeholder:text-gray-400 shadow-inner"
-                                                                                        value={commentInputs[viewReport.report_id] || ''}
-                                                                                        onChange={(e) => setCommentInputs(prev => ({ ...prev, [viewReport.report_id]: e.target.value }))}
-                                                                                        onKeyPress={(e) => e.key === 'Enter' && handleAddComment(viewReport.report_id)}
-                                                                                    />
-                                                                                    <button 
-                                                                                        onClick={() => {
-                                                                                            setReplyingTo(prev => ({ ...prev, [viewReport.report_id]: null }));
-                                                                                            setCommentInputs(prev => ({ ...prev, [viewReport.report_id]: '' }));
-                                                                                        }}
-                                                                                        className="absolute right-3 text-gray-400 hover:text-red-500 transition-colors"
+                                                                            )}
+
+                                                                            {/* Inline Reply Input */}
+                                                                            {replyingTo[viewReport.report_id]?.commentId === c.comment_id && (
+                                                                                <div className="mt-4 flex items-center gap-3 relative z-10 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                                                    <div className="absolute top-[-10px] left-[-28px] w-[28px] h-[24px] border-b-[2px] border-l-[2px] border-gray-100 rounded-bl-[12px] z-0 pointer-events-none"></div>
+                                                                                    <div className="absolute top-[14px] bottom-[-100px] left-[-30px] w-[6px] bg-white z-0 pointer-events-none"></div>
+
+                                                                                    <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-[#F97316] font-black text-[10px] shrink-0 border border-orange-200 z-10 bg-white ring-4 ring-white">
+                                                                                        {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'S'}
+                                                                                    </div>
+                                                                                    <div className="flex-1 relative flex items-center">
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            autoFocus
+                                                                                            placeholder={`Replying to ${replyingTo[viewReport.report_id]?.userName}...`}
+                                                                                            className="w-full bg-[#FAFAF9] border border-gray-100 rounded-[1.2rem] pl-4 pr-10 py-2 text-[11px] font-semibold text-[#1a1208] focus:outline-none focus:border-orange-200 focus:bg-white transition-all placeholder:text-gray-400 shadow-inner"
+                                                                                            value={commentInputs[viewReport.report_id] || ''}
+                                                                                            onChange={(e) => setCommentInputs(prev => ({ ...prev, [viewReport.report_id]: e.target.value }))}
+                                                                                            onKeyPress={(e) => e.key === 'Enter' && handleAddComment(viewReport.report_id)}
+                                                                                        />
+                                                                                        <button
+                                                                                            onClick={() => {
+                                                                                                setReplyingTo(prev => ({ ...prev, [viewReport.report_id]: null }));
+                                                                                                setCommentInputs(prev => ({ ...prev, [viewReport.report_id]: '' }));
+                                                                                            }}
+                                                                                            className="absolute right-3 text-gray-400 hover:text-red-500 transition-colors"
+                                                                                        >
+                                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                                                                            </svg>
+                                                                                        </button>
+                                                                                    </div>
+                                                                                    <button
+                                                                                        onClick={() => handleAddComment(viewReport.report_id)}
+                                                                                        className="bg-[#F97316] text-white rounded-full w-8 h-8 flex items-center justify-center shadow-md shadow-orange-100 hover:scale-105 active:scale-95 transition-all shrink-0"
                                                                                     >
-                                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 relative left-[1px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                                                                                         </svg>
                                                                                     </button>
                                                                                 </div>
-                                                                                <button 
-                                                                                    onClick={() => handleAddComment(viewReport.report_id)}
-                                                                                    className="bg-[#F97316] text-white rounded-full w-8 h-8 flex items-center justify-center shadow-md shadow-orange-100 hover:scale-105 active:scale-95 transition-all shrink-0"
-                                                                                >
-                                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 relative left-[1px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                                                                    </svg>
-                                                                                </button>
-                                                                            </div>
-                                                                        )}
+                                                                            )}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                        );
-                                                    })
-                                                ) : (
-                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic text-center py-4">No comments yet. Be the first to comment!</p>
-                                                )}
+                                                            );
+                                                        })
+                                                    ) : (
+                                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic text-center py-4">No comments yet. Be the first to comment!</p>
+                                                    )}
                                                 </div>
                                             )}
 
                                             {!replyingTo[viewReport.report_id] && (
                                                 <div className="flex items-center gap-3 animate-in fade-in duration-200 border-t border-gray-50 pt-4 mt-2">
                                                     <div className="flex-1 relative">
-                                                        <input 
-                                                            type="text" 
-                                                            placeholder="Write a comment as Admin..." 
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Write a comment as Subdivision Leader..."
                                                             className="w-full bg-[#FAFAF9] border border-gray-100 rounded-[1.5rem] pl-5 pr-12 py-3 text-xs font-semibold text-[#1a1208] focus:outline-none focus:border-orange-200 focus:bg-white transition-all placeholder:text-gray-300 shadow-inner"
                                                             value={commentInputs[viewReport.report_id] || ''}
                                                             onChange={(e) => setCommentInputs(prev => ({ ...prev, [viewReport.report_id]: e.target.value }))}
                                                             onKeyPress={(e) => e.key === 'Enter' && handleAddComment(viewReport.report_id)}
                                                         />
                                                     </div>
-                                                    <button 
+                                                    <button
                                                         onClick={() => handleAddComment(viewReport.report_id)}
                                                         className="bg-[#F97316] text-white rounded-[1.2rem] p-3 shadow-md shadow-orange-100 hover:scale-105 active:scale-95 transition-all flex-shrink-0"
                                                     >
@@ -769,9 +792,9 @@ const AdminReport = () => {
                                                         ESCALATE TO BARANGAY FOR RESCUE
                                                     </button>
                                                 )}
-                                                
+
                                                 {viewReport.status_id !== 6 && (
-                                                    <button 
+                                                    <button
                                                         onClick={() => {
                                                             handleUpdateStatus(viewReport.report_id, 6);
                                                             setViewingReportId(null);
@@ -781,6 +804,16 @@ const AdminReport = () => {
                                                         Mark as Resolved
                                                     </button>
                                                 )}
+
+                                                <button
+                                                    onClick={() => {
+                                                        handleDelete(viewReport.report_id);
+                                                        setViewingReportId(null);
+                                                    }}
+                                                    className="w-full py-3 border border-gray-100 rounded-2xl text-[10px] font-bold text-gray-400 hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all uppercase tracking-widest"
+                                                >
+                                                    Delete Report
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -821,7 +854,7 @@ const AdminReport = () => {
                                         { value: '5', label: 'Animal Rescue Needed' }
                                     ]}
                                 />
-                                        <div className="space-y-1.5">
+                                <div className="space-y-1.5">
                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Landmark</label>
                                     <input
                                         type="text" required
@@ -879,7 +912,7 @@ const AdminReport = () => {
                                 >
                                     Cancel
                                 </button>
-                                <Button variant="primary" type="submit" className="px-10">
+                                <Button variant="primary" type="submit" className="px-10 !bg-[#F97316] hover:!bg-[#EA580C] !border-[#F97316]">
                                     Submit Report
                                 </Button>
                             </div>
@@ -888,10 +921,6 @@ const AdminReport = () => {
                 </div>
             )}
 
-            <SuccessModal
-                isOpen={showSuccess}
-                message="Report added successfully!"
-            />
             {/* Escalate to Barangay Modal */}
             {isEscalateModalOpen && (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
@@ -899,7 +928,7 @@ const AdminReport = () => {
                         <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                             <div>
                                 <h3 className="text-xl font-bold text-gray-900">Escalate to Barangay</h3>
-                                <p className="text-xs text-gray-500 mt-1">Formalize the request for Barangay assistance.</p>
+                                <p className="text-xs text-gray-500 mt-1">Upload the endorsement letter to proceed.</p>
                             </div>
                             <button onClick={() => setIsEscalateModalOpen(false)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -908,75 +937,84 @@ const AdminReport = () => {
                             </button>
                         </div>
 
-                        <form onSubmit={handleEscalate} className="p-8 space-y-6">
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Request Title</label>
-                                <input
-                                    type="text" required
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
-                                    value={escalationData.title}
-                                    onChange={(e) => setEscalationData({ ...escalationData, title: e.target.value })}
-                                    placeholder="e.g. Urgent Rescue Request for Brgy. San Vicente"
-                                />
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Endorsement Message</label>
-                                <textarea
-                                    required
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all min-h-[100px]"
-                                    value={escalationData.description}
-                                    onChange={(e) => setEscalationData({ ...escalationData, description: e.target.value })}
-                                    placeholder="Briefly explain why this needs Barangay intervention..."
-                                />
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Endorsement Letter (PDF/Image)</label>
-                                <div className="relative group cursor-pointer">
+                        <div className="p-8 space-y-6">
+                            <div className="space-y-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Escalation Title</label>
                                     <input
-                                        type="file"
-                                        required
-                                        accept=".pdf,image/*"
-                                        className="hidden"
-                                        id="letter-upload"
-                                        onChange={(e) => {
-                                            const file = e.target.files?.[0];
-                                            if (file) setEscalationData({ ...escalationData, endorsement_letter: file });
-                                        }}
+                                        type="text"
+                                        placeholder="e.g. Endorsement for Rescue Team"
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
+                                        value={escalationTitle}
+                                        onChange={(e) => setEscalationTitle(e.target.value)}
                                     />
-                                    <label
-                                        htmlFor="letter-upload"
-                                        className="flex flex-col items-center justify-center w-full p-6 border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50 group-hover:border-orange-300 group-hover:bg-orange-50/30 transition-all cursor-pointer"
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Brief Description</label>
+                                    <textarea
+                                        placeholder="Provide a summary of why this is being escalated..."
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all min-h-[100px]"
+                                        value={escalationDescription}
+                                        onChange={(e) => setEscalationDescription(e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Endorsement Letter (PDF/JPG/PNG)</label>
+                                    <div
+                                        className={`relative border-2 border-dashed rounded-2xl p-8 transition-all flex flex-col items-center justify-center gap-3 ${endorsementFile ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-orange-300 bg-gray-50'}`}
+                                        onDragOver={(e) => e.preventDefault()}
+                                        onDrop={(e) => {
+                                            e.preventDefault();
+                                            if (e.dataTransfer.files?.[0]) setEndorsementFile(e.dataTransfer.files[0]);
+                                        }}
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400 group-hover:text-orange-500 mb-2 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                        </svg>
-                                        <span className="text-[11px] font-bold text-gray-500 group-hover:text-orange-600">
-                                            {escalationData.endorsement_letter ? escalationData.endorsement_letter.name : 'Click to upload official letter'}
-                                        </span>
-                                    </label>
+                                        <input
+                                            type="file"
+                                            className="absolute inset-0 opacity-0 cursor-pointer"
+                                            onChange={(e) => {
+                                                if (e.target.files?.[0]) setEndorsementFile(e.target.files[0]);
+                                            }}
+                                        />
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${endorsementFile ? 'bg-orange-500 text-white' : 'bg-white text-gray-400 shadow-sm'}`}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-sm font-bold text-gray-900">{endorsementFile ? endorsementFile.name : 'Select or drag file'}</p>
+                                            <p className="text-xs text-gray-500 mt-1">{endorsementFile ? `${(endorsementFile.size / 1024).toFixed(1)} KB` : 'PDF, PNG or JPG'}</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="pt-4 flex items-center justify-end space-x-3">
+                            <div className="flex items-center justify-end gap-3 pt-4">
                                 <button
-                                    type="button"
                                     onClick={() => setIsEscalateModalOpen(false)}
                                     className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
                                 >
                                     Cancel
                                 </button>
-                                <Button variant="primary" type="submit" className="px-10 !bg-[#F97316] hover:!bg-[#EA580C] !border-[#F97316]">
-                                    Escalate Now
+                                <Button
+                                    variant="primary"
+                                    onClick={handleEscalate}
+                                    disabled={!endorsementFile || isEscalating}
+                                    className="px-10 !bg-[#F97316] hover:!bg-[#EA580C] !border-[#F97316]"
+                                >
+                                    {isEscalating ? 'Escalating...' : 'Submit Escalation'}
                                 </Button>
                             </div>
-                        </form>
+                        </div>
                     </div>
                 </div>
             )}
+
+            <SuccessModal
+                isOpen={showSuccess}
+                message="Action completed successfully!"
+            />
         </div>
     );
 };
 
-export default AdminReport;
+export default SubdReports;
