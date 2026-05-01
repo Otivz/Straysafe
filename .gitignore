@@ -64,3 +64,4 @@ purpose_of_files.txt
 *.local
 Scripts
 backend/uploads/
+database_query.md

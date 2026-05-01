@@ -25,3 +25,5 @@ Purpose: This is a data-generation script used to populate the dashboard with re
 Purpose: This is a diagnostic and testing utility for the backend API.
 - Functionality: It sends a POST request to the FastAPI login endpoint (http://127.0.0.1:8000/auth/login) using the credentials in your .env file.
 - Goal: It verifies that the backend server is running correctly and that the authentication system is properly validating admin credentials against the database.
+
+
