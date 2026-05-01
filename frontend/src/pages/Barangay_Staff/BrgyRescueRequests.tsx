@@ -39,11 +39,11 @@ const statusMap: Record<number, string> = {
 };
 
 const reportStatusMap: Record<number, string> = {
-    1: 'Pending Verification', 
-    2: 'Verified', 
-    3: 'Rejected', 
-    4: 'Escalated to Barangay', 
-    5: 'Rescue In Progress', 
+    1: 'Pending Verification',
+    2: 'Verified',
+    3: 'Rejected',
+    4: 'Escalated to Barangay',
+    5: 'Rescue In Progress',
     6: 'Resolved',
     7: 'Picked Up',
     8: 'Under Observation',
@@ -96,18 +96,18 @@ const BrgyRescueRequests = () => {
             // For detailed rescue progress (IDs 6-10), we keep the request at status 2 (Approved)
             const requestStatusId = newStatusId > 3 ? 2 : newStatusId;
 
-            await axios.patch(`http://localhost:8000/rescue-requests/${requestId}`, { 
+            await axios.patch(`http://localhost:8000/rescue-requests/${requestId}`, {
                 status_id: requestStatusId,
-                barangay_staff_id: currentUser?.user_id 
+                barangay_staff_id: currentUser?.user_id
             });
-            
+
             let reportStatus = 4; // Escalated
             if (newStatusId === 2) reportStatus = 5; // Rescue In Progress
             if (newStatusId === 3) reportStatus = 3; // Rejected/Closed
             if (newStatusId >= 6) reportStatus = newStatusId; // Detailed Rescue Statuses (7, 8, 9, 10, 6)
-            
+
             await axios.patch(`http://localhost:8000/reports/${reportId}/status`, { status_id: reportStatus });
-            
+
             setViewingRequest(null);
             fetchRequests();
         } catch (error) {
@@ -176,16 +176,16 @@ const BrgyRescueRequests = () => {
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${req.status_id === 1 ? 'bg-orange-50 text-orange-600' :
-                                                            req.status_id === 2 ? 'bg-blue-50 text-blue-600' :
-                                                                req.status_id === 6 ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-600'
+                                                        req.status_id === 2 ? 'bg-blue-50 text-blue-600' :
+                                                            req.status_id === 6 ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-600'
                                                         }`}>
-                                                        {req.status_id === 2 && req.report?.status_id && req.report.status_id > 5 
-                                                            ? reportStatusMap[req.report.status_id] 
+                                                        {req.status_id === 2 && req.report?.status_id && req.report.status_id > 5
+                                                            ? reportStatusMap[req.report.status_id]
                                                             : statusMap[req.status_id]}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
-                                                    <button 
+                                                    <button
                                                         onClick={() => setViewingRequest(req)}
                                                         className="text-[10px] font-bold text-[#F97316] hover:underline"
                                                     >
@@ -220,7 +220,7 @@ const BrgyRescueRequests = () => {
 
                         <div className="p-8 overflow-y-auto custom-scrollbar flex-1 bg-[#FBFBFB]">
                             <div className="flex flex-col gap-6">
-                                
+
                                 {/* 1. ESCALATION NOTE */}
                                 <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6">
                                     <h4 className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-4">Subdivision Escalation Note</h4>
@@ -244,16 +244,39 @@ const BrgyRescueRequests = () => {
                                                     <p className="text-xs font-bold text-gray-900 truncate">{doc ? 'Request_Letter.pdf' : 'No document found'}</p>
                                                     <p className="text-[9px] text-gray-400">Formal request from Subd Leader</p>
                                                 </div>
-                                                {doc && (
-                                                    <a 
-                                                        href={doc.file_url} 
-                                                        target="_blank" 
-                                                        rel="noopener noreferrer"
-                                                        className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-[10px] font-bold text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
-                                                    >
-                                                        View
-                                                    </a>
-                                                )}
+                                                {doc && (() => {
+                                                    const isPdf = doc.file_url.toLowerCase().endsWith('.pdf') || doc.media_type === 'Document';
+                                                    let viewUrl = doc.file_url;
+                                                    const isImageBucket = viewUrl.includes('/image/upload/');
+                                                    
+                                                    if (isImageBucket) {
+                                                        if (isPdf && !viewUrl.toLowerCase().endsWith('.pdf')) {
+                                                            viewUrl += '.pdf';
+                                                        }
+                                                    }
+                                                    
+                                                    // Use fl_attachment:filename to give the downloaded file a friendly name
+                                                    const downloadUrl = doc.file_url.replace('/upload/', '/upload/fl_attachment:Request_Letter/');
+                                                    
+                                                    return (
+                                                        <div className="flex gap-2">
+                                                            <a 
+                                                                href={viewUrl} 
+                                                                target="_blank" 
+                                                                rel="noopener noreferrer"
+                                                                className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-[10px] font-bold text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
+                                                            >
+                                                                View
+                                                            </a>
+                                                            <a
+                                                                href={downloadUrl}
+                                                                className="px-3 py-1.5 bg-orange-50 border border-orange-100 rounded-lg text-[10px] font-bold text-[#F97316] hover:bg-orange-100 transition-all shadow-sm"
+                                                            >
+                                                                Download
+                                                            </a>
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         );
                                     })()}
@@ -317,9 +340,9 @@ const BrgyRescueRequests = () => {
                                     <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Incident Location Map</h4>
                                     <div className="flex-1 rounded-2xl overflow-hidden border border-gray-100">
                                         {viewingRequest.report && (
-                                            <MapComponent 
-                                                center={[viewingRequest.report.latitude, viewingRequest.report.longitude]} 
-                                                zoom={17} 
+                                            <MapComponent
+                                                center={[viewingRequest.report.latitude, viewingRequest.report.longitude]}
+                                                zoom={17}
                                             />
                                         )}
                                     </div>
@@ -331,8 +354,52 @@ const BrgyRescueRequests = () => {
                                     <div className="grid grid-cols-2 gap-3">
                                         {viewingRequest.report?.media && viewingRequest.report.media.length > 0 ? (
                                             viewingRequest.report.media.filter(m => m.media_type !== 'Document').map((m) => (
-                                                <div key={m.media_id} className="aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
-                                                    <img src={m.file_url} alt="Incident" className="w-full h-full object-cover" />
+                                                <div key={m.media_id} className="flex flex-col gap-2">
+                                                    <div className="aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shadow-sm relative group">
+                                                        {m.media_type === 'Video' ? (
+                                                            <video
+                                                                src={m.file_url}
+                                                                controls
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            <img src={m.file_url} alt="Incident" className="w-full h-full object-cover" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        {(() => {
+                                                            let viewUrl = m.file_url;
+                                                            const isPdf = m.media_type === 'Document' || viewUrl.toLowerCase().endsWith('.pdf');
+                                                            const isImageBucket = viewUrl.includes('/image/upload/');
+                                                            
+                                                            if (isImageBucket) {
+                                                                if (isPdf && !viewUrl.toLowerCase().endsWith('.pdf')) {
+                                                                    viewUrl += '.pdf';
+                                                                }
+                                                            }
+                                                            
+                                                            const downloadUrl = m.file_url.replace('/upload/', `/upload/fl_attachment:StraySafe_Media_${m.media_id}/`);
+
+                                                            return (
+                                                                <>
+                                                                    <a
+                                                                        href={viewUrl}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="flex-1 py-1 bg-white border border-gray-200 rounded-lg text-[9px] font-bold text-gray-600 hover:bg-gray-50 transition-all text-center"
+                                                                    >
+                                                                        View
+                                                                    </a>
+                                                                    <a
+                                                                        href={downloadUrl}
+                                                                        className="flex-1 py-1 bg-orange-50 border border-orange-100 rounded-lg text-[9px] font-bold text-[#F97316] hover:bg-orange-100 transition-all text-center"
+                                                                    >
+                                                                        Download
+                                                                    </a>
+                                                                </>
+                                                            );
+                                                        })()}
+                                                    </div>
                                                 </div>
                                             ))
                                         ) : (
@@ -351,7 +418,7 @@ const BrgyRescueRequests = () => {
                                     <div className="flex flex-col gap-4">
                                         {viewingRequest.status_id === 1 ? (
                                             <>
-                                                <button 
+                                                <button
                                                     onClick={() => handleUpdateStatus(viewingRequest.request_id, viewingRequest.report_id, 2)}
                                                     className="w-full py-4 bg-[#F97316] text-white rounded-2xl text-xs font-bold shadow-lg shadow-orange-100 hover:bg-[#EA580C] transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-2"
                                                 >
@@ -360,7 +427,7 @@ const BrgyRescueRequests = () => {
                                                     </svg>
                                                     APPROVE & DISPATCH RESCUE TEAM
                                                 </button>
-                                                <button 
+                                                <button
                                                     onClick={() => handleUpdateStatus(viewingRequest.request_id, viewingRequest.report_id, 3)}
                                                     className="w-full py-3 border border-gray-100 rounded-2xl text-xs font-bold text-gray-400 hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all"
                                                 >
