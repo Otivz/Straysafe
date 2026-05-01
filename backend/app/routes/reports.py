@@ -6,15 +6,12 @@ from typing import List
 from app.database import get_db
 from app.models.report import Report, ReportMedia, Comment
 from app.schemas.report import ReportCreate, ReportResponse, ReportStatusUpdate, ReportUpdate, ReportMediaResponse, CommentCreate, CommentResponse
+from app.utils.cloudinary_config import upload_to_cloudinary
 
 router = APIRouter(
     prefix="/reports",
     tags=["reports"]
 )
-
-UPLOAD_DIR = "uploads"
-if not os.path.exists(UPLOAD_DIR):
-    os.makedirs(UPLOAD_DIR)
 
 @router.get("/", response_model=List[ReportResponse])
 def get_reports(db: Session = Depends(get_db)):
@@ -63,12 +60,29 @@ async def upload_report_media(report_id: int, file: UploadFile = File(...), db: 
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
         
-    file_ext = os.path.splitext(file.filename)[1] if file.filename else ".jpg"
-    unique_filename = f"{uuid.uuid4().hex}{file_ext}"
-    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+    # Determine resource type for Cloudinary
+    resource_type = "image"
+    filename = file.filename.lower() if file.filename else ""
+    content_type = file.content_type.lower() if file.content_type else ""
     
-    with open(file_path, "wb") as buffer:
-        buffer.write(await file.read())
+    # Robust detection
+    if content_type.startswith('video/') or filename.endswith(('.mp4', '.mov', '.avi', '.mkv')):
+        resource_type = "video"
+    elif content_type == 'application/pdf' or filename.endswith('.pdf'):
+        resource_type = "image"
+    elif content_type.startswith('image/') or filename.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')):
+        resource_type = "image"
+    else:
+        resource_type = "raw"
+
+    # Read file content (required for async UploadFile)
+    file_content = await file.read()
+
+    # Upload to Cloudinary
+    file_url = upload_to_cloudinary(file_content, folder="reports", resource_type=resource_type, filename=file.filename)
+    
+    if not file_url:
+        raise HTTPException(status_code=500, detail="Failed to upload to Cloudinary")
         
     if file.content_type and file.content_type.startswith('image/'):
         media_type = 'Image'
@@ -76,7 +90,6 @@ async def upload_report_media(report_id: int, file: UploadFile = File(...), db: 
         media_type = 'Video'
     else:
         media_type = 'Document'
-    file_url = f"http://localhost:8000/uploads/{unique_filename}"
     
     db_media = ReportMedia(
         report_id=report_id,

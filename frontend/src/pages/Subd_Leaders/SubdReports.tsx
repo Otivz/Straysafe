@@ -562,12 +562,53 @@ const SubdReports = () => {
                                                 <h5 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Attached Media</h5>
                                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                                     {viewReport.media.map((m: any) => (
-                                                        <div key={m.media_id} className="aspect-square rounded-2xl overflow-hidden bg-gray-100 border border-gray-200">
-                                                            {m.media_type === 'Video' ? (
-                                                                <video src={m.file_url} controls className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <img src={m.file_url} alt="Report media" className="w-full h-full object-cover" />
-                                                            )}
+                                                        <div key={m.media_id} className="flex flex-col gap-2">
+                                                            <div className="aspect-square rounded-2xl overflow-hidden bg-gray-100 border border-gray-200">
+                                                                {m.media_type === 'Video' ? (
+                                                                    <video src={m.file_url} className="w-full h-full object-cover" />
+                                                                ) : m.media_type === 'Document' ? (
+                                                                    <div className="w-full h-full flex flex-col items-center justify-center bg-orange-50 text-[#F97316] p-4 gap-2">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                        </svg>
+                                                                        <span className="text-[8px] font-bold uppercase tracking-widest text-center">Document</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <img src={m.file_url} alt="Report media" className="w-full h-full object-cover" />
+                                                                )}
+                                                            </div>
+                                                            <div className="flex gap-2">
+                                                                {(() => {
+                                                                    let viewUrl = m.file_url;
+                                                                    const isPdf = m.media_type === 'Document' || viewUrl.toLowerCase().endsWith('.pdf');
+                                                                    const isImageBucket = viewUrl.includes('/image/upload/');
+                                                                    
+                                                                    if (isImageBucket) {
+                                                                        if (isPdf && !viewUrl.toLowerCase().endsWith('.pdf')) {
+                                                                            viewUrl += '.pdf';
+                                                                        }
+                                                                    }
+                                                                    
+                                                                    return (
+                                                                        <>
+                                                                            <a 
+                                                                                href={viewUrl} 
+                                                                                target="_blank" 
+                                                                                rel="noopener noreferrer"
+                                                                                className="flex-1 py-1.5 bg-white border border-gray-200 rounded-lg text-[9px] font-bold text-gray-600 hover:bg-gray-50 transition-all text-center"
+                                                                            >
+                                                                                View
+                                                                            </a>
+                                                                            <a 
+                                                                                href={m.file_url.replace('/upload/', `/upload/fl_attachment:StraySafe_Media_${m.media_id}/`)} 
+                                                                                className="flex-1 py-1.5 bg-orange-50 border border-orange-100 rounded-lg text-[9px] font-bold text-[#F97316] hover:bg-orange-100 transition-all text-center"
+                                                                            >
+                                                                                Download
+                                                                            </a>
+                                                                        </>
+                                                                    );
+                                                                })()}
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>
