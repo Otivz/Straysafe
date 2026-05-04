@@ -4,6 +4,7 @@ import AdminDashboard from '../pages/Admin/AdminDashboard';
 import AdminUserManagement from '../pages/Admin/AdminUserManagement';
 import AdminAccountSettings from '../pages/Admin/AdminAccountSettings';
 import AdminReport from '../pages/Admin/AdminReport';
+import AdminHeatMap from '../pages/Admin/AdminHeatMap';
 import ProtectedRoute from '../components/ProtectedRoute';
 
 import CommunityStaffLogin from '../pages/Subd_Leaders/CommunityStaffLogin';
@@ -30,6 +31,7 @@ const AppRoutes = () => {
                 <Route path="/admin/users" element={<AdminUserManagement />} />
                 <Route path="/admin/account-settings" element={<AdminAccountSettings />} />
                 <Route path="/admin/incidents" element={<AdminReport />} />
+                <Route path="/admin/heatmap" element={<AdminHeatMap />} />
             </Route>
 
             {/* Protected Barangay/Subdivision Routes */}

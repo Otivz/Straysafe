@@ -248,21 +248,21 @@ const BrgyRescueRequests = () => {
                                                     const isPdf = doc.file_url.toLowerCase().endsWith('.pdf') || doc.media_type === 'Document';
                                                     let viewUrl = doc.file_url;
                                                     const isImageBucket = viewUrl.includes('/image/upload/');
-                                                    
+
                                                     if (isImageBucket) {
                                                         if (isPdf && !viewUrl.toLowerCase().endsWith('.pdf')) {
                                                             viewUrl += '.pdf';
                                                         }
                                                     }
-                                                    
+
                                                     // Use fl_attachment:filename to give the downloaded file a friendly name
                                                     const downloadUrl = doc.file_url.replace('/upload/', '/upload/fl_attachment:Request_Letter/');
-                                                    
+
                                                     return (
                                                         <div className="flex gap-2">
-                                                            <a 
-                                                                href={viewUrl} 
-                                                                target="_blank" 
+                                                            <a
+                                                                href={viewUrl}
+                                                                target="_blank"
                                                                 rel="noopener noreferrer"
                                                                 className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-[10px] font-bold text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
                                                             >
@@ -371,13 +371,13 @@ const BrgyRescueRequests = () => {
                                                             let viewUrl = m.file_url;
                                                             const isPdf = m.media_type === 'Document' || viewUrl.toLowerCase().endsWith('.pdf');
                                                             const isImageBucket = viewUrl.includes('/image/upload/');
-                                                            
+
                                                             if (isImageBucket) {
                                                                 if (isPdf && !viewUrl.toLowerCase().endsWith('.pdf')) {
                                                                     viewUrl += '.pdf';
                                                                 }
                                                             }
-                                                            
+
                                                             const downloadUrl = m.file_url.replace('/upload/', `/upload/fl_attachment:StraySafe_Media_${m.media_id}/`);
 
                                                             return (

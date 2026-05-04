@@ -582,25 +582,25 @@ const SubdReports = () => {
                                                                     let viewUrl = m.file_url;
                                                                     const isPdf = m.media_type === 'Document' || viewUrl.toLowerCase().endsWith('.pdf');
                                                                     const isImageBucket = viewUrl.includes('/image/upload/');
-                                                                    
+
                                                                     if (isImageBucket) {
                                                                         if (isPdf && !viewUrl.toLowerCase().endsWith('.pdf')) {
                                                                             viewUrl += '.pdf';
                                                                         }
                                                                     }
-                                                                    
+
                                                                     return (
                                                                         <>
-                                                                            <a 
-                                                                                href={viewUrl} 
-                                                                                target="_blank" 
+                                                                            <a
+                                                                                href={viewUrl}
+                                                                                target="_blank"
                                                                                 rel="noopener noreferrer"
                                                                                 className="flex-1 py-1.5 bg-white border border-gray-200 rounded-lg text-[9px] font-bold text-gray-600 hover:bg-gray-50 transition-all text-center"
                                                                             >
                                                                                 View
                                                                             </a>
-                                                                            <a 
-                                                                                href={m.file_url.replace('/upload/', `/upload/fl_attachment:StraySafe_Media_${m.media_id}/`)} 
+                                                                            <a
+                                                                                href={m.file_url.replace('/upload/', `/upload/fl_attachment:StraySafe_Media_${m.media_id}/`)}
                                                                                 className="flex-1 py-1.5 bg-orange-50 border border-orange-100 rounded-lg text-[9px] font-bold text-[#F97316] hover:bg-orange-100 transition-all text-center"
                                                                             >
                                                                                 Download

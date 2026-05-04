@@ -6,6 +6,37 @@ import Button from '../../components/Button';
 import SuccessModal from '../../components/Modals/SuccessModal';
 import Select from '../../components/Dropdown';
 import MapComponent from '../../components/MapComponent';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Fix for default marker icon issue in React Leaflet
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerIconRetina from 'leaflet/dist/images/marker-icon-2x.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+const DefaultIcon = L.icon({
+    iconUrl: markerIcon,
+    iconRetinaUrl: markerIconRetina,
+    shadowUrl: markerShadow,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+});
+
+L.Marker.prototype.options.icon = DefaultIcon;
+
+// Custom component to handle map clicks and move marker
+const LocationPicker = ({ onLocationSelect, position }: { onLocationSelect: (lat: number, lng: number) => void, position: [number, number] }) => {
+    useMapEvents({
+        click(e) {
+            onLocationSelect(e.latlng.lat, e.latlng.lng);
+        },
+    });
+
+    return position ? <Marker position={position} /> : null;
+};
 
 interface Report {
     report_id: number;
@@ -26,7 +57,7 @@ interface Report {
 }
 
 const statusMap: Record<number, string> = {
-    1: 'Pending', 2: 'Verified', 3: 'Rejected', 
+    1: 'Pending', 2: 'Verified', 3: 'Rejected',
     4: 'Escalated to Barangay', 5: 'Rescue In Progress', 6: 'Resolved',
     7: 'Picked Up', 8: 'Under Observation', 9: 'Impounded'
 };
@@ -73,11 +104,19 @@ const AdminReport = () => {
 
     const [formData, setFormData] = useState({
         category_id: 1,
+        category: 'Dog',
         latitude: 14.8013,
         longitude: 121.0031,
         landmark: '',
         priority_level: 'Regular',
-        description: ''
+        description: '',
+        animal_count: 1,
+        visibility: 'Public',
+        breed: '',
+        condition: 'Healthy',
+        behaviorTags: [] as string[],
+        image: null as File | null,
+        video: null as File | null
     });
 
     const API_URL = 'http://localhost:8000/reports';
@@ -184,25 +223,56 @@ const AdminReport = () => {
             if (!userStr) throw new Error('User not authenticated');
             const user = JSON.parse(userStr);
 
-            await axios.post(API_URL, {
-                ...formData,
+            const response = await axios.post(API_URL, {
                 user_id: user.user_id,
                 subdivision_id: 1,
-                animal_count: 1,
-                visibility: 'Public',
+                category_id: formData.category_id,
+                latitude: formData.latitude,
+                longitude: formData.longitude,
+                landmark: formData.landmark,
+                priority_level: formData.priority_level,
+                description: formData.description,
+                animal_count: formData.animal_count,
+                visibility: formData.visibility,
                 status_id: 1,
                 is_archived: false
             });
+
+            const newReport = response.data;
+            const reportId = newReport.report_id;
+
+            // Upload media if present
+            if (formData.image || formData.video) {
+                const mediaFile = formData.image || formData.video;
+                const mediaData = new FormData();
+                mediaData.append("file", mediaFile!);
+
+                try {
+                    await axios.post(`${API_URL}/${reportId}/media`, mediaData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+                } catch (err) {
+                    console.error('Failed to upload media:', err);
+                }
+            }
 
             setIsModalOpen(false);
             setShowSuccess(true);
             setFormData({
                 category_id: 1,
+                category: 'Dog',
                 latitude: 14.8013,
                 longitude: 121.0031,
                 landmark: '',
                 priority_level: 'Regular',
-                description: ''
+                description: '',
+                animal_count: 1,
+                visibility: 'Public',
+                breed: '',
+                condition: 'Healthy',
+                behaviorTags: [],
+                image: null,
+                video: null
             });
             fetchReports();
             setTimeout(() => setShowSuccess(false), 3000);
@@ -386,7 +456,7 @@ const AdminReport = () => {
                                                             <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
                                                         </svg>
                                                     </button>
-                                                    
+
                                                     {openMenuId === rep.report_id && (
                                                         <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
                                                             <button
@@ -456,7 +526,7 @@ const AdminReport = () => {
                                 </svg>
                             </button>
                         </div>
-                        
+
                         <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
                             {(() => {
                                 const viewReport = reports.find(r => r.report_id === viewingReportId);
@@ -482,14 +552,14 @@ const AdminReport = () => {
                                         </div>
 
                                         {/* Details Grid */}
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4 bg-gray-50 p-6 rounded-2xl border border-gray-100">
                                             <div>
                                                 <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Category</span>
                                                 <span className="text-sm font-semibold text-gray-900">{categoryMap[viewReport.category_id] || 'Other'}</span>
                                             </div>
                                             <div>
                                                 <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Priority</span>
-                                                <span className={`text-sm font-bold ${getPriorityColor(viewReport.priority_level).replace('bg-','text-').replace('-50','-600')}`}>
+                                                <span className={`text-sm font-bold ${getPriorityColor(viewReport.priority_level).replace('bg-', 'text-').replace('-50', '-600')}`}>
                                                     {viewReport.priority_level}
                                                 </span>
                                             </div>
@@ -500,25 +570,51 @@ const AdminReport = () => {
                                                 </span>
                                             </div>
                                             <div>
+                                                <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Breed</span>
+                                                <span className="text-sm font-semibold text-gray-900">{(viewReport as any).breed || 'Not specified'}</span>
+                                            </div>
+                                            <div>
+                                                <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Condition</span>
+                                                <span className="text-sm font-semibold text-gray-900">{(viewReport as any).condition || 'Unknown'}</span>
+                                            </div>
+                                            <div>
                                                 <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Animals</span>
                                                 <span className="text-sm font-semibold text-gray-900">{viewReport.animal_count} observed</span>
+                                            </div>
+                                            <div>
+                                                <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Visibility</span>
+                                                <span className="text-sm font-semibold text-gray-900">{viewReport.visibility}</span>
                                             </div>
                                             <div>
                                                 <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Landmark</span>
                                                 <span className="text-sm font-semibold text-gray-900">{viewReport.landmark || 'N/A'}</span>
                                             </div>
-                                            <div>
+                                            <div className="md:col-span-2">
                                                 <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Coordinates</span>
                                                 <span className="text-xs font-mono text-gray-600">{viewReport.latitude}, {viewReport.longitude}</span>
                                             </div>
                                         </div>
 
+                                        {/* Behavior Tags */}
+                                        {(viewReport as any).behavior_tags && (viewReport as any).behavior_tags.length > 0 && (
+                                            <div>
+                                                <h5 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Behavior & Traits</h5>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {((viewReport as any).behavior_tags as string[]).map((tag, idx) => (
+                                                        <span key={idx} className="px-3 py-1 bg-gray-100 text-gray-600 text-[10px] font-bold rounded-full border border-gray-200">
+                                                            {tag}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {/* Map Location */}
                                         <div>
                                             <h5 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Incident Location Map</h5>
                                             <div className="w-full h-64 rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50">
-                                                <MapComponent 
-                                                    center={[viewReport.latitude, viewReport.longitude]} 
+                                                <MapComponent
+                                                    center={[viewReport.latitude, viewReport.longitude]}
                                                     zoom={17}
                                                     showHeatmap={false}
                                                 />
@@ -559,25 +655,25 @@ const AdminReport = () => {
                                                                     let viewUrl = m.file_url;
                                                                     const isPdf = m.media_type === 'Document' || viewUrl.toLowerCase().endsWith('.pdf');
                                                                     const isImageBucket = viewUrl.includes('/image/upload/');
-                                                                    
+
                                                                     if (isImageBucket) {
                                                                         if (isPdf && !viewUrl.toLowerCase().endsWith('.pdf')) {
                                                                             viewUrl += '.pdf';
                                                                         }
                                                                     }
-                                                                    
+
                                                                     return (
                                                                         <>
-                                                                            <a 
-                                                                                href={viewUrl} 
-                                                                                target="_blank" 
+                                                                            <a
+                                                                                href={viewUrl}
+                                                                                target="_blank"
                                                                                 rel="noopener noreferrer"
                                                                                 className="flex-1 py-1.5 bg-white border border-gray-200 rounded-lg text-[9px] font-bold text-gray-600 hover:bg-gray-50 transition-all text-center"
                                                                             >
                                                                                 View
                                                                             </a>
-                                                                            <a 
-                                                                                href={m.file_url.replace('/upload/', `/upload/fl_attachment:StraySafe_Media_${m.media_id}/`)} 
+                                                                            <a
+                                                                                href={m.file_url.replace('/upload/', `/upload/fl_attachment:StraySafe_Media_${m.media_id}/`)}
                                                                                 className="flex-1 py-1.5 bg-orange-50 border border-orange-100 rounded-lg text-[9px] font-bold text-[#F97316] hover:bg-orange-100 transition-all text-center"
                                                                             >
                                                                                 Download
@@ -630,7 +726,7 @@ const AdminReport = () => {
                                         {/* Comments Section */}
                                         <div className="bg-white border border-gray-100 rounded-2xl p-6 pt-5 shadow-sm">
                                             {viewReport.comments && viewReport.comments.length > 0 && (
-                                                <button 
+                                                <button
                                                     onClick={() => setExpandedComments(prev => ({ ...prev, [viewReport.report_id]: !prev[viewReport.report_id] }))}
                                                     className="text-[10px] font-black text-gray-400 hover:text-[#F97316] uppercase tracking-widest transition-colors flex items-center gap-2 mb-6"
                                                 >
@@ -640,147 +736,147 @@ const AdminReport = () => {
                                                     {expandedComments[viewReport.report_id] ? 'Hide Comments' : `View all ${viewReport.comments.length} comments`}
                                                 </button>
                                             )}
-                                            
+
                                             {(expandedComments[viewReport.report_id] || !viewReport.comments || viewReport.comments.length === 0) && (
                                                 <div className="space-y-2 mb-6 max-h-72 overflow-y-auto custom-scrollbar pr-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                {viewReport.comments && viewReport.comments.length > 0 ? (
-                                                    viewReport.comments.filter((c: any) => !c.parent_comment_id).map((c: any) => {
-                                                        const replies = viewReport.comments?.filter((reply: any) => reply.parent_comment_id === c.comment_id) || [];
-                                                        return (
-                                                            <div key={c.comment_id} className="mb-4 last:mb-0">
-                                                                <div className="flex gap-3 relative">
-                                                                    {/* Parent Avatar & Vertical Line */}
-                                                                    <div className="relative flex flex-col items-center shrink-0">
-                                                                        <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-[#F97316] font-black text-xs z-10 ring-4 ring-white border border-orange-100">
-                                                                            {c.user_name?.charAt(0).toUpperCase() || 'U'}
-                                                                        </div>
-                                                                        {(replies.length > 0 || replyingTo[viewReport.report_id]?.commentId === c.comment_id) && (
-                                                                            <div className="absolute top-8 bottom-[-16px] left-1/2 -translate-x-1/2 w-[2px] bg-gray-100 z-0"></div>
-                                                                        )}
-                                                                    </div>
-                                                                    
-                                                                    <div className="flex-1 pb-1">
-                                                                        {/* Parent Bubble */}
-                                                                        <div className="bg-[#FAFAF9] rounded-[1.5rem] p-3.5 px-4 border border-gray-50 shadow-sm inline-block">
-                                                                            <span className="block text-[11px] font-black text-[#1a1208] mb-0.5">{c.user_name || 'User'}</span>
-                                                                            <p className="text-xs font-semibold text-gray-700 leading-relaxed pr-6">{c.message}</p>
-                                                                        </div>
-                                                                        {/* Parent Actions */}
-                                                                        <div className="flex items-center gap-4 mt-1.5 ml-3">
-                                                                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{new Date(c.created_at).toLocaleDateString()}</span>
-                                                                            <button 
-                                                                                onClick={() => setReplyingTo(prev => ({ ...prev, [viewReport.report_id]: { commentId: c.comment_id, userName: c.user_name || 'User' } }))}
-                                                                                className="text-[10px] font-bold text-gray-500 hover:text-[#F97316] transition-colors"
-                                                                            >
-                                                                                Reply
-                                                                            </button>
-                                                                        </div>
-
-                                                                        {/* Replies Container */}
-                                                                        {replies.length > 0 && (
-                                                                            <div className="mt-4 space-y-4">
-                                                                                {replies.map((reply: any, index: number) => (
-                                                                                    <div key={reply.comment_id} className="flex gap-3 relative">
-                                                                                        {/* Horizontal connector curve */}
-                                                                                        <div className="absolute top-[-10px] left-[-28px] w-[28px] h-[26px] border-b-[2px] border-l-[2px] border-gray-100 rounded-bl-[12px] z-0 pointer-events-none"></div>
-                                                                                        
-                                                                                        {/* Mask to hide vertical line below the last reply */}
-                                                                                        {index === replies.length - 1 && replyingTo[viewReport.report_id]?.commentId !== c.comment_id && (
-                                                                                            <div className="absolute top-[16px] bottom-[-100px] left-[-30px] w-[6px] bg-white z-0 pointer-events-none"></div>
-                                                                                        )}
-
-                                                                                        {/* Child Avatar */}
-                                                                                        <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 font-bold text-[10px] z-10 mt-1 ring-4 ring-white border border-gray-100 shrink-0">
-                                                                                            {reply.user_name?.charAt(0).toUpperCase() || 'U'}
-                                                                                        </div>
-                                                                                        
-                                                                                        <div className="flex-1">
-                                                                                            {/* Child Bubble */}
-                                                                                            <div className="bg-[#FAFAF9] rounded-[1.2rem] p-3 px-4 border border-gray-50 shadow-sm inline-block">
-                                                                                                <span className="block text-[10px] font-black text-gray-800 mb-0.5">{reply.user_name || 'User'}</span>
-                                                                                                <p className="text-[11px] font-semibold text-gray-600 leading-relaxed pr-4">{reply.message}</p>
-                                                                                            </div>
-                                                                                            {/* Child Actions */}
-                                                                                            <div className="flex items-center gap-4 mt-1.5 ml-3">
-                                                                                                <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{new Date(reply.created_at).toLocaleDateString()}</span>
-                                                                                                <button 
-                                                                                                    onClick={() => setReplyingTo(prev => ({ ...prev, [viewReport.report_id]: { commentId: c.comment_id, userName: reply.user_name || 'User' } }))}
-                                                                                                    className="text-[9px] font-bold text-gray-500 hover:text-[#F97316] transition-colors"
-                                                                                                >
-                                                                                                    Reply
-                                                                                                </button>
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                ))}
+                                                    {viewReport.comments && viewReport.comments.length > 0 ? (
+                                                        viewReport.comments.filter((c: any) => !c.parent_comment_id).map((c: any) => {
+                                                            const replies = viewReport.comments?.filter((reply: any) => reply.parent_comment_id === c.comment_id) || [];
+                                                            return (
+                                                                <div key={c.comment_id} className="mb-4 last:mb-0">
+                                                                    <div className="flex gap-3 relative">
+                                                                        {/* Parent Avatar & Vertical Line */}
+                                                                        <div className="relative flex flex-col items-center shrink-0">
+                                                                            <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-[#F97316] font-black text-xs z-10 ring-4 ring-white border border-orange-100">
+                                                                                {c.user_name?.charAt(0).toUpperCase() || 'U'}
                                                                             </div>
-                                                                        )}
+                                                                            {(replies.length > 0 || replyingTo[viewReport.report_id]?.commentId === c.comment_id) && (
+                                                                                <div className="absolute top-8 bottom-[-16px] left-1/2 -translate-x-1/2 w-[2px] bg-gray-100 z-0"></div>
+                                                                            )}
+                                                                        </div>
 
-                                                                        {/* Inline Reply Input */}
-                                                                        {replyingTo[viewReport.report_id]?.commentId === c.comment_id && (
-                                                                            <div className="mt-4 flex items-center gap-3 relative z-10 animate-in fade-in slide-in-from-top-2 duration-200">
-                                                                                <div className="absolute top-[-10px] left-[-28px] w-[28px] h-[24px] border-b-[2px] border-l-[2px] border-gray-100 rounded-bl-[12px] z-0 pointer-events-none"></div>
-                                                                                <div className="absolute top-[14px] bottom-[-100px] left-[-30px] w-[6px] bg-white z-0 pointer-events-none"></div>
+                                                                        <div className="flex-1 pb-1">
+                                                                            {/* Parent Bubble */}
+                                                                            <div className="bg-[#FAFAF9] rounded-[1.5rem] p-3.5 px-4 border border-gray-50 shadow-sm inline-block">
+                                                                                <span className="block text-[11px] font-black text-[#1a1208] mb-0.5">{c.user_name || 'User'}</span>
+                                                                                <p className="text-xs font-semibold text-gray-700 leading-relaxed pr-6">{c.message}</p>
+                                                                            </div>
+                                                                            {/* Parent Actions */}
+                                                                            <div className="flex items-center gap-4 mt-1.5 ml-3">
+                                                                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{new Date(c.created_at).toLocaleDateString()}</span>
+                                                                                <button
+                                                                                    onClick={() => setReplyingTo(prev => ({ ...prev, [viewReport.report_id]: { commentId: c.comment_id, userName: c.user_name || 'User' } }))}
+                                                                                    className="text-[10px] font-bold text-gray-500 hover:text-[#F97316] transition-colors"
+                                                                                >
+                                                                                    Reply
+                                                                                </button>
+                                                                            </div>
 
-                                                                                <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-[#F97316] font-black text-[10px] shrink-0 border border-orange-200 z-10 bg-white ring-4 ring-white">
-                                                                                    {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'A'}
+                                                                            {/* Replies Container */}
+                                                                            {replies.length > 0 && (
+                                                                                <div className="mt-4 space-y-4">
+                                                                                    {replies.map((reply: any, index: number) => (
+                                                                                        <div key={reply.comment_id} className="flex gap-3 relative">
+                                                                                            {/* Horizontal connector curve */}
+                                                                                            <div className="absolute top-[-10px] left-[-28px] w-[28px] h-[26px] border-b-[2px] border-l-[2px] border-gray-100 rounded-bl-[12px] z-0 pointer-events-none"></div>
+
+                                                                                            {/* Mask to hide vertical line below the last reply */}
+                                                                                            {index === replies.length - 1 && replyingTo[viewReport.report_id]?.commentId !== c.comment_id && (
+                                                                                                <div className="absolute top-[16px] bottom-[-100px] left-[-30px] w-[6px] bg-white z-0 pointer-events-none"></div>
+                                                                                            )}
+
+                                                                                            {/* Child Avatar */}
+                                                                                            <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 font-bold text-[10px] z-10 mt-1 ring-4 ring-white border border-gray-100 shrink-0">
+                                                                                                {reply.user_name?.charAt(0).toUpperCase() || 'U'}
+                                                                                            </div>
+
+                                                                                            <div className="flex-1">
+                                                                                                {/* Child Bubble */}
+                                                                                                <div className="bg-[#FAFAF9] rounded-[1.2rem] p-3 px-4 border border-gray-50 shadow-sm inline-block">
+                                                                                                    <span className="block text-[10px] font-black text-gray-800 mb-0.5">{reply.user_name || 'User'}</span>
+                                                                                                    <p className="text-[11px] font-semibold text-gray-600 leading-relaxed pr-4">{reply.message}</p>
+                                                                                                </div>
+                                                                                                {/* Child Actions */}
+                                                                                                <div className="flex items-center gap-4 mt-1.5 ml-3">
+                                                                                                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{new Date(reply.created_at).toLocaleDateString()}</span>
+                                                                                                    <button
+                                                                                                        onClick={() => setReplyingTo(prev => ({ ...prev, [viewReport.report_id]: { commentId: c.comment_id, userName: reply.user_name || 'User' } }))}
+                                                                                                        className="text-[9px] font-bold text-gray-500 hover:text-[#F97316] transition-colors"
+                                                                                                    >
+                                                                                                        Reply
+                                                                                                    </button>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ))}
                                                                                 </div>
-                                                                                <div className="flex-1 relative flex items-center">
-                                                                                    <input 
-                                                                                        type="text" 
-                                                                                        autoFocus
-                                                                                        placeholder={`Replying to ${replyingTo[viewReport.report_id]?.userName}...`}
-                                                                                        className="w-full bg-[#FAFAF9] border border-gray-100 rounded-[1.2rem] pl-4 pr-10 py-2 text-[11px] font-semibold text-[#1a1208] focus:outline-none focus:border-orange-200 focus:bg-white transition-all placeholder:text-gray-400 shadow-inner"
-                                                                                        value={commentInputs[viewReport.report_id] || ''}
-                                                                                        onChange={(e) => setCommentInputs(prev => ({ ...prev, [viewReport.report_id]: e.target.value }))}
-                                                                                        onKeyPress={(e) => e.key === 'Enter' && handleAddComment(viewReport.report_id)}
-                                                                                    />
-                                                                                    <button 
-                                                                                        onClick={() => {
-                                                                                            setReplyingTo(prev => ({ ...prev, [viewReport.report_id]: null }));
-                                                                                            setCommentInputs(prev => ({ ...prev, [viewReport.report_id]: '' }));
-                                                                                        }}
-                                                                                        className="absolute right-3 text-gray-400 hover:text-red-500 transition-colors"
+                                                                            )}
+
+                                                                            {/* Inline Reply Input */}
+                                                                            {replyingTo[viewReport.report_id]?.commentId === c.comment_id && (
+                                                                                <div className="mt-4 flex items-center gap-3 relative z-10 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                                                    <div className="absolute top-[-10px] left-[-28px] w-[28px] h-[24px] border-b-[2px] border-l-[2px] border-gray-100 rounded-bl-[12px] z-0 pointer-events-none"></div>
+                                                                                    <div className="absolute top-[14px] bottom-[-100px] left-[-30px] w-[6px] bg-white z-0 pointer-events-none"></div>
+
+                                                                                    <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-[#F97316] font-black text-[10px] shrink-0 border border-orange-200 z-10 bg-white ring-4 ring-white">
+                                                                                        {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'A'}
+                                                                                    </div>
+                                                                                    <div className="flex-1 relative flex items-center">
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            autoFocus
+                                                                                            placeholder={`Replying to ${replyingTo[viewReport.report_id]?.userName}...`}
+                                                                                            className="w-full bg-[#FAFAF9] border border-gray-100 rounded-[1.2rem] pl-4 pr-10 py-2 text-[11px] font-semibold text-[#1a1208] focus:outline-none focus:border-orange-200 focus:bg-white transition-all placeholder:text-gray-400 shadow-inner"
+                                                                                            value={commentInputs[viewReport.report_id] || ''}
+                                                                                            onChange={(e) => setCommentInputs(prev => ({ ...prev, [viewReport.report_id]: e.target.value }))}
+                                                                                            onKeyPress={(e) => e.key === 'Enter' && handleAddComment(viewReport.report_id)}
+                                                                                        />
+                                                                                        <button
+                                                                                            onClick={() => {
+                                                                                                setReplyingTo(prev => ({ ...prev, [viewReport.report_id]: null }));
+                                                                                                setCommentInputs(prev => ({ ...prev, [viewReport.report_id]: '' }));
+                                                                                            }}
+                                                                                            className="absolute right-3 text-gray-400 hover:text-red-500 transition-colors"
+                                                                                        >
+                                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                                                                            </svg>
+                                                                                        </button>
+                                                                                    </div>
+                                                                                    <button
+                                                                                        onClick={() => handleAddComment(viewReport.report_id)}
+                                                                                        className="bg-[#F97316] text-white rounded-full w-8 h-8 flex items-center justify-center shadow-md shadow-orange-100 hover:scale-105 active:scale-95 transition-all shrink-0"
                                                                                     >
-                                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 relative left-[1px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                                                                                         </svg>
                                                                                     </button>
                                                                                 </div>
-                                                                                <button 
-                                                                                    onClick={() => handleAddComment(viewReport.report_id)}
-                                                                                    className="bg-[#F97316] text-white rounded-full w-8 h-8 flex items-center justify-center shadow-md shadow-orange-100 hover:scale-105 active:scale-95 transition-all shrink-0"
-                                                                                >
-                                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 relative left-[1px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                                                                    </svg>
-                                                                                </button>
-                                                                            </div>
-                                                                        )}
+                                                                            )}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                        );
-                                                    })
-                                                ) : (
-                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic text-center py-4">No comments yet. Be the first to comment!</p>
-                                                )}
+                                                            );
+                                                        })
+                                                    ) : (
+                                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic text-center py-4">No comments yet. Be the first to comment!</p>
+                                                    )}
                                                 </div>
                                             )}
 
                                             {!replyingTo[viewReport.report_id] && (
                                                 <div className="flex items-center gap-3 animate-in fade-in duration-200 border-t border-gray-50 pt-4 mt-2">
                                                     <div className="flex-1 relative">
-                                                        <input 
-                                                            type="text" 
-                                                            placeholder="Write a comment as Admin..." 
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Write a comment as Admin..."
                                                             className="w-full bg-[#FAFAF9] border border-gray-100 rounded-[1.5rem] pl-5 pr-12 py-3 text-xs font-semibold text-[#1a1208] focus:outline-none focus:border-orange-200 focus:bg-white transition-all placeholder:text-gray-300 shadow-inner"
                                                             value={commentInputs[viewReport.report_id] || ''}
                                                             onChange={(e) => setCommentInputs(prev => ({ ...prev, [viewReport.report_id]: e.target.value }))}
                                                             onKeyPress={(e) => e.key === 'Enter' && handleAddComment(viewReport.report_id)}
                                                         />
                                                     </div>
-                                                    <button 
+                                                    <button
                                                         onClick={() => handleAddComment(viewReport.report_id)}
                                                         className="bg-[#F97316] text-white rounded-[1.2rem] p-3 shadow-md shadow-orange-100 hover:scale-105 active:scale-95 transition-all flex-shrink-0"
                                                     >
@@ -810,9 +906,9 @@ const AdminReport = () => {
                                                         ESCALATE TO BARANGAY FOR RESCUE
                                                     </button>
                                                 )}
-                                                
+
                                                 {viewReport.status_id !== 6 && (
-                                                    <button 
+                                                    <button
                                                         onClick={() => {
                                                             handleUpdateStatus(viewReport.report_id, 6);
                                                             setViewingReportId(null);
@@ -848,10 +944,34 @@ const AdminReport = () => {
                             </button>
                         </div>
 
-                        <form onSubmit={handleSaveReport} className="p-8 max-h-[75vh] overflow-y-auto">
+                        <form onSubmit={handleSaveReport} className="p-8 max-h-[75vh] overflow-y-auto custom-scrollbar">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Animal Type (Dog/Cat) */}
+                                <div className="flex flex-col">
+                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4">Animal Type</label>
+                                    <div className="flex items-center gap-8 h-10">
+                                        {['Dog', 'Cat'].map((cat) => (
+                                            <label key={cat} className="flex items-center gap-3 cursor-pointer group">
+                                                <div className="relative flex items-center justify-center">
+                                                    <input
+                                                        type="radio"
+                                                        name="category"
+                                                        className="peer appearance-none w-5 h-5 rounded-full border-2 border-gray-200 checked:border-[#F97316] transition-all cursor-pointer"
+                                                        checked={formData.category === cat}
+                                                        onChange={() => setFormData({ ...formData, category: cat })}
+                                                    />
+                                                    <div className="absolute w-2.5 h-2.5 rounded-full bg-[#F97316] scale-0 peer-checked:scale-100 transition-transform duration-200" />
+                                                </div>
+                                                <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${formData.category === cat ? 'text-[#1a1208]' : 'text-gray-400 group-hover:text-gray-600'}`}>
+                                                    {cat}
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+
                                 <Select
-                                    label="Category"
+                                    label="Incident Category"
                                     value={formData.category_id.toString()}
                                     onChange={(e) => setFormData({ ...formData, category_id: parseInt(e.target.value) })}
                                     options={[
@@ -862,34 +982,18 @@ const AdminReport = () => {
                                         { value: '5', label: 'Animal Rescue Needed' }
                                     ]}
                                 />
-                                        <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Landmark</label>
-                                    <input
-                                        type="text" required
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
-                                        value={formData.landmark}
-                                        onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
-                                        placeholder="e.g. Near Clubhouse"
-                                    />
-                                </div>
+
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Latitude</label>
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Breed (Optional)</label>
                                     <input
-                                        type="number" step="any" required
+                                        type="text"
                                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
-                                        value={formData.latitude}
-                                        onChange={(e) => setFormData({ ...formData, latitude: parseFloat(e.target.value) })}
+                                        value={formData.breed}
+                                        onChange={(e) => setFormData({ ...formData, breed: e.target.value })}
+                                        placeholder="e.g. Aspin, Golden Retriever"
                                     />
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Longitude</label>
-                                    <input
-                                        type="number" step="any" required
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
-                                        value={formData.longitude}
-                                        onChange={(e) => setFormData({ ...formData, longitude: parseFloat(e.target.value) })}
-                                    />
-                                </div>
+
                                 <Select
                                     label="Priority Level"
                                     value={formData.priority_level}
@@ -901,6 +1005,233 @@ const AdminReport = () => {
                                         { value: 'Emergency', label: 'Emergency' }
                                     ]}
                                 />
+
+                                {/* Condition */}
+                                <div className="md:col-span-2">
+                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4 block">Animal Condition</label>
+                                    <div className="flex flex-wrap gap-3">
+                                        {['Healthy', 'Injured', 'Aggressive', 'Thin'].map((cond) => (
+                                            <button
+                                                key={cond}
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, condition: cond })}
+                                                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${formData.condition === cond
+                                                    ? 'bg-[#F97316] text-white border-[#F97316] shadow-lg shadow-orange-100'
+                                                    : 'bg-white text-gray-400 border-gray-100 hover:border-orange-100'
+                                                }`}
+                                            >
+                                                {cond}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Animal Count */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4 block">Number of Animals</label>
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center bg-gray-50 rounded-xl p-1 border border-gray-100">
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, animal_count: Math.max(1, formData.animal_count - 1) })}
+                                                className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-[#F97316] hover:bg-orange-50 transition-all active:scale-90"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M20 12H4" />
+                                                </svg>
+                                            </button>
+                                            <div className="w-10 text-center text-sm font-black text-[#1a1208]">
+                                                {formData.animal_count}
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, animal_count: formData.animal_count + 1 })}
+                                                className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-[#F97316] hover:bg-orange-50 transition-all active:scale-90"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Landmark</label>
+                                    <input
+                                        type="text" required
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
+                                        value={formData.landmark}
+                                        onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
+                                        placeholder="e.g. Near Clubhouse"
+                                    />
+                                </div>
+
+                                {/* Behavior Tags */}
+                                <div className="md:col-span-2">
+                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4 block">Behavior / Traits</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {['Friendly', 'Frightened', 'Nursing', 'Barking', 'Roaming'].map((tag) => (
+                                            <button
+                                                key={tag}
+                                                type="button"
+                                                onClick={() => {
+                                                    const tags = formData.behaviorTags.includes(tag)
+                                                        ? formData.behaviorTags.filter(t => t !== tag)
+                                                        : [...formData.behaviorTags, tag];
+                                                    setFormData({ ...formData, behaviorTags: tags });
+                                                }}
+                                                className={`px-4 py-2 rounded-full text-[9px] font-bold border transition-all flex items-center gap-2 ${formData.behaviorTags.includes(tag)
+                                                    ? 'bg-orange-50 text-[#F97316] border-[#F97316]'
+                                                    : 'bg-white text-gray-400 border-gray-100 hover:border-orange-100'
+                                                }`}
+                                            >
+                                                {formData.behaviorTags.includes(tag) && <div className="w-1 h-1 rounded-full bg-[#F97316]" />}
+                                                {tag}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Media Upload */}
+                                <div className="md:col-span-2">
+                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4 block">Upload Photo or Video</label>
+                                    <div className="relative group">
+                                        <div className={`w-full aspect-video rounded-[2rem] border-2 border-dashed flex flex-col items-center justify-center gap-4 transition-all ${formData.image || formData.video ? 'border-orange-500 bg-orange-50/20' : 'border-gray-100 bg-[#FAFAF9] group-hover:border-orange-200 group-hover:bg-orange-50/10'}`}>
+                                            {formData.image || formData.video ? (
+                                                <div className="flex flex-col items-center gap-3">
+                                                    <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-[#F97316]">
+                                                        {formData.video ? (
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                                            </svg>
+                                                        ) : (
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <p className="text-[10px] font-black text-[#F97316] uppercase tracking-widest">{formData.video ? 'Video' : 'Photo'} Added</p>
+                                                        <p className="text-[9px] font-bold text-gray-400">Click to change media</p>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center text-gray-300 group-hover:text-[#F97316] transition-colors">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                                        </svg>
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tap to add Photo or Video</p>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                        <input
+                                            type="file"
+                                            className="absolute inset-0 opacity-0 cursor-pointer"
+                                            accept="image/*,video/*"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                    if (file.type.startsWith('video/')) {
+                                                        setFormData({ ...formData, video: file, image: null });
+                                                    } else {
+                                                        setFormData({ ...formData, image: file, video: null });
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Map Location Picker */}
+                                <div className="md:col-span-2">
+                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4 block">Pinpoint Location</label>
+                                    <div className="w-full h-64 rounded-[2rem] overflow-hidden border border-gray-100 shadow-sm relative mb-6">
+                                        <MapContainer
+                                            center={[formData.latitude, formData.longitude]}
+                                            zoom={15}
+                                            className="h-full w-full z-10"
+                                            scrollWheelZoom={true}
+                                        >
+                                            <TileLayer
+                                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                            />
+                                            <LocationPicker
+                                                position={[formData.latitude, formData.longitude]}
+                                                onLocationSelect={(lat, lng) => setFormData({ ...formData, latitude: lat, longitude: lng })}
+                                            />
+                                        </MapContainer>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Latitude</label>
+                                            <input
+                                                type="number" step="any" required readOnly
+                                                className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
+                                                value={formData.latitude}
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Longitude</label>
+                                            <input
+                                                type="number" step="any" required readOnly
+                                                className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
+                                                value={formData.longitude}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Visibility Settings */}
+                                <div className="md:col-span-2">
+                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4 block">Report Visibility</label>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <label className={`relative flex flex-col p-5 rounded-2xl border-2 cursor-pointer transition-all ${formData.visibility === 'Public' ? 'border-[#F97316] bg-orange-50/20' : 'border-gray-50 bg-[#FAFAF9] hover:border-orange-100'}`}>
+                                            <input
+                                                type="radio"
+                                                name="visibility"
+                                                value="Public"
+                                                checked={formData.visibility === 'Public'}
+                                                onChange={(e) => setFormData({ ...formData, visibility: e.target.value })}
+                                                className="absolute opacity-0"
+                                            />
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${formData.visibility === 'Public' ? 'bg-[#F97316] text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                </div>
+                                                <span className={`text-[12px] font-black uppercase tracking-widest ${formData.visibility === 'Public' ? 'text-[#F97316]' : 'text-gray-600'}`}>Public Post</span>
+                                            </div>
+                                            <p className="text-[10px] font-bold text-gray-400 leading-relaxed ml-11">Visible to all users in the subdivision feed.</p>
+                                        </label>
+                                        <label className={`relative flex flex-col p-5 rounded-2xl border-2 cursor-pointer transition-all ${formData.visibility === 'Private' ? 'border-[#F97316] bg-orange-50/20' : 'border-gray-50 bg-[#FAFAF9] hover:border-orange-100'}`}>
+                                            <input
+                                                type="radio"
+                                                name="visibility"
+                                                value="Private"
+                                                checked={formData.visibility === 'Private'}
+                                                onChange={(e) => setFormData({ ...formData, visibility: e.target.value })}
+                                                className="absolute opacity-0"
+                                            />
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${formData.visibility === 'Private' ? 'bg-[#F97316] text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                    </svg>
+                                                </div>
+                                                <span className={`text-[12px] font-black uppercase tracking-widest ${formData.visibility === 'Private' ? 'text-[#F97316]' : 'text-gray-600'}`}>Private Post</span>
+                                            </div>
+                                            <p className="text-[10px] font-bold text-gray-400 leading-relaxed ml-11">Only visible to Staff.</p>
+                                        </label>
+                                    </div>
+                                </div>
+
                                 <div className="space-y-1.5 md:col-span-2">
                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Description</label>
                                     <textarea
