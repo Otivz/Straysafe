@@ -79,6 +79,7 @@ Features
 • Dispatch response team to the field
 • Perform field rescue and animal pickup
 • Update rescue case status and notify stakeholders
+• Provide real-time animal status and location updates using image or video evidence
 Actions / Status
 → Pending
 → Approved
@@ -142,9 +143,10 @@ Step 04  Subdivision leader reviews and validates the report
 Step 05  Validated report forwarded to barangay staff
 Step 06  Barangay approves the case and dispatches a response team
 Step 07  Response team performs field rescue and animal pickup
-Step 08  Case status updated to Picked Up / Resolved
-Step 09  Notifications sent to all stakeholders
-Step 10  Heatmaps and analytics dashboards updated automatically
+Step 08  Barangay staff provides real-time status and location updates with image/video evidence
+Step 09  Case status updated to Picked Up / Resolved
+Step 10  Notifications sent to all stakeholders
+Step 11  Heatmaps and analytics dashboards updated automatically
 
 
 5.  Core System Modules
@@ -160,6 +162,7 @@ B  Validation Module
 C  Rescue Management Module
 • Rescue approval and dispatch management
 • Case lifecycle tracking
+• Real-time status updates with image/video evidence and location tracking
 • Rescue documentation and records
 D  AI-Assisted Module
 • Animal classification (dog/cat)

@@ -35,6 +35,7 @@ const LocationPicker = ({ onLocationSelect, position }: { onLocationSelect: (lat
 
 const ResiHomePage = () => {
     const [isAddReportModalOpen, setIsAddReportModalOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [reports, setReports] = useState<any[]>([]);
 
     const userStr = localStorage.getItem('resident_user');
@@ -47,6 +48,7 @@ const ResiHomePage = () => {
 
     const [openMenuId, setOpenMenuId] = useState<number | null>(null);
     const [editingReportId, setEditingReportId] = useState<number | null>(null);
+    const [activeGallery, setActiveGallery] = useState<{ media: any[], index: number } | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -90,8 +92,7 @@ const ResiHomePage = () => {
             breed: '',
             condition: 'Healthy',
             behaviorTags: [],
-            image: null,
-            video: null
+            mediaFiles: []
         });
         setEditingReportId(report.report_id);
         setIsAddReportModalOpen(true);
@@ -158,11 +159,12 @@ const ResiHomePage = () => {
         description: '',
         latitude: 14.801313,
         longitude: 121.003109,
-        image: null as File | null,
-        video: null as File | null
+        mediaFiles: [] as File[]
     });
 
     const handleSubmit = async () => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
         try {
             // Get user_id from localStorage if available, otherwise default to 1
             const userStr = localStorage.getItem('resident_user');
@@ -204,18 +206,19 @@ const ResiHomePage = () => {
                 const actualReportId = isEditing ? editingReportId : resultData.report_id;
 
                 // Upload media if present
-                if (formData.image || formData.video) {
-                    const mediaFile = formData.image || formData.video;
-                    const mediaData = new FormData();
-                    mediaData.append("file", mediaFile!);
+                if (formData.mediaFiles && formData.mediaFiles.length > 0) {
+                    for (const file of formData.mediaFiles) {
+                        const mediaData = new FormData();
+                        mediaData.append("file", file);
 
-                    try {
-                        await fetch(`http://localhost:8000/reports/${actualReportId}/media`, {
-                            method: 'POST',
-                            body: mediaData
-                        });
-                    } catch (err) {
-                        console.error('Failed to upload media:', err);
+                        try {
+                            await fetch(`http://localhost:8000/reports/${actualReportId}/media`, {
+                                method: 'POST',
+                                body: mediaData
+                            });
+                        } catch (err) {
+                            console.error('Failed to upload media:', err);
+                        }
                     }
                 }
 
@@ -231,8 +234,7 @@ const ResiHomePage = () => {
                     behaviorTags: [],
                     visibility: 'Public',
                     description: '',
-                    image: null,
-                    video: null
+                    mediaFiles: []
                 });
             } else {
                 const errorData = await response.json();
@@ -241,6 +243,8 @@ const ResiHomePage = () => {
         } catch (error) {
             console.error('Error submitting report:', error);
             alert('An error occurred while connecting to the server.');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -268,8 +272,7 @@ const ResiHomePage = () => {
                                 description: '',
                                 latitude: 14.801313,
                                 longitude: 121.003109,
-                                image: null,
-                                video: null
+                                mediaFiles: []
                             });
                             setIsAddReportModalOpen(true);
                         }}
@@ -429,56 +432,103 @@ const ResiHomePage = () => {
 
                                 {/* Consolidated Media Upload */}
                                 <div>
-                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4 block">Upload Photo or Video</label>
-                                    <div className="relative group">
-                                        <div className={`w-full aspect-video rounded-[2rem] border-2 border-dashed flex flex-col items-center justify-center gap-4 transition-all ${formData.image || formData.video ? 'border-orange-500 bg-orange-50/20' : 'border-gray-100 bg-[#FAFAF9] group-hover:border-orange-200 group-hover:bg-orange-50/10'}`}>
-                                            {formData.image || formData.video ? (
-                                                <div className="flex flex-col items-center gap-3">
-                                                    <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center text-[#F97316]">
-                                                        {formData.video ? (
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4 block">Upload Photos or Videos</label>
+                                    <div className="relative">
+                                        {formData.mediaFiles.length > 0 ? (
+                                            <div className="space-y-4">
+                                                {/* Grid Preview (Facebook-like) */}
+                                                <div
+                                                    className={`relative grid gap-2 rounded-[2rem] overflow-hidden border-2 border-orange-500 bg-orange-50/10 p-2 cursor-pointer group/grid ${formData.mediaFiles.length === 1 ? 'grid-cols-1' :
+                                                            formData.mediaFiles.length === 2 ? 'grid-cols-2' :
+                                                                'grid-cols-2'
+                                                        }`}
+                                                    onClick={() => document.getElementById('multi-upload')?.click()}
+                                                >
+                                                    {formData.mediaFiles.slice(0, 4).map((file, index) => (
+                                                        <div key={index} className={`relative aspect-square rounded-2xl overflow-hidden group/item ${formData.mediaFiles.length === 3 && index === 0 ? 'row-span-2 aspect-auto' : ''
+                                                            }`}>
+                                                            {file.type.startsWith('video/') ? (
+                                                                <video
+                                                                    src={URL.createObjectURL(file)}
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                            ) : (
+                                                                <img
+                                                                    src={URL.createObjectURL(file)}
+                                                                    alt="Preview"
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                            )}
+                                                            {index === 3 && formData.mediaFiles.length > 4 && (
+                                                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                                                    <span className="text-white text-xl font-black">+{formData.mediaFiles.length - 4}</span>
+                                                                </div>
+                                                            )}
+                                                            {/* Delete individual button */}
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const newFiles = [...formData.mediaFiles];
+                                                                    newFiles.splice(index, 1);
+                                                                    setFormData({ ...formData, mediaFiles: newFiles });
+                                                                }}
+                                                                className="absolute top-2 right-2 bg-black/40 hover:bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover/item:opacity-100 transition-all z-[30]"
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    ))}
+
+                                                    {/* Hover Add More Overlay */}
+                                                    <div className="absolute inset-0 bg-orange-600/20 backdrop-blur-[2px] opacity-0 group-hover/grid:opacity-100 transition-all flex flex-col items-center justify-center gap-2 z-20">
+                                                        <div className="w-12 h-12 rounded-full bg-white shadow-xl flex items-center justify-center text-[#F97316]">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
                                                             </svg>
-                                                        ) : (
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                            </svg>
-                                                        )}
-                                                    </div>
-                                                    <div className="text-center">
-                                                        <p className="text-[12px] font-black text-[#F97316] uppercase tracking-widest">
-                                                            {formData.video ? 'Video' : 'Photo'} Added
-                                                        </p>
-                                                        <p className="text-[10px] font-bold text-gray-400">Click to change media</p>
+                                                        </div>
+                                                        <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] drop-shadow-md">Add More Photos</span>
                                                     </div>
                                                 </div>
-                                            ) : (
-                                                <>
-                                                    <div className="w-16 h-16 rounded-[1.5rem] bg-white shadow-sm flex items-center justify-center text-gray-300 group-hover:text-[#F97316] transition-colors">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                                        </svg>
-                                                    </div>
-                                                    <div className="text-center">
-                                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tap to add Photo or Video</p>
-                                                        <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mt-1">Recommended for better identification</p>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
+
+                                                <div className="flex justify-end">
+                                                    <button
+                                                        onClick={() => setFormData({ ...formData, mediaFiles: [] })}
+                                                        className="text-[10px] font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-all py-1"
+                                                    >
+                                                        Clear Selection
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div
+                                                className="w-full aspect-video rounded-[2rem] border-2 border-dashed border-gray-100 bg-[#FAFAF9] flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-orange-200 hover:bg-orange-50/10 transition-all group"
+                                                onClick={() => document.getElementById('multi-upload')?.click()}
+                                            >
+                                                <div className="w-16 h-16 rounded-[1.5rem] bg-white shadow-sm flex items-center justify-center text-gray-300 group-hover:text-[#F97316] transition-colors">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                                    </svg>
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tap to add Photos or Videos</p>
+                                                    <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mt-1">Multiple files supported</p>
+                                                </div>
+                                            </div>
+                                        )}
                                         <input
+                                            id="multi-upload"
                                             type="file"
-                                            className="absolute inset-0 opacity-0 cursor-pointer"
+                                            className="hidden"
                                             accept="image/*,video/*"
+                                            multiple
                                             onChange={(e) => {
-                                                const file = e.target.files?.[0];
-                                                if (file) {
-                                                    if (file.type.startsWith('video/')) {
-                                                        setFormData({ ...formData, video: file, image: null });
-                                                    } else {
-                                                        setFormData({ ...formData, image: file, video: null });
-                                                    }
-                                                }
+                                                const files = Array.from(e.target.files || []);
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    mediaFiles: [...prev.mediaFiles, ...files]
+                                                }));
                                             }}
                                         />
                                     </div>
@@ -604,10 +654,22 @@ const ResiHomePage = () => {
                             {/* Modal Footer */}
                             <div className="p-10 pt-0">
                                 <Button
-                                    className="w-full py-5 bg-[#F97316] text-white text-[12px] font-black uppercase tracking-[0.2em] rounded-[2rem] shadow-xl shadow-orange-100 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                    disabled={isSubmitting}
+                                    className={`w-full py-5 text-white text-[12px] font-black uppercase tracking-[0.2em] rounded-[2rem] shadow-xl transition-all ${isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#F97316] shadow-orange-100 hover:scale-[1.02] active:scale-[0.98]'
+                                        }`}
                                     onClick={handleSubmit}
                                 >
-                                    {editingReportId ? 'Update Report' : 'Submit Report'}
+                                    {isSubmitting ? (
+                                        <div className="flex items-center justify-center gap-2">
+                                            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Processing...
+                                        </div>
+                                    ) : (
+                                        editingReportId ? 'Update Report' : 'Submit Report'
+                                    )}
                                 </Button>
                             </div>
                         </div>
@@ -636,165 +698,165 @@ const ResiHomePage = () => {
                         return (
                             <div key={report.report_id} className="max-w-3xl mx-auto">
                                 <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden mb-12 hover:shadow-2xl transition-all duration-300">
-                                    {/* Header */}
-                                    <div className="p-8 pb-4">
-                                        <div className="flex items-center justify-between mb-6">
-                                            <div className="flex items-center gap-3">
-                                                <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full border ${report.status_id === 1 ? 'bg-orange-50 text-[#F97316] border-orange-100' :
+                                    {/* Header: ID (Left) + Date/Menu (Right) */}
+                                    <div className="px-4 sm:px-8 py-2.5 border-b border-gray-50 flex items-center justify-between bg-gray-50/20">
+                                        <span className="text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                                            ID: {report.report_id.toString().padStart(5, '0')}
+                                        </span>
+                                        <div className="flex items-center gap-4">
+                                            <p className="text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-widest">{date}</p>
+                                            {report.user_id === currentUserId && (
+                                                <div className="relative" ref={openMenuId === report.report_id ? menuRef : null}>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setOpenMenuId(openMenuId === report.report_id ? null : report.report_id);
+                                                        }}
+                                                        className="p-1.5 text-gray-400 hover:text-[#1a1208] rounded-full hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-gray-100"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
+                                                        </svg>
+                                                    </button>
+                                                    {openMenuId === report.report_id && (
+                                                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleEditClick(report); }}
+                                                                className="w-full flex items-center gap-3 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-[#F97316] hover:bg-orange-50 transition-colors"
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                </svg>
+                                                                Edit Post
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleDeleteReport(report.report_id); setOpenMenuId(null); }}
+                                                                className="w-full flex items-center gap-3 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 transition-colors"
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                </svg>
+                                                                Delete Report
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Content Section */}
+                                    <div className="px-4 sm:px-8 pt-4 pb-8 sm:pb-10">
+                                        {/* Title & Status Badge - Horizontal Alignment */}
+                                        <div className="mb-6 flex items-center justify-between gap-4">
+                                            <h2 className="text-2xl sm:text-4xl font-black text-[#1a1208] uppercase tracking-tighter leading-none">{categoryName}</h2>
+                                            <span className={`px-3 py-1 shrink-0 text-[9px] font-black uppercase tracking-widest rounded-full border shadow-sm ${report.status_id === 1 ? 'bg-orange-50 text-[#F97316] border-orange-100' :
                                                     report.status_id === 6 ? 'bg-green-50 text-green-600 border-green-100' :
                                                         report.status_id === 7 || report.status_id === 8 ? 'bg-purple-50 text-purple-600 border-purple-100' :
                                                             report.status_id === 9 || report.status_id === 10 ? 'bg-teal-50 text-teal-600 border-teal-100' :
                                                                 'bg-blue-50 text-blue-600 border-blue-100'
-                                                    }`}>
-                                                    {statusName}
-                                                </span>
-                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-l border-gray-100 pl-3">
-                                                    SR-{report.report_id.toString().padStart(5, '0')}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-4">
-                                                <p className="text-[11px] font-semibold text-[#1a1208]">{date}</p>
-                                                {report.user_id === currentUserId && (
-                                                    <div className="relative" ref={openMenuId === report.report_id ? menuRef : null}>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setOpenMenuId(openMenuId === report.report_id ? null : report.report_id);
-                                                            }}
-                                                            className="p-1.5 text-gray-400 hover:text-[#1a1208] rounded-full hover:bg-gray-50 transition-all"
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                                <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
-                                                            </svg>
-                                                        </button>
+                                                }`}>
+                                                {statusName}
+                                            </span>
+                                        </div>
 
-                                                        {openMenuId === report.report_id && (
-                                                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleEditClick(report);
-                                                                    }}
-                                                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-[#F97316] hover:bg-orange-50 transition-colors"
-                                                                >
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                                    </svg>
-                                                                    Edit Post
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleDeleteReport(report.report_id);
-                                                                        setOpenMenuId(null);
-                                                                    }}
-                                                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 transition-colors"
-                                                                >
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                                    </svg>
-                                                                    Delete Report
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
+                                        {/* Narrative */}
+                                        <div className="mb-6">
+                                            <p className="text-[9px] sm:text-[10px] font-black text-[#1a1208] uppercase tracking-[0.2em] mb-2 sm:mb-2.5">Narrative</p>
+                                            <p className="text-[13px] sm:text-[15px] font-bold text-[#4a3b28] leading-relaxed italic">
+                                                "{report.description || 'No detailed description provided.'}"
+                                            </p>
+                                        </div>
+
+                                        {/* Media Grid: The Focus */}
+                                        {report.media && report.media.length > 0 && (
+                                            <div className="mb-6">
+                                                <div className={`grid gap-2 rounded-2xl sm:rounded-[2.5rem] overflow-hidden border-2 border-gray-50 shadow-inner bg-gray-50/30 ${report.media.length === 1 ? 'grid-cols-1' : 'grid-cols-2'
+                                                    }`}>
+                                                    {report.media.slice(0, 4).map((m: any, idx: number) => (
+                                                        <div
+                                                            key={m.media_id}
+                                                            className={`relative overflow-hidden cursor-pointer group/media ${report.media.length === 1 ? 'h-64 sm:h-96' :
+                                                                    report.media.length === 2 ? 'h-48 sm:h-72' :
+                                                                        report.media.length === 3 && idx === 0 ? 'row-span-2 h-[24rem] sm:h-[36rem]' : 'h-48 sm:h-72'
+                                                                }`}
+                                                            onClick={() => setActiveGallery({ media: report.media, index: idx })}
+                                                        >
+                                                            {m.media_type === 'Video' ? (
+                                                                <div className="w-full h-full relative">
+                                                                    <video src={m.file_url} className="w-full h-full object-cover" />
+                                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover/media:bg-black/30 transition-all">
+                                                                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/30">
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                                                                                <path d="M8 5v14l11-7z" />
+                                                                            </svg>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <img
+                                                                    src={m.file_url}
+                                                                    alt="Media"
+                                                                    className="w-full h-full object-cover hover:scale-105 transition-all duration-1000 ease-out"
+                                                                />
+                                                            )}
+                                                            {idx === 3 && report.media.length > 4 && (
+                                                                <div className="absolute inset-0 bg-black/70 backdrop-blur-[4px] flex items-center justify-center text-white">
+                                                                    <span className="text-xl sm:text-3xl font-black tracking-tighter leading-none">+{report.media.length - 4}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Quick Info Grid - Always 3 Columns */}
+                                        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6 bg-[#FAFAF9] p-4 rounded-3xl border border-gray-50">
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="text-[8px] sm:text-[9px] font-black text-gray-300 uppercase tracking-widest">Landmark</span>
+                                                <span className="text-[10px] sm:text-[11px] font-bold text-[#4a3b28] truncate">{report.landmark || 'Not specified'}</span>
+                                            </div>
+                                            <div className="flex flex-col gap-0.5 border-l border-gray-100 pl-3 sm:pl-4">
+                                                <span className="text-[8px] sm:text-[9px] font-black text-gray-300 uppercase tracking-widest">Animals</span>
+                                                <span className="text-[10px] sm:text-[11px] font-bold text-[#4a3b28] truncate">{report.animal_count} sighted</span>
+                                            </div>
+                                            <div className="flex flex-col gap-0.5 border-l border-gray-100 pl-3 sm:pl-4">
+                                                <span className="text-[8px] sm:text-[9px] font-black text-gray-300 uppercase tracking-widest">Priority</span>
+                                                <span className={`text-[10px] sm:text-[11px] font-black uppercase tracking-wider truncate ${report.priority_level === 'High' ? 'text-red-500' : 'text-[#F97316]'}`}>
+                                                    {report.priority_level}
+                                                </span>
                                             </div>
                                         </div>
 
-                                        <div>
-                                            <h2 className="text-3xl font-black text-[#1a1208] uppercase tracking-tight">{categoryName}</h2>
-                                            <div className="flex items-center gap-2 mt-2 text-gray-400">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                </svg>
-                                                <p className="text-[11px] font-bold uppercase tracking-widest">
-                                                    Lat: {report.latitude.toFixed(4)}, Lng: {report.longitude.toFixed(4)}
+                                        {/* Mini Map: The Context */}
+                                        <div className="rounded-2xl sm:rounded-[2rem] overflow-hidden border border-gray-100 h-40 sm:h-52 relative shadow-inner">
+                                            <MapContainer
+                                                center={[report.latitude, report.longitude]}
+                                                zoom={16}
+                                                className="h-full w-full grayscale-[0.5] contrast-[1.1]"
+                                                scrollWheelZoom={false}
+                                                dragging={false}
+                                                zoomControl={false}
+                                            >
+                                                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                                <Marker position={[report.latitude, report.longitude]} />
+                                            </MapContainer>
+                                            <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4 bg-white/90 backdrop-blur-sm px-3 sm:px-4 py-1 sm:py-1.5 rounded-full border border-gray-100 shadow-sm z-[10]">
+                                                <p className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                                                    Live Sighting Location
                                                 </p>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Media Image */}
-                                    {report.media && report.media.length > 0 && (
-                                        <div className="px-8 pb-6">
-                                            <div className="w-full h-72 rounded-2xl overflow-hidden border border-gray-100 shadow-inner">
-                                                {report.media[0].media_type === 'Video' ? (
-                                                    <video src={report.media[0].file_url} className="w-full h-full object-cover" />
-                                                ) : report.media[0].media_type === 'Document' ? (
-                                                    <div className="w-full h-full flex flex-col items-center justify-center bg-orange-50 text-[#F97316] p-4 gap-2">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                        </svg>
-                                                        <span className="text-[10px] font-black uppercase tracking-widest text-center">Official Document</span>
-                                                    </div>
-                                                ) : (
-                                                    <img src={report.media[0].file_url} alt="Report Media" className="w-full h-full object-cover" />
-                                                )}
-                                            </div>
-                                            <div className="mt-4 flex gap-3">
-                                                {(() => {
-                                                    let viewUrl = report.media[0].file_url;
-                                                    const isPdf = report.media[0].media_type === 'Document' || viewUrl.toLowerCase().endsWith('.pdf');
-                                                    const isImageBucket = viewUrl.includes('/image/upload/');
-
-                                                    if (isImageBucket) {
-                                                        if (isPdf && !viewUrl.toLowerCase().endsWith('.pdf')) {
-                                                            viewUrl += '.pdf';
-                                                        }
-                                                    }
-
-                                                    return (
-                                                        <>
-                                                            <a
-                                                                href={viewUrl}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="flex-1 py-2 bg-white border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-500 hover:bg-gray-50 transition-all text-center"
-                                                            >
-                                                                View Original
-                                                            </a>
-                                                            <a
-                                                                href={report.media[0].file_url.replace('/upload/', `/upload/fl_attachment:StraySafe_Media_${report.media[0].media_id}/`)}
-                                                                className="flex-1 py-2 bg-orange-50 border border-orange-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-[#F97316] hover:bg-orange-100 transition-all text-center"
-                                                            >
-                                                                Download
-                                                            </a>
-                                                        </>
-                                                    );
-                                                })()}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Description */}
-                                    <div className="px-8 pb-8">
-                                        <div className="bg-[#FAFAF9] p-6 rounded-2xl border border-gray-50">
-                                            <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-2">Description</p>
-                                            <p className="text-sm font-bold text-[#4a3b28] leading-relaxed italic">
-                                                "{report.description || 'No description provided.'}"
-                                            </p>
-                                        </div>
-
-                                        {report.landmark && (
-                                            <div className="mt-4 px-2 flex items-center gap-2 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                                                <span className="text-[#F97316]">Landmark:</span> {report.landmark}
-                                            </div>
-                                        )}
-                                        <div className="mt-2 px-2 flex items-center gap-2 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                                            <span className="text-[#F97316]">Priority:</span> {report.priority_level}
-                                            <span className="mx-2">|</span>
-                                            <span className="text-[#F97316]">Animals:</span> {report.animal_count}
-                                        </div>
-                                    </div>
-
                                     {/* Comments Section */}
-                                    <div className="bg-white border-t border-gray-100 p-8 pt-6">
+                                    <div className="bg-white border-t border-gray-100 p-4 sm:p-8 pt-6">
                                         {report.comments && report.comments.length > 0 && (
                                             <button
                                                 onClick={() => setExpandedComments(prev => ({ ...prev, [report.report_id]: !prev[report.report_id] }))}
-                                                className="text-[10px] font-black text-gray-400 hover:text-[#F97316] uppercase tracking-widest transition-colors flex items-center gap-2 mb-6"
+                                                className="text-[9px] sm:text-[10px] font-black text-gray-400 hover:text-[#F97316] uppercase tracking-widest transition-colors flex items-center gap-2 mb-6"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform duration-300 ${expandedComments[report.report_id] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
@@ -964,6 +1026,83 @@ const ResiHomePage = () => {
 
                 {/* Dashboard content cleared as requested */}
             </main>
+
+            {/* Full-Screen Media Gallery Modal */}
+            {activeGallery && (
+                <div
+                    className="fixed inset-0 z-[9999] bg-[#1a1208]/95 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300"
+                    onClick={() => setActiveGallery(null)}
+                >
+                    {/* Close Button */}
+                    <button
+                        className="absolute top-8 right-8 bg-white/10 hover:bg-white/20 text-white rounded-full p-3 transition-all z-[10001]"
+                        onClick={(e) => { e.stopPropagation(); setActiveGallery(null); }}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+
+                    {/* Navigation Arrows */}
+                    {activeGallery.media.length > 1 && (
+                        <>
+                            <button
+                                className="absolute left-8 w-14 h-14 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-all z-[10001] backdrop-blur-sm group/btn"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const newIndex = (activeGallery.index - 1 + activeGallery.media.length) % activeGallery.media.length;
+                                    setActiveGallery({ ...activeGallery, index: newIndex });
+                                }}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 group-hover/btn:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                                </svg>
+                            </button>
+                            <button
+                                className="absolute right-8 w-14 h-14 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-all z-[10001] backdrop-blur-sm group/btn"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const newIndex = (activeGallery.index + 1) % activeGallery.media.length;
+                                    setActiveGallery({ ...activeGallery, index: newIndex });
+                                }}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 group-hover/btn:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </>
+                    )}
+
+                    <div className="relative max-w-5xl max-h-[85vh] w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                        {activeGallery.media[activeGallery.index].media_type === 'Video' ? (
+                            <video
+                                src={activeGallery.media[activeGallery.index].file_url}
+                                className="w-full h-full object-contain rounded-3xl shadow-2xl animate-in zoom-in-95 duration-500"
+                                controls
+                                autoPlay
+                            />
+                        ) : (
+                            <img
+                                src={activeGallery.media[activeGallery.index].file_url}
+                                alt="Full view"
+                                className="w-full h-full object-contain rounded-3xl shadow-2xl animate-in zoom-in-95 duration-500"
+                            />
+                        )}
+
+                        {/* Status Bar */}
+                        <div className="absolute -bottom-16 left-0 right-0 flex flex-col items-center gap-2">
+                            <div className="flex gap-1.5">
+                                {activeGallery.media.map((_, i) => (
+                                    <div key={i} className={`h-1 rounded-full transition-all duration-300 ${i === activeGallery.index ? 'w-8 bg-[#F97316]' : 'w-2 bg-white/20'}`} />
+                                ))}
+                            </div>
+                            <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.4em]">
+                                Media {activeGallery.index + 1} of {activeGallery.media.length} • StraySafe Surveillance
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
