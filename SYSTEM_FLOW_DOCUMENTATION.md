@@ -40,13 +40,13 @@ Features
 • View report location on interactive map
 • Contribute to community heatmap data
 • Comment section with subdivision leaders and barangay staff
-Actions / Status
-→ Submitted
-→ Under Validation
-→ Escalated to Barangay
-→ Rescue In Progress
-→ Picked Up
-→ Resolved
+Actions / Status (Real-time tracking for citizens)
+→ 1. Reported (Pending)
+→ 2. Verified (Forwarded to Barangay)
+→ 3. Dispatched (Rescue Team En Route)
+→ 4. Picked Up (Animal Safely Secured)
+→ 5. Impounded (Post-Rescue Care/Impoundment)
+→ 6. Resolved (Case Successfully Closed)
 
 
 B.  Subdivision Leader (Validation Layer)
@@ -59,12 +59,12 @@ Features
 • Detect and filter fake or duplicate reports
 • Validate legitimacy and verify submitted location
 • Monitor reports within assigned subdivision
-• Notify citizens once action is initiated
+• Generate Official Endorsement Letter for Barangay escalation
+• Track status of escalated rescue requests
 Actions / Status
-→ Approve
-→ Reject
-→ Escalate
-→ Request Clarification
+→ Approve (Verified)
+→ Reject (Spam/Duplicate)
+→ Escalate (Sent to Barangay with Endorsement Letter)
 
 
 C.  Barangay Staff (Action Layer)
@@ -78,16 +78,16 @@ Features
 • Generate rescue request and endorsement letters
 • Dispatch response team to the field
 • Perform field rescue and animal pickup
-• Update rescue case status and notify stakeholders
-• Provide real-time animal status and location updates using image or video evidence
+• Provide real-time animal status and location updates using visual evidence
+• Manage post-rescue states: Observation and Impoundment
 Actions / Status
-→ Pending
-→ Approved
-→ Team Dispatched
-→ Picked Up
-→ Under Observation
-→ Impounded
-→ Resolved / Released
+→ Pending (Awaiting Approval)
+→ Approved (Case Active)
+→ Rescue In Progress (Team Dispatched)
+→ Picked Up (Success)
+→ Under Observation (Medical/Behavioral Check)
+→ Impounded (Shelter/Facility)
+→ Resolved (Closed/Released)
 
 
 D.  Admin (System Controller)
@@ -136,17 +136,17 @@ Normal condition
 4.  System Workflow
 The following step-by-step process describes how a stray animal incident moves through the STRAY-SAFE system from initial report to full resolution.
 
-Step 01  Citizen submits report with image, GPS location, and description
-Step 02  Report stored in database and assigned a tracking ID
-Step 03  AI module analyzes image — identifies animal type, condition, and assigns priority
-Step 04  Subdivision leader reviews and validates the report
-Step 05  Validated report forwarded to barangay staff
-Step 06  Barangay approves the case and dispatches a response team
-Step 07  Response team performs field rescue and animal pickup
-Step 08  Barangay staff provides real-time status and location updates with image/video evidence
-Step 09  Case status updated to Picked Up / Resolved
-Step 10  Notifications sent to all stakeholders
-Step 11  Heatmaps and analytics dashboards updated automatically
+Step 01  Citizen submits report with image/video, GPS location, and description
+Step 02  Report stored and assigned a unique Tracking ID
+Step 03  AI module analyzes media — identifies species, condition, and priority
+Step 04  Subdivision leader validates legitimacy and generates Endorsement Letter
+Step 05  Report escalated to Barangay with official documentation
+Step 06  Barangay staff approves the rescue and dispatches the team
+Step 07  Team performs field rescue; provides real-time GPS and visual updates
+Step 08  Animal status tracked through Post-Rescue stages (Observation/Impound)
+Step 09  Case status updated to Resolved; notification sent to all stakeholders
+Step 10  System automatically updates Heatmaps and Analytics dashboards
+Step 11  Strict Media Filtering ensures visual clarity (Photos/Videos vs Letters)
 
 
 5.  Core System Modules

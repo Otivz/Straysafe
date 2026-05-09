@@ -52,6 +52,10 @@ interface Report {
     created_at: string;
     user_id: number;
     reporter_name?: string;
+    animal_type?: string;
+    breed?: string;
+    animal_condition?: string;
+    behavior_tags?: string | string[];
     media?: any[];
     comments?: any[];
 }
@@ -91,6 +95,7 @@ const AdminReport = () => {
     const [commentInputs, setCommentInputs] = useState<Record<number, string>>({});
     const [replyingTo, setReplyingTo] = useState<Record<number, { commentId: number, userName: string } | null>>({});
     const [expandedComments, setExpandedComments] = useState<Record<number, boolean>>({});
+    const [activeGallery, setActiveGallery] = useState<{ media: any[], index: number } | null>(null);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -115,8 +120,7 @@ const AdminReport = () => {
         breed: '',
         condition: 'Healthy',
         behaviorTags: [] as string[],
-        image: null as File | null,
-        video: null as File | null
+        mediaFiles: [] as File[]
     });
 
     const API_URL = 'http://localhost:8000/reports';
@@ -124,7 +128,7 @@ const AdminReport = () => {
     const fetchReports = async () => {
         try {
             setLoading(true);
-            const response = await axios.get(API_URL);
+            const response = await axios.get(`${API_URL}/`);
             setReports(response.data);
         } catch (error) {
             console.error('Error fetching reports:', error);
@@ -144,7 +148,7 @@ const AdminReport = () => {
         try {
             const parentId = replyingTo[reportId]?.commentId || null;
             await axios.post(`${API_URL}/${reportId}/comments`, {
-                message: text.trim(),
+                comment: text.trim(),
                 user_id: currentUserId,
                 parent_comment_id: parentId
             });
@@ -227,6 +231,10 @@ const AdminReport = () => {
                 user_id: user.user_id,
                 subdivision_id: 1,
                 category_id: formData.category_id,
+                animal_type: formData.category,
+                breed: formData.breed,
+                condition: formData.condition,
+                behavior_tags: formData.behaviorTags.join(','),
                 latitude: formData.latitude,
                 longitude: formData.longitude,
                 landmark: formData.landmark,
@@ -242,17 +250,18 @@ const AdminReport = () => {
             const reportId = newReport.report_id;
 
             // Upload media if present
-            if (formData.image || formData.video) {
-                const mediaFile = formData.image || formData.video;
-                const mediaData = new FormData();
-                mediaData.append("file", mediaFile!);
+            if (formData.mediaFiles && formData.mediaFiles.length > 0) {
+                for (const file of formData.mediaFiles) {
+                    const mediaData = new FormData();
+                    mediaData.append("file", file);
 
-                try {
-                    await axios.post(`${API_URL}/${reportId}/media`, mediaData, {
-                        headers: { 'Content-Type': 'multipart/form-data' }
-                    });
-                } catch (err) {
-                    console.error('Failed to upload media:', err);
+                    try {
+                        await axios.post(`${API_URL}/${reportId}/media`, mediaData, {
+                            headers: { 'Content-Type': 'multipart/form-data' }
+                        });
+                    } catch (err) {
+                        console.error('Failed to upload media:', err);
+                    }
                 }
             }
 
@@ -271,8 +280,7 @@ const AdminReport = () => {
                 breed: '',
                 condition: 'Healthy',
                 behaviorTags: [],
-                image: null,
-                video: null
+                mediaFiles: []
             });
             fetchReports();
             setTimeout(() => setShowSuccess(false), 3000);
@@ -368,7 +376,9 @@ const AdminReport = () => {
                                     options={[
                                         { value: 'all', label: 'All Status' },
                                         { value: 'Pending', label: 'Pending' },
-                                        { value: 'Ongoing', label: 'Ongoing' },
+                                        { value: 'Verified', label: 'Verified' },
+                                        { value: 'Escalated to Barangay', label: 'Escalated' },
+                                        { value: 'Rescue In Progress', label: 'In Progress' },
                                         { value: 'Resolved', label: 'Resolved' }
                                     ]}
                                     className="w-[140px]"
@@ -532,7 +542,58 @@ const AdminReport = () => {
                                 const viewReport = reports.find(r => r.report_id === viewingReportId);
                                 if (!viewReport) return null;
                                 return (
-                                    <div className="space-y-8">
+                                    <div className="flex flex-col h-full overflow-hidden">
+                                        {/* Rescue Progress Tracker (6 Stages) */}
+                                        <div className="px-8 py-10 bg-white border-b border-gray-100/50 shrink-0">
+                                            <div className="flex items-center justify-between relative px-2">
+                                                <div className="absolute top-5 left-10 right-10 h-0.5 bg-gray-100 z-0">
+                                                    <div 
+                                                        className="h-full bg-orange-500 transition-all duration-700"
+                                                        style={{ 
+                                                            width: `${(() => {
+                                                                const stages = [1, 4, 5, 7, 9, 6];
+                                                                const currentIndex = stages.indexOf(viewReport.status_id);
+                                                                return currentIndex === -1 ? 0 : (currentIndex / (stages.length - 1)) * 100;
+                                                            })()}%` 
+                                                        }}
+                                                    />
+                                                </div>
+
+                                                {[
+                                                    { id: 1, label: 'Reported' },
+                                                    { id: 4, label: 'Verified' },
+                                                    { id: 5, label: 'Dispatched' },
+                                                    { id: 7, label: 'Picked Up' },
+                                                    { id: 9, label: 'Impounded' },
+                                                    { id: 6, label: 'Resolved' }
+                                                ].map((stage, idx) => {
+                                                    const stages = [1, 4, 5, 7, 9, 6];
+                                                    const isCompleted = stages.indexOf(viewReport.status_id) >= idx;
+                                                    const isCurrent = viewReport.status_id === stage.id;
+                                                    
+                                                    return (
+                                                        <div key={stage.id} className="relative z-10 flex flex-col items-center">
+                                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                                                                isCurrent ? 'bg-orange-500 text-white shadow-md ring-4 ring-orange-50' :
+                                                                isCompleted ? 'bg-orange-100 text-orange-600 border border-orange-200' : 
+                                                                'bg-white text-gray-200 border border-gray-100'
+                                                            }`}>
+                                                                {isCompleted ? (
+                                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                                                                ) : (
+                                                                    <span className="text-xs font-black">{idx + 1}</span>
+                                                                )}
+                                                            </div>
+                                                            <span className={`mt-2 text-[8px] font-black uppercase tracking-widest ${isCurrent ? 'text-orange-600' : isCompleted ? 'text-gray-600' : 'text-gray-300'}`}>
+                                                                {stage.label}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar flex-1">
                                         {/* Header Info */}
                                         <div className="flex items-start justify-between">
                                             <div className="flex items-center gap-4">
@@ -596,13 +657,13 @@ const AdminReport = () => {
                                         </div>
 
                                         {/* Behavior Tags */}
-                                        {(viewReport as any).behavior_tags && (viewReport as any).behavior_tags.length > 0 && (
+                                        {viewReport.behavior_tags && (
                                             <div>
                                                 <h5 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Behavior & Traits</h5>
                                                 <div className="flex flex-wrap gap-2">
-                                                    {((viewReport as any).behavior_tags as string[]).map((tag, idx) => (
+                                                    {(typeof viewReport.behavior_tags === 'string' ? viewReport.behavior_tags.split(',') : (viewReport.behavior_tags as string[])).map((tag, idx) => (
                                                         <span key={idx} className="px-3 py-1 bg-gray-100 text-gray-600 text-[10px] font-bold rounded-full border border-gray-200">
-                                                            {tag}
+                                                            {tag.trim()}
                                                         </span>
                                                     ))}
                                                 </div>
@@ -629,59 +690,112 @@ const AdminReport = () => {
                                             </div>
                                         </div>
 
-                                        {/* Media */}
-                                        {viewReport.media && viewReport.media.length > 0 && (
+                                        {/* Media Grid: The Focus */}
+                                        {viewReport.media && viewReport.media.filter((m: any) => {
+                                            const url = m.file_url.toLowerCase();
+                                            return m.media_type !== 'Document' && 
+                                                   !url.endsWith('.pdf') && 
+                                                   !url.endsWith('.doc') && 
+                                                   !url.endsWith('.docx') && 
+                                                   !url.endsWith('.txt');
+                                        }).length > 0 && (
                                             <div>
-                                                <h5 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Attached Media</h5>
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                                    {viewReport.media.map((m: any) => (
-                                                        <div key={m.media_id} className="flex flex-col gap-2">
-                                                            <div className="aspect-square rounded-2xl overflow-hidden bg-gray-100 border border-gray-200">
-                                                                {m.media_type === 'Video' ? (
+                                                <h5 className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4 block">INCIDENT MEDIA GALLERY</h5>
+                                                <div className={`grid gap-2 rounded-2xl sm:rounded-[2.5rem] overflow-hidden border-2 border-gray-50 shadow-inner bg-gray-50/30 ${
+                                                    viewReport.media.filter((m: any) => {
+                                                        const url = m.file_url.toLowerCase();
+                                                        return m.media_type !== 'Document' && 
+                                                               !url.endsWith('.pdf') && 
+                                                               !url.endsWith('.doc') && 
+                                                               !url.endsWith('.docx') && 
+                                                               !url.endsWith('.txt');
+                                                    }).length === 1 ? 'grid-cols-1' : 'grid-cols-2'
+                                                }`}>
+                                                    {viewReport.media.filter((m: any) => {
+                                                        const url = m.file_url.toLowerCase();
+                                                        return m.media_type !== 'Document' && 
+                                                               !url.endsWith('.pdf') && 
+                                                               !url.endsWith('.doc') && 
+                                                               !url.endsWith('.docx') && 
+                                                               !url.endsWith('.txt');
+                                                    }).slice(0, 4).map((m: any, idx: number) => (
+                                                        <div
+                                                            key={m.media_id}
+                                                            className={`relative overflow-hidden cursor-pointer group/media ${
+                                                                viewReport.media.filter((m: any) => {
+                                                                    const url = m.file_url.toLowerCase();
+                                                                    return m.media_type !== 'Document' && 
+                                                                           !url.endsWith('.pdf') && 
+                                                                           !url.endsWith('.doc') && 
+                                                                           !url.endsWith('.docx') && 
+                                                                           !url.endsWith('.txt');
+                                                                }).length === 1 ? 'h-64 sm:h-96' :
+                                                                viewReport.media.filter((m: any) => {
+                                                                    const url = m.file_url.toLowerCase();
+                                                                    return m.media_type !== 'Document' && 
+                                                                           !url.endsWith('.pdf') && 
+                                                                           !url.endsWith('.doc') && 
+                                                                           !url.endsWith('.docx') && 
+                                                                           !url.endsWith('.txt');
+                                                                }).length === 2 ? 'h-48 sm:h-72' :
+                                                                viewReport.media.filter((m: any) => {
+                                                                    const url = m.file_url.toLowerCase();
+                                                                    return m.media_type !== 'Document' && 
+                                                                           !url.endsWith('.pdf') && 
+                                                                           !url.endsWith('.doc') && 
+                                                                           !url.endsWith('.docx') && 
+                                                                           !url.endsWith('.txt');
+                                                                }).length === 3 && idx === 0 ? 'row-span-2 h-[24rem] sm:h-[36rem]' : 'h-48 sm:h-72'
+                                                            }`}
+                                                            onClick={() => {
+                                                                const filtered = viewReport.media.filter((m: any) => {
+                                                                    const url = m.file_url.toLowerCase();
+                                                                    return m.media_type !== 'Document' && 
+                                                                           !url.endsWith('.pdf') && 
+                                                                           !url.endsWith('.doc') && 
+                                                                           !url.endsWith('.docx') && 
+                                                                           !url.endsWith('.txt');
+                                                                });
+                                                                setActiveGallery({ media: filtered, index: idx });
+                                                            }}
+                                                        >
+                                                            {m.media_type === 'Video' ? (
+                                                                <div className="w-full h-full relative">
                                                                     <video src={m.file_url} className="w-full h-full object-cover" />
-                                                                ) : m.media_type === 'Document' ? (
-                                                                    <div className="w-full h-full flex flex-col items-center justify-center bg-orange-50 text-[#F97316] p-4 gap-2">
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                                        </svg>
-                                                                        <span className="text-[8px] font-bold uppercase tracking-widest text-center">Document</span>
+                                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover/media:bg-black/30 transition-all">
+                                                                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/30">
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                                                                                <path d="M8 5v14l11-7z" />
+                                                                            </svg>
+                                                                        </div>
                                                                     </div>
-                                                                ) : (
-                                                                    <img src={m.file_url} alt="Report media" className="w-full h-full object-cover" />
-                                                                )}
-                                                            </div>
-                                                            <div className="flex gap-2">
-                                                                {(() => {
-                                                                    let viewUrl = m.file_url;
-                                                                    const isPdf = m.media_type === 'Document' || viewUrl.toLowerCase().endsWith('.pdf');
-                                                                    const isImageBucket = viewUrl.includes('/image/upload/');
-
-                                                                    if (isImageBucket) {
-                                                                        if (isPdf && !viewUrl.toLowerCase().endsWith('.pdf')) {
-                                                                            viewUrl += '.pdf';
-                                                                        }
-                                                                    }
-
-                                                                    return (
-                                                                        <>
-                                                                            <a
-                                                                                href={viewUrl}
-                                                                                target="_blank"
-                                                                                rel="noopener noreferrer"
-                                                                                className="flex-1 py-1.5 bg-white border border-gray-200 rounded-lg text-[9px] font-bold text-gray-600 hover:bg-gray-50 transition-all text-center"
-                                                                            >
-                                                                                View
-                                                                            </a>
-                                                                            <a
-                                                                                href={m.file_url.replace('/upload/', `/upload/fl_attachment:StraySafe_Media_${m.media_id}/`)}
-                                                                                className="flex-1 py-1.5 bg-orange-50 border border-orange-100 rounded-lg text-[9px] font-bold text-[#F97316] hover:bg-orange-100 transition-all text-center"
-                                                                            >
-                                                                                Download
-                                                                            </a>
-                                                                        </>
-                                                                    );
-                                                                })()}
-                                                            </div>
+                                                                </div>
+                                                            ) : (
+                                                                <img
+                                                                    src={m.file_url}
+                                                                    alt="Media"
+                                                                    className="w-full h-full object-cover hover:scale-105 transition-all duration-1000 ease-out"
+                                                                />
+                                                            )}
+                                                            {idx === 3 && viewReport.media.filter((m: any) => {
+                                                                const url = m.file_url.toLowerCase();
+                                                                return m.media_type !== 'Document' && 
+                                                                       !url.endsWith('.pdf') && 
+                                                                       !url.endsWith('.doc') && 
+                                                                       !url.endsWith('.docx') && 
+                                                                       !url.endsWith('.txt');
+                                                            }).length > 4 && (
+                                                                <div className="absolute inset-0 bg-black/70 backdrop-blur-[4px] flex items-center justify-center text-white">
+                                                                    <span className="text-xl sm:text-3xl font-black tracking-tighter leading-none">+{viewReport.media.filter((m: any) => {
+                                                                        const url = m.file_url.toLowerCase();
+                                                                        return m.media_type !== 'Document' && 
+                                                                               !url.endsWith('.pdf') && 
+                                                                               !url.endsWith('.doc') && 
+                                                                               !url.endsWith('.docx') && 
+                                                                               !url.endsWith('.txt');
+                                                                    }).length - 4}</span>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     ))}
                                                 </div>
@@ -740,8 +854,13 @@ const AdminReport = () => {
                                             {(expandedComments[viewReport.report_id] || !viewReport.comments || viewReport.comments.length === 0) && (
                                                 <div className="space-y-2 mb-6 max-h-72 overflow-y-auto custom-scrollbar pr-2 animate-in fade-in slide-in-from-top-2 duration-300">
                                                     {viewReport.comments && viewReport.comments.length > 0 ? (
-                                                        viewReport.comments.filter((c: any) => !c.parent_comment_id).map((c: any) => {
-                                                            const replies = viewReport.comments?.filter((reply: any) => reply.parent_comment_id === c.comment_id) || [];
+                                                        viewReport.comments
+                                                            .filter((c: any) => !c.parent_comment_id)
+                                                            .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                                                            .map((c: any) => {
+                                                                const replies = viewReport.comments
+                                                                    ?.filter((reply: any) => reply.parent_comment_id === c.comment_id)
+                                                                    .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) || [];
                                                             return (
                                                                 <div key={c.comment_id} className="mb-4 last:mb-0">
                                                                     <div className="flex gap-3 relative">
@@ -759,7 +878,7 @@ const AdminReport = () => {
                                                                             {/* Parent Bubble */}
                                                                             <div className="bg-[#FAFAF9] rounded-[1.5rem] p-3.5 px-4 border border-gray-50 shadow-sm inline-block">
                                                                                 <span className="block text-[11px] font-black text-[#1a1208] mb-0.5">{c.user_name || 'User'}</span>
-                                                                                <p className="text-xs font-semibold text-gray-700 leading-relaxed pr-6">{c.message}</p>
+                                                                                <p className="text-xs font-semibold text-gray-700 leading-relaxed pr-6">{c.comment}</p>
                                                                             </div>
                                                                             {/* Parent Actions */}
                                                                             <div className="flex items-center gap-4 mt-1.5 ml-3">
@@ -794,7 +913,7 @@ const AdminReport = () => {
                                                                                                 {/* Child Bubble */}
                                                                                                 <div className="bg-[#FAFAF9] rounded-[1.2rem] p-3 px-4 border border-gray-50 shadow-sm inline-block">
                                                                                                     <span className="block text-[10px] font-black text-gray-800 mb-0.5">{reply.user_name || 'User'}</span>
-                                                                                                    <p className="text-[11px] font-semibold text-gray-600 leading-relaxed pr-4">{reply.message}</p>
+                                                                                                    <p className="text-[11px] font-semibold text-gray-600 leading-relaxed pr-4">{reply.comment}</p>
                                                                                                 </div>
                                                                                                 {/* Child Actions */}
                                                                                                 <div className="flex items-center gap-4 mt-1.5 ml-3">
@@ -921,7 +1040,8 @@ const AdminReport = () => {
                                             </div>
                                         </div>
                                     </div>
-                                );
+                                </div>
+                            );
                             })()}
                         </div>
                     </div>
@@ -1018,7 +1138,7 @@ const AdminReport = () => {
                                                 className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${formData.condition === cond
                                                     ? 'bg-[#F97316] text-white border-[#F97316] shadow-lg shadow-orange-100'
                                                     : 'bg-white text-gray-400 border-gray-100 hover:border-orange-100'
-                                                }`}
+                                                    }`}
                                             >
                                                 {cond}
                                             </button>
@@ -1084,7 +1204,7 @@ const AdminReport = () => {
                                                 className={`px-4 py-2 rounded-full text-[9px] font-bold border transition-all flex items-center gap-2 ${formData.behaviorTags.includes(tag)
                                                     ? 'bg-orange-50 text-[#F97316] border-[#F97316]'
                                                     : 'bg-white text-gray-400 border-gray-100 hover:border-orange-100'
-                                                }`}
+                                                    }`}
                                             >
                                                 {formData.behaviorTags.includes(tag) && <div className="w-1 h-1 rounded-full bg-[#F97316]" />}
                                                 {tag}
@@ -1093,55 +1213,107 @@ const AdminReport = () => {
                                     </div>
                                 </div>
 
-                                {/* Media Upload */}
+                                {/* Consolidated Media Upload */}
                                 <div className="md:col-span-2">
-                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4 block">Upload Photo or Video</label>
-                                    <div className="relative group">
-                                        <div className={`w-full aspect-video rounded-[2rem] border-2 border-dashed flex flex-col items-center justify-center gap-4 transition-all ${formData.image || formData.video ? 'border-orange-500 bg-orange-50/20' : 'border-gray-100 bg-[#FAFAF9] group-hover:border-orange-200 group-hover:bg-orange-50/10'}`}>
-                                            {formData.image || formData.video ? (
-                                                <div className="flex flex-col items-center gap-3">
-                                                    <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-[#F97316]">
-                                                        {formData.video ? (
+                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4 block">Upload Photos or Videos</label>
+                                    <div className="relative">
+                                        {formData.mediaFiles.length > 0 ? (
+                                            <div className="space-y-4">
+                                                {/* Grid Preview (Facebook-like) */}
+                                                <div
+                                                    className={`relative grid gap-2 rounded-[2rem] overflow-hidden border-2 border-orange-500 bg-orange-50/10 p-2 cursor-pointer group/grid ${formData.mediaFiles.length === 1 ? 'grid-cols-1' :
+                                                        formData.mediaFiles.length === 2 ? 'grid-cols-2' :
+                                                            'grid-cols-2'
+                                                        }`}
+                                                    onClick={() => document.getElementById('admin-multi-upload')?.click()}
+                                                >
+                                                    {formData.mediaFiles.slice(0, 4).map((file, index) => (
+                                                        <div key={index} className={`relative aspect-square rounded-2xl overflow-hidden group/item ${formData.mediaFiles.length === 3 && index === 0 ? 'row-span-2 aspect-auto' : ''
+                                                            }`}>
+                                                            {file.type.startsWith('video/') ? (
+                                                                <video
+                                                                    src={URL.createObjectURL(file)}
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                            ) : (
+                                                                <img
+                                                                    src={URL.createObjectURL(file)}
+                                                                    alt="Preview"
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                            )}
+                                                            {index === 3 && formData.mediaFiles.length > 4 && (
+                                                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                                                    <span className="text-white text-xl font-black">+{formData.mediaFiles.length - 4}</span>
+                                                                </div>
+                                                            )}
+                                                            {/* Delete individual button */}
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const newFiles = [...formData.mediaFiles];
+                                                                    newFiles.splice(index, 1);
+                                                                    setFormData({ ...formData, mediaFiles: newFiles });
+                                                                }}
+                                                                className="absolute top-2 right-2 bg-black/40 hover:bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover/item:opacity-100 transition-all z-[30]"
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    ))}
+
+                                                    {/* Hover Add More Overlay */}
+                                                    <div className="absolute inset-0 bg-orange-600/20 backdrop-blur-[2px] opacity-0 group-hover/grid:opacity-100 transition-all flex flex-col items-center justify-center gap-2 z-20">
+                                                        <div className="w-12 h-12 rounded-full bg-white shadow-xl flex items-center justify-center text-[#F97316]">
                                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
                                                             </svg>
-                                                        ) : (
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                            </svg>
-                                                        )}
-                                                    </div>
-                                                    <div className="text-center">
-                                                        <p className="text-[10px] font-black text-[#F97316] uppercase tracking-widest">{formData.video ? 'Video' : 'Photo'} Added</p>
-                                                        <p className="text-[9px] font-bold text-gray-400">Click to change media</p>
+                                                        </div>
+                                                        <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] drop-shadow-md">Add More Photos</span>
                                                     </div>
                                                 </div>
-                                            ) : (
-                                                <>
-                                                    <div className="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center text-gray-300 group-hover:text-[#F97316] transition-colors">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                                        </svg>
-                                                    </div>
-                                                    <div className="text-center">
-                                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tap to add Photo or Video</p>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
+
+                                                <div className="flex justify-end">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setFormData({ ...formData, mediaFiles: [] })}
+                                                        className="text-[10px] font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-all py-1"
+                                                    >
+                                                        Clear Selection
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div
+                                                className="w-full aspect-video rounded-[2rem] border-2 border-dashed border-gray-100 bg-[#FAFAF9] flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-orange-200 hover:bg-orange-50/10 transition-all group"
+                                                onClick={() => document.getElementById('admin-multi-upload')?.click()}
+                                            >
+                                                <div className="w-16 h-16 rounded-[1.5rem] bg-white shadow-sm flex items-center justify-center text-gray-300 group-hover:text-[#F97316] transition-colors">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                                    </svg>
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tap to add Photos or Videos</p>
+                                                    <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mt-1">Multiple files supported</p>
+                                                </div>
+                                            </div>
+                                        )}
                                         <input
+                                            id="admin-multi-upload"
                                             type="file"
-                                            className="absolute inset-0 opacity-0 cursor-pointer"
+                                            className="hidden"
                                             accept="image/*,video/*"
+                                            multiple
                                             onChange={(e) => {
-                                                const file = e.target.files?.[0];
-                                                if (file) {
-                                                    if (file.type.startsWith('video/')) {
-                                                        setFormData({ ...formData, video: file, image: null });
-                                                    } else {
-                                                        setFormData({ ...formData, image: file, video: null });
-                                                    }
-                                                }
+                                                const files = Array.from(e.target.files || []);
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    mediaFiles: [...prev.mediaFiles, ...files]
+                                                }));
                                             }}
                                         />
                                     </div>
@@ -1344,6 +1516,88 @@ const AdminReport = () => {
                                 </Button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+            {/* Full-Screen Media Gallery Modal */}
+            {activeGallery && (
+                <div
+                    className="fixed inset-0 z-[9999] bg-[#1a1208]/95 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300"
+                    onClick={() => setActiveGallery(null)}
+                >
+                    {/* Close Button */}
+                    <button
+                        className="absolute top-8 right-8 bg-white/10 hover:bg-white/20 text-white rounded-full p-3 transition-all z-[10001]"
+                        onClick={(e) => { e.stopPropagation(); setActiveGallery(null); }}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+
+                    {/* Navigation Arrows */}
+                    {activeGallery.media.length > 1 && (
+                        <>
+                            <button
+                                className="absolute left-8 w-14 h-14 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-all z-[10001] backdrop-blur-sm group/btn"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const newIndex = (activeGallery.index - 1 + activeGallery.media.length) % activeGallery.media.length;
+                                    setActiveGallery({ ...activeGallery, index: newIndex });
+                                }}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 group-hover/btn:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                                </svg>
+                            </button>
+                            <button
+                                className="absolute right-8 w-14 h-14 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-all z-[10001] backdrop-blur-sm group/btn"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const newIndex = (activeGallery.index + 1) % activeGallery.media.length;
+                                    setActiveGallery({ ...activeGallery, index: newIndex });
+                                }}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 group-hover/btn:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </>
+                    )}
+
+                    <div className="relative max-w-5xl max-h-[85vh] w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                        {activeGallery.media[activeGallery.index].media_type === 'Video' ? (
+                            <video
+                                src={activeGallery.media[activeGallery.index].file_url}
+                                className="w-full h-full object-contain rounded-3xl shadow-2xl animate-in zoom-in-95 duration-500"
+                                controls
+                                autoPlay
+                            />
+                        ) : activeGallery.media[activeGallery.index].media_type === 'Document' ? (
+                            <iframe
+                                src={activeGallery.media[activeGallery.index].file_url}
+                                className="w-full h-full bg-white rounded-3xl shadow-2xl"
+                                title="Document Viewer"
+                            />
+                        ) : (
+                            <img
+                                src={activeGallery.media[activeGallery.index].file_url}
+                                alt="Full view"
+                                className="w-full h-full object-contain rounded-3xl shadow-2xl animate-in zoom-in-95 duration-500"
+                            />
+                        )}
+
+                        {/* Status Bar */}
+                        <div className="absolute -bottom-16 left-0 right-0 flex flex-col items-center gap-2">
+                            <div className="flex gap-1.5">
+                                {activeGallery.media.map((_, i) => (
+                                    <div key={i} className={`h-1 rounded-full transition-all duration-300 ${i === activeGallery.index ? 'w-8 bg-[#F97316]' : 'w-2 bg-white/20'}`} />
+                                ))}
+                            </div>
+                            <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.4em]">
+                                Media {activeGallery.index + 1} of {activeGallery.media.length} • StraySafe Surveillance
+                            </p>
+                        </div>
                     </div>
                 </div>
             )}

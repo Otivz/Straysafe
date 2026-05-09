@@ -2,10 +2,16 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
+
 class ReportBase(BaseModel):
     user_id: int
     subdivision_id: int
     category_id: int
+    pet_id: Optional[int] = None
+    animal_type: Optional[str] = 'Unknown'
+    animal_breed: Optional[str] = None
+    animal_color: Optional[str] = None
+    estimated_size: Optional[str] = None
     description: Optional[str] = None
     latitude: float
     longitude: float
@@ -13,18 +19,24 @@ class ReportBase(BaseModel):
     landmark: Optional[str] = None
     priority_level: Optional[str] = 'Regular'
     visibility: Optional[str] = 'Public'
+    is_possible_owned: Optional[bool] = False
+    # Frontend sends "status_id"; we accept it here and map to current_status_id in the route
     status_id: Optional[int] = 1
-    is_archived: Optional[bool] = False
+
 
 class ReportCreate(ReportBase):
     pass
 
+
 class CommentBase(BaseModel):
-    message: str
+    # DB column is "comment" (not "message")
+    comment: str
+
 
 class CommentCreate(CommentBase):
     user_id: int
     parent_comment_id: Optional[int] = None
+
 
 class CommentResponse(CommentBase):
     comment_id: int
@@ -33,18 +45,32 @@ class CommentResponse(CommentBase):
     parent_comment_id: Optional[int] = None
     created_at: datetime
     user_name: Optional[str] = None
-    
+
     class Config:
         from_attributes = True
+
 
 class ReportMediaResponse(BaseModel):
     media_id: int
     file_url: str
     media_type: str
+    # DB has no is_evidence or history_id
     uploaded_at: datetime
-    
+
     class Config:
         from_attributes = True
+
+
+class StatusHistoryResponse(BaseModel):
+    history_id: int
+    report_status_id: Optional[int] = None
+    rescue_status_id: Optional[int] = None
+    remarks: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 
 class ReportResponse(ReportBase):
     report_id: int
@@ -52,18 +78,31 @@ class ReportResponse(ReportBase):
     reporter_name: Optional[str] = None
     media: Optional[list[ReportMediaResponse]] = []
     comments: Optional[list[CommentResponse]] = []
-    
+    history: Optional[list[StatusHistoryResponse]] = []
+
     class Config:
         from_attributes = True
 
+
 class ReportStatusUpdate(BaseModel):
     status_id: int
+    remarks: Optional[str] = None
+    status_remarks: Optional[str] = None
+    animal_condition: Optional[str] = None
+
 
 class ReportUpdate(BaseModel):
     category_id: Optional[int] = None
+    animal_type: Optional[str] = None
+    animal_breed: Optional[str] = None
+    animal_color: Optional[str] = None
+    estimated_size: Optional[str] = None
     description: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     animal_count: Optional[int] = None
     landmark: Optional[str] = None
     visibility: Optional[str] = None
+    priority_level: Optional[str] = None
+    is_possible_owned: Optional[bool] = None
+    status_id: Optional[int] = None

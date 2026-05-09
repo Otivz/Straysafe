@@ -17,6 +17,10 @@ interface Report {
     longitude: number;
     landmark: string;
     animal_count: number;
+    animal_type: string;
+    breed?: string;
+    condition: string;
+    behavior_tags?: string;
     description: string;
     visibility: string;
     created_at: string;
@@ -53,6 +57,7 @@ const SubdReports = () => {
     const [isEscalating, setIsEscalating] = useState(false);
     const [escalationTitle, setEscalationTitle] = useState('');
     const [escalationDescription, setEscalationDescription] = useState('');
+    const [activeGallery, setActiveGallery] = useState<{ media: any[], index: number } | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
     const userStr = localStorage.getItem('staff_user') || sessionStorage.getItem('staff_user');
@@ -89,11 +94,18 @@ const SubdReports = () => {
 
     const [formData, setFormData] = useState({
         category_id: 1,
+        animal_type: 'Dog',
+        breed: '',
+        condition: 'Healthy',
+        animal_count: 1,
+        behavior_tags: [] as string[],
         latitude: 14.8013,
         longitude: 121.0031,
         landmark: '',
         priority_level: 'Regular',
-        description: ''
+        visibility: 'Public',
+        description: '',
+        mediaFiles: [] as File[]
     });
 
     const API_URL = 'http://localhost:8000/reports';
@@ -101,7 +113,7 @@ const SubdReports = () => {
     const fetchReports = async () => {
         try {
             setLoading(true);
-            const response = await axios.get(API_URL);
+            const response = await axios.get(`${API_URL}/`);
             setReports(response.data);
         } catch (error) {
             console.error('Error fetching reports:', error);
@@ -121,7 +133,7 @@ const SubdReports = () => {
         try {
             const parentId = replyingTo[reportId]?.commentId || null;
             await axios.post(`${API_URL}/${reportId}/comments`, {
-                message: text.trim(),
+                comment: text.trim(),
                 user_id: currentUserId,
                 parent_comment_id: parentId
             });
@@ -200,30 +212,68 @@ const SubdReports = () => {
         }
     };
 
+    const toggleBehaviorTag = (tag: string) => {
+        setFormData(prev => ({
+            ...prev,
+            behavior_tags: prev.behavior_tags.includes(tag)
+                ? prev.behavior_tags.filter(t => t !== tag)
+                : [...prev.behavior_tags, tag]
+        }));
+    };
+
     const handleSaveReport = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             if (!currentUser) throw new Error('User not authenticated');
 
-            await axios.post(API_URL, {
+            const response = await axios.post(API_URL, {
                 ...formData,
+                behavior_tags: formData.behavior_tags.join(','),
                 user_id: currentUser.user_id,
                 subdivision_id: currentUser.subdivision_id || 1,
-                animal_count: 1,
-                visibility: 'Public',
                 status_id: 1,
                 is_archived: false
             });
+
+            const reportId = response.data.report_id;
+
+            // Upload media if present
+            if (formData.mediaFiles && formData.mediaFiles.length > 0) {
+                let failCount = 0;
+                for (const file of formData.mediaFiles) {
+                    const mediaData = new FormData();
+                    mediaData.append("file", file);
+
+                    try {
+                        await axios.post(`${API_URL}/${reportId}/media`, mediaData, {
+                            headers: { 'Content-Type': 'multipart/form-data' }
+                        });
+                    } catch (err) {
+                        console.error('Failed to upload media:', err);
+                        failCount++;
+                    }
+                }
+                if (failCount > 0) {
+                    alert(`${failCount} media files failed to upload. The report was saved otherwise.`);
+                }
+            }
 
             setIsModalOpen(false);
             setShowSuccess(true);
             setFormData({
                 category_id: 1,
+                animal_type: 'Dog',
+                breed: '',
+                condition: 'Healthy',
+                animal_count: 1,
+                behavior_tags: [],
                 latitude: 14.8013,
                 longitude: 121.0031,
                 landmark: '',
                 priority_level: 'Regular',
-                description: ''
+                visibility: 'Public',
+                description: '',
+                mediaFiles: []
             });
             fetchReports();
             setTimeout(() => setShowSuccess(false), 3000);
@@ -321,7 +371,9 @@ const SubdReports = () => {
                                     options={[
                                         { value: 'all', label: 'All Status' },
                                         { value: 'Pending', label: 'Pending' },
-                                        { value: 'Ongoing', label: 'Ongoing' },
+                                        { value: 'Verified', label: 'Verified' },
+                                        { value: 'Escalated to Barangay', label: 'Escalated' },
+                                        { value: 'Rescue In Progress', label: 'In Progress' },
                                         { value: 'Resolved', label: 'Resolved' }
                                     ]}
                                     className="w-[140px]"
@@ -556,58 +608,141 @@ const SubdReports = () => {
                                             </div>
                                         </div>
 
-                                        {/* Media */}
-                                        {viewReport.media && viewReport.media.length > 0 && (
+                                        {/* Official Letter Section (Only for Escalated Reports) */}
+                                        {viewReport.status_id >= 4 && viewReport.media?.some(m => m.media_type === 'Document' || m.file_url.toLowerCase().endsWith('.pdf') || m.file_url.toLowerCase().endsWith('.docx')) && (
                                             <div>
-                                                <h5 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Attached Media</h5>
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                                    {viewReport.media.map((m: any) => (
-                                                        <div key={m.media_id} className="flex flex-col gap-2">
-                                                            <div className="aspect-square rounded-2xl overflow-hidden bg-gray-100 border border-gray-200">
-                                                                {m.media_type === 'Video' ? (
+                                                <h5 className="text-[11px] font-black text-[#1a1208] uppercase tracking-[0.2em] mb-4">Official Subdivision Letter</h5>
+                                                <div className="bg-orange-50/50 border border-orange-100 rounded-3xl p-6 flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-12 h-12 rounded-2xl bg-orange-600 flex items-center justify-center text-white shadow-lg">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                            </svg>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs font-black text-gray-900 uppercase tracking-widest">Endorsement Letter</p>
+                                                            <p className="text-[10px] font-bold text-gray-400 mt-0.5">Sent to Barangay for Rescue Request</p>
+                                                        </div>
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => {
+                                                            const letter = viewReport.media?.find(m => m.media_type === 'Document' || m.file_url.toLowerCase().endsWith('.pdf') || m.file_url.toLowerCase().endsWith('.docx'));
+                                                            if (letter) setActiveGallery({ media: [letter], index: 0 });
+                                                        }}
+                                                        className="px-6 py-2.5 bg-white border border-orange-200 text-orange-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-orange-600 hover:text-white transition-all shadow-sm"
+                                                    >
+                                                        View Letter
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Media Gallery */}
+                                        {viewReport.media && viewReport.media.filter(m => {
+                                            const url = m.file_url.toLowerCase();
+                                            return m.media_type !== 'Document' && 
+                                                   !url.endsWith('.pdf') && 
+                                                   !url.endsWith('.doc') && 
+                                                   !url.endsWith('.docx') && 
+                                                   !url.endsWith('.txt');
+                                        }).length > 0 && (
+                                            <div>
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <h5 className="text-[11px] font-black text-[#1a1208] uppercase tracking-[0.2em]">Evidence Gallery</h5>
+                                                    <span className="text-[10px] font-bold text-gray-400 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
+                                                        {viewReport.media.filter(m => {
+                                                            const url = m.file_url.toLowerCase();
+                                                            return m.media_type !== 'Document' && 
+                                                                   !url.endsWith('.pdf') && 
+                                                                   !url.endsWith('.doc') && 
+                                                                   !url.endsWith('.docx') && 
+                                                                   !url.endsWith('.txt');
+                                                        }).length} {viewReport.media.filter(m => {
+                                                            const url = m.file_url.toLowerCase();
+                                                            return m.media_type !== 'Document' && 
+                                                                   !url.endsWith('.pdf') && 
+                                                                   !url.endsWith('.doc') && 
+                                                                   !url.endsWith('.docx') && 
+                                                                   !url.endsWith('.txt');
+                                                        }).length === 1 ? 'File' : 'Files'} Attached
+                                                    </span>
+                                                </div>
+                                                
+                                                <div className={`grid gap-3 ${
+                                                    viewReport.media.filter(m => {
+                                                        const url = m.file_url.toLowerCase();
+                                                        return m.media_type !== 'Document' && 
+                                                               !url.endsWith('.pdf') && 
+                                                               !url.endsWith('.doc') && 
+                                                               !url.endsWith('.docx') && 
+                                                               !url.endsWith('.txt');
+                                                    }).length === 1 ? 'grid-cols-1' : 
+                                                    viewReport.media.filter(m => {
+                                                        const url = m.file_url.toLowerCase();
+                                                        return m.media_type !== 'Document' && 
+                                                               !url.endsWith('.pdf') && 
+                                                               !url.endsWith('.doc') && 
+                                                               !url.endsWith('.docx') && 
+                                                               !url.endsWith('.txt');
+                                                    }).length === 2 ? 'grid-cols-2' : 
+                                                    'grid-cols-2 sm:grid-cols-3'
+                                                }`}>
+                                                    {viewReport.media.filter(m => {
+                                                        const url = m.file_url.toLowerCase();
+                                                        return m.media_type !== 'Document' && 
+                                                               !url.endsWith('.pdf') && 
+                                                               !url.endsWith('.doc') && 
+                                                               !url.endsWith('.docx') && 
+                                                               !url.endsWith('.txt');
+                                                    }).map((m: any, idx: number) => (
+                                                        <div 
+                                                            key={m.media_id} 
+                                                            onClick={() => {
+                                                                const filtered = viewReport.media!.filter(m => {
+                                                                    const url = m.file_url.toLowerCase();
+                                                                    return m.media_type !== 'Document' && 
+                                                                           !url.endsWith('.pdf') && 
+                                                                           !url.endsWith('.doc') && 
+                                                                           !url.endsWith('.docx') && 
+                                                                           !url.endsWith('.txt');
+                                                                });
+                                                                setActiveGallery({ media: filtered, index: idx });
+                                                            }}
+                                                            className={`group relative rounded-2xl overflow-hidden bg-gray-100 border border-gray-100 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95 ${
+                                                                viewReport.media!.filter(m => {
+                                                                    const url = m.file_url.toLowerCase();
+                                                                    return m.media_type !== 'Document' && 
+                                                                           !url.endsWith('.pdf') && 
+                                                                           !url.endsWith('.doc') && 
+                                                                           !url.endsWith('.docx') && 
+                                                                           !url.endsWith('.txt');
+                                                                }).length === 3 && idx === 0 ? 'sm:row-span-2 sm:h-full' : 'aspect-square'
+                                                            }`}
+                                                        >
+                                                            {m.media_type === 'Video' ? (
+                                                                <div className="relative w-full h-full">
                                                                     <video src={m.file_url} className="w-full h-full object-cover" />
-                                                                ) : m.media_type === 'Document' ? (
-                                                                    <div className="w-full h-full flex flex-col items-center justify-center bg-orange-50 text-[#F97316] p-4 gap-2">
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                                        </svg>
-                                                                        <span className="text-[8px] font-bold uppercase tracking-widest text-center">Document</span>
+                                                                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                                                                        <div className="w-12 h-12 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center text-white ring-4 ring-white/20">
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 fill-current" viewBox="0 0 20 20">
+                                                                                <path d="M4.516 7.548c0-.446.362-.809.808-.809.446 0 .808.363.808.809v4.904c0 .446-.362.809-.808.809-.446 0-.808-.363-.808-.809V7.548zm5.281 0c0-.446.362-.809.808-.809.446 0 .808.363.808.809v4.904c0 .446-.362.809-.808.809-.446 0-.808-.363-.808-.809V7.548z" />
+                                                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                                                            </svg>
+                                                                        </div>
                                                                     </div>
-                                                                ) : (
-                                                                    <img src={m.file_url} alt="Report media" className="w-full h-full object-cover" />
-                                                                )}
-                                                            </div>
-                                                            <div className="flex gap-2">
-                                                                {(() => {
-                                                                    let viewUrl = m.file_url;
-                                                                    const isPdf = m.media_type === 'Document' || viewUrl.toLowerCase().endsWith('.pdf');
-                                                                    const isImageBucket = viewUrl.includes('/image/upload/');
-
-                                                                    if (isImageBucket) {
-                                                                        if (isPdf && !viewUrl.toLowerCase().endsWith('.pdf')) {
-                                                                            viewUrl += '.pdf';
-                                                                        }
-                                                                    }
-
-                                                                    return (
-                                                                        <>
-                                                                            <a
-                                                                                href={viewUrl}
-                                                                                target="_blank"
-                                                                                rel="noopener noreferrer"
-                                                                                className="flex-1 py-1.5 bg-white border border-gray-200 rounded-lg text-[9px] font-bold text-gray-600 hover:bg-gray-50 transition-all text-center"
-                                                                            >
-                                                                                View
-                                                                            </a>
-                                                                            <a
-                                                                                href={m.file_url.replace('/upload/', `/upload/fl_attachment:StraySafe_Media_${m.media_id}/`)}
-                                                                                className="flex-1 py-1.5 bg-orange-50 border border-orange-100 rounded-lg text-[9px] font-bold text-[#F97316] hover:bg-orange-100 transition-all text-center"
-                                                                            >
-                                                                                Download
-                                                                            </a>
-                                                                        </>
-                                                                    );
-                                                                })()}
+                                                                </div>
+                                                            ) : (
+                                                                <img src={m.file_url} alt="Report evidence" className="w-full h-full object-cover" />
+                                                            )}
+                                                            
+                                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                                                                <span className="text-[10px] font-bold text-white uppercase tracking-widest flex items-center gap-2">
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                                    </svg>
+                                                                    Click to Expand
+                                                                </span>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -667,8 +802,13 @@ const SubdReports = () => {
                                             {(expandedComments[viewReport.report_id] || !viewReport.comments || viewReport.comments.length === 0) && (
                                                 <div className="space-y-2 mb-6 max-h-72 overflow-y-auto custom-scrollbar pr-2 animate-in fade-in slide-in-from-top-2 duration-300">
                                                     {viewReport.comments && viewReport.comments.length > 0 ? (
-                                                        viewReport.comments.filter((c: any) => !c.parent_comment_id).map((c: any) => {
-                                                            const replies = viewReport.comments?.filter((reply: any) => reply.parent_comment_id === c.comment_id) || [];
+                                                        viewReport.comments
+                                                            .filter((c: any) => !c.parent_comment_id)
+                                                            .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                                                            .map((c: any) => {
+                                                                const replies = viewReport.comments
+                                                                    ?.filter((reply: any) => reply.parent_comment_id === c.comment_id)
+                                                                    .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) || [];
                                                             return (
                                                                 <div key={c.comment_id} className="mb-4 last:mb-0">
                                                                     <div className="flex gap-3 relative">
@@ -686,7 +826,7 @@ const SubdReports = () => {
                                                                             {/* Parent Bubble */}
                                                                             <div className="bg-[#FAFAF9] rounded-[1.5rem] p-3.5 px-4 border border-gray-50 shadow-sm inline-block">
                                                                                 <span className="block text-[11px] font-black text-[#1a1208] mb-0.5">{c.user_name || 'User'}</span>
-                                                                                <p className="text-xs font-semibold text-gray-700 leading-relaxed pr-6">{c.message}</p>
+                                                                                <p className="text-xs font-semibold text-gray-700 leading-relaxed pr-6">{c.comment}</p>
                                                                             </div>
                                                                             {/* Parent Actions */}
                                                                             <div className="flex items-center gap-4 mt-1.5 ml-3">
@@ -721,7 +861,7 @@ const SubdReports = () => {
                                                                                                 {/* Child Bubble */}
                                                                                                 <div className="bg-[#FAFAF9] rounded-[1.2rem] p-3 px-4 border border-gray-50 shadow-sm inline-block">
                                                                                                     <span className="block text-[10px] font-black text-gray-800 mb-0.5">{reply.user_name || 'User'}</span>
-                                                                                                    <p className="text-[11px] font-semibold text-gray-600 leading-relaxed pr-4">{reply.message}</p>
+                                                                                                    <p className="text-[11px] font-semibold text-gray-600 leading-relaxed pr-4">{reply.comment}</p>
                                                                                                 </div>
                                                                                                 {/* Child Actions */}
                                                                                                 <div className="flex items-center gap-4 mt-1.5 ml-3">
@@ -867,97 +1007,337 @@ const SubdReports = () => {
 
             {/* Modal Overlay */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-3xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[95vh]">
+                        {/* Header */}
+                        <div className="px-10 py-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
                             <div>
-                                <h3 className="text-xl font-bold text-gray-900">Report New Incident</h3>
-                                <p className="text-xs text-gray-500 mt-1">Provide details about the stray or animal incident observed.</p>
+                                <h3 className="text-2xl font-black text-[#1a1208] tracking-tight">Report New Incident</h3>
+                                <p className="text-xs text-gray-400 mt-1.5 font-medium">Provide details about the stray or animal incident observed.</p>
                             </div>
-                            <button onClick={() => setIsModalOpen(false)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all">
+                            <button 
+                                onClick={() => setIsModalOpen(false)} 
+                                className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-all"
+                            >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
 
-                        <form onSubmit={handleSaveReport} className="p-8 max-h-[75vh] overflow-y-auto">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <Select
-                                    label="Category"
-                                    value={formData.category_id.toString()}
-                                    onChange={(e) => setFormData({ ...formData, category_id: parseInt(e.target.value) })}
-                                    options={[
-                                        { value: '1', label: 'Injured Animal' },
-                                        { value: '2', label: 'Aggressive Stray' },
-                                        { value: '3', label: 'Possible Rabies Risk' },
-                                        { value: '4', label: 'Roaming Pack' },
-                                        { value: '5', label: 'Animal Rescue Needed' }
-                                    ]}
-                                />
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Landmark</label>
+                        {/* Form Body */}
+                        <form onSubmit={handleSaveReport} className="p-10 overflow-y-auto custom-scrollbar flex-1 bg-white">
+                            <div className="space-y-10">
+                                
+                                {/* Row 1: Animal Type & Category */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-3">
+                                        <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-[0.2em] ml-1">Animal Type</label>
+                                        <div className="flex p-1.5 bg-gray-100/50 rounded-2xl border border-gray-100">
+                                            {['Dog', 'Cat'].map((type) => (
+                                                <button
+                                                    key={type}
+                                                    type="button"
+                                                    onClick={() => setFormData({ ...formData, animal_type: type })}
+                                                    className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                                                        formData.animal_type === type 
+                                                            ? 'bg-white text-[#F97316] shadow-sm' 
+                                                            : 'text-gray-400 hover:text-gray-600'
+                                                    }`}
+                                                >
+                                                    {type}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <Select
+                                        label="Incident Category"
+                                        value={formData.category_id.toString()}
+                                        onChange={(e) => setFormData({ ...formData, category_id: parseInt(e.target.value) })}
+                                        options={[
+                                            { value: '1', label: 'Injured Animal' },
+                                            { value: '2', label: 'Aggressive Stray' },
+                                            { value: '3', label: 'Possible Rabies Risk' },
+                                            { value: '4', label: 'Roaming Pack' },
+                                            { value: '5', label: 'Animal Rescue Needed' }
+                                        ]}
+                                    />
+                                </div>
+
+                                {/* Row 2: Breed & Priority */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-2">
+                                        <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-[0.2em] ml-1">Breed (Optional)</label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-orange-100 focus:border-[#F97316] outline-none transition-all placeholder:text-gray-300"
+                                            value={formData.breed}
+                                            onChange={(e) => setFormData({ ...formData, breed: e.target.value })}
+                                            placeholder="e.g. Aspin, Golden Retriever"
+                                        />
+                                    </div>
+                                    <Select
+                                        label="Priority Level"
+                                        value={formData.priority_level}
+                                        onChange={(e) => setFormData({ ...formData, priority_level: e.target.value })}
+                                        options={[
+                                            { value: 'Low', label: 'Low' },
+                                            { value: 'Regular', label: 'Regular' },
+                                            { value: 'High', label: 'High' },
+                                            { value: 'Emergency', label: 'Emergency' }
+                                        ]}
+                                    />
+                                </div>
+
+                                {/* Row 3: Condition & Count */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-3">
+                                        <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-[0.2em] ml-1">Animal Condition</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {['Healthy', 'Injured', 'Aggressive', 'Thin'].map((cond) => (
+                                                <button
+                                                    key={cond}
+                                                    type="button"
+                                                    onClick={() => setFormData({ ...formData, condition: cond })}
+                                                    className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+                                                        formData.condition === cond 
+                                                            ? 'bg-orange-50 border-orange-200 text-[#F97316]' 
+                                                            : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200 hover:text-gray-600'
+                                                    }`}
+                                                >
+                                                    {cond}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-[0.2em] ml-1">Number of Animals</label>
+                                        <div className="flex gap-2">
+                                            {['1', '2', '3', '4+'].map((count) => (
+                                                <button
+                                                    key={count}
+                                                    type="button"
+                                                    onClick={() => setFormData({ ...formData, animal_count: parseInt(count) || 4 })}
+                                                    className={`flex-1 py-3 rounded-xl text-xs font-black transition-all border ${
+                                                        (count === '4+' ? formData.animal_count >= 4 : formData.animal_count === parseInt(count))
+                                                            ? 'bg-orange-50 border-orange-200 text-[#F97316]' 
+                                                            : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200 hover:text-gray-600'
+                                                    }`}
+                                                >
+                                                    {count}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Row 4: Landmark */}
+                                <div className="space-y-2">
+                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-[0.2em] ml-1">Landmark</label>
                                     <input
                                         type="text" required
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
+                                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-orange-100 focus:border-[#F97316] outline-none transition-all placeholder:text-gray-300"
                                         value={formData.landmark}
                                         onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
                                         placeholder="e.g. Near Clubhouse"
                                     />
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Latitude</label>
-                                    <input
-                                        type="number" step="any" required
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
-                                        value={formData.latitude}
-                                        onChange={(e) => setFormData({ ...formData, latitude: parseFloat(e.target.value) })}
-                                    />
+
+                                {/* Row 5: Behavior Tags */}
+                                <div className="space-y-3">
+                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-[0.2em] ml-1">Behavior / Traits</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {['Friendly', 'Frightened', 'Nursing', 'Barking', 'Roaming'].map((tag) => (
+                                            <button
+                                                key={tag}
+                                                type="button"
+                                                onClick={() => toggleBehaviorTag(tag)}
+                                                className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${
+                                                    formData.behavior_tags.includes(tag)
+                                                        ? 'bg-[#1a1208] border-[#1a1208] text-white shadow-lg shadow-gray-200 scale-105'
+                                                        : 'bg-white border-gray-100 text-gray-400 hover:border-gray-300 hover:text-gray-600'
+                                                }`}
+                                            >
+                                                {tag}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Longitude</label>
-                                    <input
-                                        type="number" step="any" required
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
-                                        value={formData.longitude}
-                                        onChange={(e) => setFormData({ ...formData, longitude: parseFloat(e.target.value) })}
-                                    />
+
+                                {/* Row 6: Media Upload */}
+                                <div className="space-y-4">
+                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-[0.2em] ml-1">Upload Photos or Videos</label>
+                                    <div className="relative">
+                                        {formData.mediaFiles.length > 0 ? (
+                                            <div className="space-y-4">
+                                                <div
+                                                    className={`relative grid gap-2 rounded-[2rem] overflow-hidden border-2 border-orange-500 bg-orange-50/10 p-2 cursor-pointer group/grid ${formData.mediaFiles.length === 1 ? 'grid-cols-1' :
+                                                            formData.mediaFiles.length === 2 ? 'grid-cols-2' :
+                                                                'grid-cols-2'
+                                                        }`}
+                                                    onClick={() => document.getElementById('leader-multi-upload')?.click()}
+                                                >
+                                                    {formData.mediaFiles.slice(0, 4).map((file, index) => (
+                                                        <div key={index} className={`relative aspect-square rounded-2xl overflow-hidden group/item ${formData.mediaFiles.length === 3 && index === 0 ? 'row-span-2 aspect-auto' : ''
+                                                            }`}>
+                                                            {file.type.startsWith('video/') ? (
+                                                                <video src={URL.createObjectURL(file)} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <img src={URL.createObjectURL(file)} alt="Preview" className="w-full h-full object-cover" />
+                                                            )}
+                                                            {index === 3 && formData.mediaFiles.length > 4 && (
+                                                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                                                    <span className="text-white text-xl font-black">+{formData.mediaFiles.length - 4}</span>
+                                                                </div>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const newFiles = [...formData.mediaFiles];
+                                                                    newFiles.splice(index, 1);
+                                                                    setFormData({ ...formData, mediaFiles: newFiles });
+                                                                }}
+                                                                className="absolute top-2 right-2 bg-black/40 hover:bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover/item:opacity-100 transition-all z-[30]"
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                    <div className="absolute inset-0 bg-orange-600/20 backdrop-blur-[2px] opacity-0 group-hover/grid:opacity-100 transition-all flex flex-col items-center justify-center gap-2 z-20">
+                                                        <div className="w-12 h-12 rounded-full bg-white shadow-xl flex items-center justify-center text-[#F97316]">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                                                            </svg>
+                                                        </div>
+                                                        <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Add More</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex justify-end">
+                                                    <button type="button" onClick={() => setFormData({ ...formData, mediaFiles: [] })} className="text-[10px] font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-all py-1">Clear All</button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div
+                                                className="w-full aspect-video rounded-[2.5rem] border-2 border-dashed border-gray-100 bg-[#FAFAF9] flex flex-col items-center justify-center gap-5 cursor-pointer hover:border-orange-200 hover:bg-orange-50/10 transition-all group"
+                                                onClick={() => document.getElementById('leader-multi-upload')?.click()}
+                                            >
+                                                <div className="w-20 h-20 rounded-[2rem] bg-white shadow-sm flex items-center justify-center text-gray-200 group-hover:text-[#F97316] group-hover:scale-110 transition-all">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                                    </svg>
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-[11px] font-black text-[#1a1208] uppercase tracking-[0.2em]">Tap to add Photos or Videos</p>
+                                                    <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mt-1.5">Multiple files supported</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                        <input id="leader-multi-upload" type="file" className="hidden" accept="image/*,video/*" multiple onChange={(e) => setFormData(prev => ({ ...prev, mediaFiles: [...prev.mediaFiles, ...Array.from(e.target.files || [])] }))} />
+                                    </div>
                                 </div>
-                                <Select
-                                    label="Priority Level"
-                                    value={formData.priority_level}
-                                    onChange={(e) => setFormData({ ...formData, priority_level: e.target.value })}
-                                    options={[
-                                        { value: 'Low', label: 'Low' },
-                                        { value: 'Regular', label: 'Regular' },
-                                        { value: 'High', label: 'High' },
-                                        { value: 'Emergency', label: 'Emergency' }
-                                    ]}
-                                />
-                                <div className="space-y-1.5 md:col-span-2">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Description</label>
+
+                                {/* Row 7: Map */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between ml-1">
+                                        <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-[0.2em]">Pinpoint Location</label>
+                                        <span className="text-[9px] font-bold text-[#F97316] bg-orange-50 px-3 py-1 rounded-full border border-orange-100 uppercase tracking-widest animate-pulse">Drag Marker to adjust</span>
+                                    </div>
+                                    <div className="w-full h-[350px] rounded-[2.5rem] overflow-hidden border-2 border-gray-50 shadow-inner relative group/map">
+                                        <MapComponent 
+                                            center={[formData.latitude, formData.longitude]} 
+                                            zoom={18} 
+                                            onLocationChange={(lat, lng) => setFormData({ ...formData, latitude: lat, longitude: lng })}
+                                        />
+                                        <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+                                            <div className="bg-white/90 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-xl border border-white/20">
+                                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-1">Current Coordinates</p>
+                                                <p className="text-[11px] font-mono font-bold text-gray-900">{formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Latitude</label>
+                                            <input
+                                                type="number" step="any" required
+                                                className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-mono font-bold focus:ring-4 focus:ring-orange-100 outline-none transition-all"
+                                                value={formData.latitude}
+                                                onChange={(e) => setFormData({ ...formData, latitude: parseFloat(e.target.value) })}
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Longitude</label>
+                                            <input
+                                                type="number" step="any" required
+                                                className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-mono font-bold focus:ring-4 focus:ring-orange-100 outline-none transition-all"
+                                                value={formData.longitude}
+                                                onChange={(e) => setFormData({ ...formData, longitude: parseFloat(e.target.value) })}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Row 8: Visibility */}
+                                <div className="space-y-4 pt-4 border-t border-gray-50">
+                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-[0.2em] ml-1">Report Visibility</label>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {[
+                                            { id: 'Public', label: 'Public Post', sub: 'Visible to all users in the subdivision feed.', icon: <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg> },
+                                            { id: 'Private', label: 'Private Post', sub: 'Only visible to Staff.', icon: <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg> }
+                                        ].map((opt) => (
+                                            <button
+                                                key={opt.id}
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, visibility: opt.id })}
+                                                className={`p-6 rounded-[2rem] border-2 text-left transition-all flex gap-4 ${
+                                                    formData.visibility === opt.id 
+                                                        ? 'bg-orange-50 border-[#F97316] ring-4 ring-orange-50' 
+                                                        : 'bg-white border-gray-100 hover:border-gray-200'
+                                                }`}
+                                            >
+                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                                                    formData.visibility === opt.id ? 'bg-[#F97316] text-white shadow-lg' : 'bg-gray-50 text-gray-400'
+                                                }`}>
+                                                    {opt.icon}
+                                                </div>
+                                                <div>
+                                                    <p className={`text-sm font-black uppercase tracking-widest ${formData.visibility === opt.id ? 'text-[#F97316]' : 'text-gray-900'}`}>{opt.label}</p>
+                                                    <p className="text-[10px] font-medium text-gray-400 mt-1 leading-relaxed">{opt.sub}</p>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Row 9: Description */}
+                                <div className="space-y-3">
+                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-[0.2em] ml-1">Description</label>
                                     <textarea
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#F97316] outline-none transition-all min-h-[100px]"
+                                        className="w-full px-6 py-5 bg-gray-50 border border-gray-100 rounded-[2rem] text-sm font-medium focus:ring-4 focus:ring-orange-100 focus:border-[#F97316] outline-none transition-all min-h-[160px] placeholder:text-gray-300"
                                         value={formData.description}
                                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                         placeholder="Provide any extra information that might help responders..."
                                     />
                                 </div>
                             </div>
-
-                            <div className="mt-8 pt-6 border-t border-gray-50 flex items-center justify-end space-x-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsModalOpen(false)}
-                                    className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <Button variant="primary" type="submit" className="px-10 !bg-[#F97316] hover:!bg-[#EA580C] !border-[#F97316]">
-                                    Submit Report
-                                </Button>
-                            </div>
                         </form>
+
+                        {/* Footer */}
+                        <div className="px-10 py-8 border-t border-gray-50 bg-gray-50/30 flex items-center justify-end gap-5 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setIsModalOpen(false)}
+                                className="px-8 py-4 text-xs font-black text-gray-400 uppercase tracking-widest hover:text-gray-900 transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <Button variant="primary" type="submit" onClick={handleSaveReport} className="px-14 py-4 !bg-[#F97316] hover:!bg-[#EA580C] !border-[#F97316] !rounded-2xl shadow-xl shadow-orange-100 hover:scale-105 active:scale-95 transition-all text-xs font-black uppercase tracking-widest">
+                                Submit Report
+                            </Button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -1054,6 +1434,124 @@ const SubdReports = () => {
                 isOpen={showSuccess}
                 message="Action completed successfully!"
             />
+
+            {/* Premium Media Gallery Modal */}
+            {activeGallery && (
+                <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col animate-in fade-in duration-300">
+                    {/* Gallery Header */}
+                    <div className="p-6 flex items-center justify-between border-b border-white/10 shrink-0">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-orange-600 flex items-center justify-center text-white font-black text-lg shadow-lg">
+                                {currentUser?.name?.charAt(0).toUpperCase() || 'S'}
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-black text-white uppercase tracking-widest">Incident Evidence</h3>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Viewing File {activeGallery.index + 1} of {activeGallery.media.length}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setActiveGallery(null)}
+                            className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all border border-white/10 hover:rotate-90"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    {/* Main Viewport */}
+                    <div className="flex-1 relative flex items-center justify-center p-4 md:p-12 overflow-hidden">
+                        {/* Navigation Controls */}
+                        {activeGallery.media.length > 1 && (
+                            <>
+                                <button
+                                    onClick={() => setActiveGallery(prev => prev ? { ...prev, index: (prev.index - 1 + prev.media.length) % prev.media.length } : null)}
+                                    className="absolute left-4 md:left-8 w-12 h-12 rounded-full bg-white/10 hover:bg-orange-600 flex items-center justify-center text-white transition-all border border-white/10 backdrop-blur-md z-20"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={() => setActiveGallery(prev => prev ? { ...prev, index: (prev.index + 1) % prev.media.length } : null)}
+                                    className="absolute right-4 md:right-8 w-12 h-12 rounded-full bg-white/10 hover:bg-orange-600 flex items-center justify-center text-white transition-all border border-white/10 backdrop-blur-md z-20"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            </>
+                        )}
+
+                        {/* Media Content */}
+                        <div className="w-full h-full max-w-5xl flex items-center justify-center">
+                            {activeGallery.media[activeGallery.index].media_type === 'Video' ? (
+                                <video
+                                    src={activeGallery.media[activeGallery.index].file_url}
+                                    controls
+                                    autoPlay
+                                    className="max-w-full max-h-full rounded-2xl shadow-2xl border border-white/5"
+                                />
+                            ) : (() => {
+                                const currentMedia = activeGallery.media[activeGallery.index];
+                                const isDoc = currentMedia.media_type === 'Document' || 
+                                             currentMedia.file_url.toLowerCase().endsWith('.pdf') || 
+                                             currentMedia.file_url.toLowerCase().endsWith('.docx');
+                                
+                                if (isDoc) {
+                                    return (
+                                        <div className="w-full h-full flex flex-col items-center justify-center gap-8">
+                                            <div className="w-32 h-32 rounded-3xl bg-orange-600 flex items-center justify-center text-white shadow-2xl ring-8 ring-orange-600/20">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
+                                            </div>
+                                            <div className="text-center">
+                                                <h4 className="text-xl font-black text-white uppercase tracking-widest mb-4">Official Document</h4>
+                                                <div className="flex flex-wrap justify-center gap-4">
+                                                    <a
+                                                        href={currentMedia.file_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="px-8 py-3 bg-white text-black rounded-xl text-xs font-black uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all flex items-center gap-2"
+                                                    >
+                                                        Open in New Tab
+                                                    </a>
+                                                    <a
+                                                        href={currentMedia.file_url.replace('/upload/', `/upload/fl_attachment:StraySafe_Doc_${currentMedia.media_id}/`)}
+                                                        className="px-8 py-3 bg-orange-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-orange-700 transition-all flex items-center gap-2"
+                                                    >
+                                                        Download File
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <img
+                                        src={currentMedia.file_url}
+                                        alt="Gallery item"
+                                        className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl border border-white/5"
+                                    />
+                                );
+                            })()}
+                        </div>
+                    </div>
+
+                    {/* Progress Bar (at bottom) */}
+                    <div className="h-1 bg-white/5 w-full shrink-0">
+                        <div
+                            className="h-full bg-orange-600 transition-all duration-500"
+                            style={{ width: `${((activeGallery.index + 1) / activeGallery.media.length) * 100}%` }}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -1,60 +1,49 @@
-import pymysql
+import sys
 import os
-from dotenv import load_dotenv
+from sqlalchemy import text
 
-# Load environment variables from .env if it exists
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+# Add the backend directory to sys.path so we can import app
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app.database.session import engine
 
 def update_database():
-    # Parse DATABASE_URL manually or use hardcoded if env fails
-    # URL: mysql+pymysql://root:password@localhost/straysafe_db
-    
     try:
-        connection = pymysql.connect(
-            host=os.getenv("DB_HOST", "localhost"),
-            user=os.getenv("DB_USER", "root"),
-            password=os.getenv("DB_PASSWORD", "password"),
-            database=os.getenv("DB_NAME", "straysafe_db")
-        )
-
-        with connection.cursor() as cursor:
-            print("Updating report_statuses...")
-            statuses = [
+        with engine.begin() as connection:
+            print("Updating report_status...")
+            # Using the correct table name from the models: report_status
+            report_statuses = [
                 (7, 'Picked Up'),
                 (8, 'Under Observation'),
                 (9, 'Impounded'),
                 (10, 'Released')
             ]
             
-            for sid, sname in statuses:
-                cursor.execute(
-                    "INSERT INTO report_statuses (status_id, status_name) VALUES (%s, %s) "
-                    "ON DUPLICATE KEY UPDATE status_name = VALUES(status_name)", 
-                    (sid, sname)
+            for sid, sname in report_statuses:
+                connection.execute(
+                    text("INSERT INTO report_status (status_id, status_name) VALUES (:id, :name) "
+                         "ON DUPLICATE KEY UPDATE status_name = VALUES(status_name)"),
+                    {"id": sid, "name": sname}
                 )
             
-            print("Updating request_statuses...")
-            # Optional: syncing request_statuses as well for consistency
-            req_statuses = [
+            print("Updating rescue_status...")
+            # Using the correct table name from the models: rescue_status
+            rescue_statuses = [
                 (4, 'Team Dispatched'),
                 (5, 'In Progress'),
                 (6, 'Resolved')
             ]
-            for sid, sname in req_statuses:
-                cursor.execute(
-                    "INSERT INTO request_statuses (status_id, status_name) VALUES (%s, %s) "
-                    "ON DUPLICATE KEY UPDATE status_name = VALUES(status_name)", 
-                    (sid, sname)
+            for sid, sname in rescue_statuses:
+                connection.execute(
+                    text("INSERT INTO rescue_status (status_id, status_name) VALUES (:id, :name) "
+                         "ON DUPLICATE KEY UPDATE status_name = VALUES(status_name)"),
+                    {"id": sid, "name": sname}
                 )
 
-            connection.commit()
             print("Database update successful!")
 
     except Exception as e:
         print(f"Error updating database: {e}")
-    finally:
-        if 'connection' in locals():
-            connection.close()
 
 if __name__ == "__main__":
     update_database()

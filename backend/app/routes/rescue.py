@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from app.database import get_db
-from app.models.report import RescueRequest, Report
+# Import Rescue (not RescueRequest) to match the DB "rescues" table
+from app.models.report import Rescue, Report
 from app.schemas.rescue import RescueRequestCreate, RescueRequestResponse, RescueRequestUpdate
 
 router = APIRouter(
@@ -10,64 +11,74 @@ router = APIRouter(
     tags=["rescue-requests"]
 )
 
+
 @router.post("/", response_model=RescueRequestResponse)
 def create_rescue_request(request_in: RescueRequestCreate, db: Session = Depends(get_db)):
     try:
-        db_request = RescueRequest(**request_in.model_dump())
-        db.add(db_request)
+        rescue_data = {
+            "report_id": request_in.report_id,
+            "staff_id": request_in.barangay_staff_id if hasattr(request_in, 'barangay_staff_id') else None,
+            "status_id": request_in.status_id,
+            "notes": request_in.description
+        }
+        db_rescue = Rescue(**{k: v for k, v in rescue_data.items() if v is not None or k == "report_id"})
+        db.add(db_rescue)
         db.commit()
-        db.refresh(db_request)
-        return db_request
+        db.refresh(db_rescue)
+        return db_rescue
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
 
-from sqlalchemy.orm import joinedload
 
 @router.get("/", response_model=List[RescueRequestResponse])
 def get_rescue_requests(db: Session = Depends(get_db)):
-    requests = db.query(RescueRequest).options(
-        joinedload(RescueRequest.report).joinedload(Report.media),
-        joinedload(RescueRequest.report).joinedload(Report.reporter),
-        joinedload(RescueRequest.leader)
+    rescues = db.query(Rescue).options(
+        joinedload(Rescue.report).joinedload(Report.media),
+        joinedload(Rescue.report).joinedload(Report.reporter),
+        joinedload(Rescue.staff)
     ).all()
-    
-    # Manually populate some fields if needed, or rely on relationship loading
-    for req in requests:
-        if req.report:
-            # Populate reporter_name for the nested report
-            req.report.reporter_name = req.report.reporter.name if req.report.reporter else "Citizen"
-        
-        # Populate leader_name
-        req.leader_name = req.leader.name if req.leader else "Subd Leader"
-        
-    return requests
+
+    for rescue in rescues:
+        if rescue.report:
+            rescue.report.reporter_name = rescue.report.reporter.name if rescue.report.reporter else "Citizen"
+        rescue.leader_name = rescue.staff.name if rescue.staff else "Barangay Staff"
+        # Populate request_id for frontend compatibility
+        rescue.request_id = rescue.rescue_id
+
+    return rescues
+
 
 @router.get("/report/{report_id}", response_model=Optional[RescueRequestResponse])
 def get_request_by_report(report_id: int, db: Session = Depends(get_db)):
-    return db.query(RescueRequest).options(
-        joinedload(RescueRequest.report).joinedload(Report.media),
-        joinedload(RescueRequest.report).joinedload(Report.reporter)
-    ).filter(RescueRequest.report_id == report_id).first()
+    return db.query(Rescue).options(
+        joinedload(Rescue.report).joinedload(Report.media),
+        joinedload(Rescue.report).joinedload(Report.reporter)
+    ).filter(Rescue.report_id == report_id).first()
 
-@router.patch("/{request_id}", response_model=RescueRequestResponse)
-def update_rescue_request(request_id: int, request_in: RescueRequestUpdate, db: Session = Depends(get_db)):
+
+@router.patch("/{rescue_id}", response_model=RescueRequestResponse)
+def update_rescue_request(rescue_id: int, request_in: RescueRequestUpdate, db: Session = Depends(get_db)):
     try:
-        db_request = db.query(RescueRequest).options(
-            joinedload(RescueRequest.report).joinedload(Report.media),
-            joinedload(RescueRequest.report).joinedload(Report.reporter)
-        ).filter(RescueRequest.request_id == request_id).first()
-        if not db_request:
-            raise HTTPException(status_code=404, detail="Rescue request not found")
-        
-        # Update fields
+        db_rescue = db.query(Rescue).options(
+            joinedload(Rescue.report).joinedload(Report.media),
+            joinedload(Rescue.report).joinedload(Report.reporter)
+        ).filter(Rescue.rescue_id == rescue_id).first()
+
+        if not db_rescue:
+            raise HTTPException(status_code=404, detail="Rescue not found")
+
         update_data = request_in.model_dump(exclude_unset=True)
+        # Map barangay_staff_id → staff_id (DB column name)
+        if "barangay_staff_id" in update_data:
+            update_data["staff_id"] = update_data.pop("barangay_staff_id")
+
         for key, value in update_data.items():
-            setattr(db_request, key, value)
-            
+            setattr(db_rescue, key, value)
+
         db.commit()
-        db.refresh(db_request)
-        return db_request
+        db.refresh(db_rescue)
+        return db_rescue
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))

@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
+import axios from 'axios';
 import Button from '../../components/Button';
+import CustomRadio, { RadioCircle } from '../../components/CustomRadio';
 import ResiNavbar from '../../components/Navbars/ResiNavbar';
+import ResiMobileNav from '../../components/Navbars/ResiMobileNav';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -34,7 +38,25 @@ const LocationPicker = ({ onLocationSelect, position }: { onLocationSelect: (lat
 };
 
 const ResiHomePage = () => {
+    const location = useLocation();
     const [isAddReportModalOpen, setIsAddReportModalOpen] = useState(false);
+    const [isViewMode, setIsViewMode] = useState(false);
+    const [originalData, setOriginalData] = useState<any>(null);
+    const [isNavbarMenuOpen, setIsNavbarMenuOpen] = useState(false);
+
+    useEffect(() => {
+        if (location.state?.openAddModal) {
+            setIsAddReportModalOpen(true);
+            // Clear state so it doesn't reopen on refresh
+            window.history.replaceState({}, document.title);
+        }
+        if (location.state?.editReport) {
+            handleEditClick(location.state.editReport, location.state.isViewMode);
+            // Clear state so it doesn't reopen on refresh
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state]);
+
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [reports, setReports] = useState<any[]>([]);
 
@@ -49,6 +71,7 @@ const ResiHomePage = () => {
     const [openMenuId, setOpenMenuId] = useState<number | null>(null);
     const [editingReportId, setEditingReportId] = useState<number | null>(null);
     const [activeGallery, setActiveGallery] = useState<{ media: any[], index: number } | null>(null);
+    const [selectedStage, setSelectedStage] = useState<Record<number, number | null>>({});
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -79,24 +102,44 @@ const ResiHomePage = () => {
         }
     };
 
-    const handleEditClick = (report: any) => {
-        setFormData({
-            ...formData,
-            category: report.category_id === 1 ? 'Dog' : 'Cat',
+    const handleEditClick = (report: any, viewMode: boolean = false) => {
+        const categoryMap: Record<number, string> = {
+            1: 'Injured Animal', 2: 'Aggressive Stray', 3: 'Possible Rabies Risk',
+            4: 'Roaming Pack', 5: 'Animal Rescue Needed'
+        };
+
+        const initialData = {
+            category: categoryMap[report.category_id] || 'Injured Animal',
+            category_id: report.category_id,
             animalCount: report.animal_count || 1,
             landmark: report.landmark || '',
             visibility: report.visibility || 'Public',
+            priorityLevel: report.priority_level || 'Regular',
+            isPossibleOwned: report.is_possible_owned || false,
+            animalType: report.animal_type || 'Unknown',
+            animalBreed: report.animal_breed || '',
+            animalColor: report.animal_color || '',
+            estimatedSize: report.estimated_size || 'Medium',
             description: report.description || '',
             latitude: parseFloat(report.latitude) || 14.801313,
             longitude: parseFloat(report.longitude) || 121.003109,
-            breed: '',
-            condition: 'Healthy',
-            behaviorTags: [],
-            mediaFiles: []
-        });
+            mediaFiles: [],
+            existingMedia: report.media || [],
+            mediaIdsToDelete: []
+        };
+
+        setFormData(initialData);
+        setOriginalData(initialData);
         setEditingReportId(report.report_id);
+        setIsViewMode(viewMode);
         setIsAddReportModalOpen(true);
         setOpenMenuId(null);
+    };
+
+    const handleReset = () => {
+        if (originalData) {
+            setFormData(originalData);
+        }
     };
 
     const fetchReports = async () => {
@@ -117,6 +160,8 @@ const ResiHomePage = () => {
         }
     };
 
+    const API_URL = 'http://localhost:8000/reports';
+
     useEffect(() => {
         fetchReports();
     }, []);
@@ -132,7 +177,7 @@ const ResiHomePage = () => {
             const response = await fetch(`http://localhost:8000/reports/${reportId}/comments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text.trim(), user_id: userId, parent_comment_id: parentId })
+                body: JSON.stringify({ comment: text.trim(), user_id: userId, parent_comment_id: parentId })
             });
 
             if (response.ok) {
@@ -147,19 +192,24 @@ const ResiHomePage = () => {
         }
     };
 
-    // Form state aligned with reports table
     const [formData, setFormData] = useState({
-        category: 'Dog',
-        breed: '',
-        condition: 'Healthy', // New field
-        animalCount: 1,       // Changed to number for stepper
-        landmark: '',         // New field
-        behaviorTags: [] as string[], // New field
-        visibility: 'Public', // New field
+        category: 'Injured Animal',
+        category_id: 1,
+        animalCount: 1,
+        landmark: '',
+        visibility: 'Public',
+        priorityLevel: 'Regular',
+        isPossibleOwned: false,
+        animalType: 'Dog',
+        animalBreed: '',
+        animalColor: '',
+        estimatedSize: 'Medium',
         description: '',
         latitude: 14.801313,
         longitude: 121.003109,
-        mediaFiles: [] as File[]
+        mediaFiles: [] as File[],
+        existingMedia: [] as any[],
+        mediaIdsToDelete: [] as number[]
     });
 
     const handleSubmit = async () => {
@@ -170,55 +220,74 @@ const ResiHomePage = () => {
             const userStr = localStorage.getItem('resident_user');
             const userId = userStr ? JSON.parse(userStr).user_id : 1;
 
-            // Mapping frontend state to reports table schema
+            // Mapping frontend state strictly to reports table schema
             const payload = {
                 user_id: userId,
                 subdivision_id: 1, // Hardcoded for demo/MVP
-                category_id: formData.category === 'Dog' ? 1 : 2, // Simple mapping for now
+                category_id: formData.category_id,
+                animal_type: formData.animalType,
+                animal_breed: formData.animalBreed,
+                animal_color: formData.animalColor,
+                estimated_size: formData.estimatedSize,
                 description: formData.description || 'No description provided.',
                 latitude: formData.latitude,
                 longitude: formData.longitude,
                 animal_count: formData.animalCount,
                 landmark: formData.landmark || '',
-                priority_level: "Regular",
+                priority_level: formData.priorityLevel,
                 visibility: formData.visibility,
-                status_id: 1, // Pending Verification
-                is_archived: false
+                is_possible_owned: formData.isPossibleOwned,
+                status_id: 1 // Pending Verification
             };
 
             const isEditing = editingReportId !== null;
             const url = isEditing
                 ? `http://localhost:8000/reports/${editingReportId}`
-                : 'http://localhost:8000/reports/';
+                : `${API_URL}/`;
 
             const method = isEditing ? 'PATCH' : 'POST';
 
-            const response = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload),
+            const response = await axios({
+                method: method.toLowerCase() as any,
+                url: url,
+                data: payload,
+                headers: { 'Content-Type': 'application/json' }
             });
 
-            if (response.ok) {
-                const resultData = await response.json();
+            if (response.status === 200 || response.status === 201) {
+                const resultData = response.data;
                 const actualReportId = isEditing ? editingReportId : resultData.report_id;
+
+                // Handle media deletions if editing
+                if (isEditing && formData.mediaIdsToDelete.length > 0) {
+                    for (const mediaId of formData.mediaIdsToDelete) {
+                        try {
+                            await axios.delete(`http://localhost:8000/reports/media/${mediaId}`);
+                        } catch (err) {
+                            console.error(`Failed to delete media ${mediaId}:`, err);
+                        }
+                    }
+                }
 
                 // Upload media if present
                 if (formData.mediaFiles && formData.mediaFiles.length > 0) {
+                    let failCount = 0;
                     for (const file of formData.mediaFiles) {
                         const mediaData = new FormData();
                         mediaData.append("file", file);
 
                         try {
-                            await fetch(`http://localhost:8000/reports/${actualReportId}/media`, {
-                                method: 'POST',
-                                body: mediaData
+                            await axios.post(`${API_URL}/${actualReportId}/media`, mediaData, {
+                                headers: { 'Content-Type': 'multipart/form-data' }
                             });
                         } catch (err) {
                             console.error('Failed to upload media:', err);
+                            failCount++;
                         }
+                    }
+
+                    if (failCount > 0) {
+                        alert(`${failCount} media files failed to upload. The report was saved otherwise.`);
                     }
                 }
 
@@ -226,53 +295,63 @@ const ResiHomePage = () => {
                 setIsAddReportModalOpen(false);
                 setEditingReportId(null);
                 fetchReports(); // Refresh the feed
-                // Reset form to defaults
                 setFormData({
-                    ...formData,
-                    breed: '',
+                    category: 'Injured Animal',
+                    category_id: 1,
+                    animalCount: 1,
                     landmark: '',
-                    behaviorTags: [],
                     visibility: 'Public',
+                    priorityLevel: 'Regular',
+                    isPossibleOwned: false,
+                    animalType: 'Dog',
+                    animalBreed: '',
+                    animalColor: '',
+                    estimatedSize: 'Medium',
                     description: '',
-                    mediaFiles: []
+                    latitude: 14.801313,
+                    longitude: 121.003109,
+                    mediaFiles: [],
+                    existingMedia: [],
+                    mediaIdsToDelete: []
                 });
-            } else {
-                const errorData = await response.json();
-                alert(`Failed to ${isEditing ? 'update' : 'submit'} report: ${errorData.detail || 'Unknown error'}`);
             }
         } catch (error) {
-            console.error('Error submitting report:', error);
-            alert('An error occurred while connecting to the server.');
+            console.error('Error saving report:', error);
+            alert('Failed to submit report. Please try again.');
         } finally {
             setIsSubmitting(false);
         }
     };
 
+    const allMediaCount = (formData.existingMedia?.length || 0) + (formData.mediaFiles?.length || 0);
+
     return (
         <div className="min-h-screen bg-[#FAFAF9] font-sans">
-            <ResiNavbar />
+            <ResiNavbar onMenuToggle={(isOpen) => setIsNavbarMenuOpen(isOpen)} />
 
-            <main className="max-w-6xl mx-auto p-8 pt-28">
+            <main className="max-w-6xl mx-auto p-4 sm:p-8 pt-20 sm:pt-28 pb-24 sm:pb-8">
 
-                {/* Top Actions */}
-                <div className="flex justify-end items-center mb-10">
+                {/* Top Actions - Hidden on mobile, shown on desktop */}
+                <div className="hidden sm:flex justify-end items-center mb-10">
                     <Button
                         variant="primary"
                         onClick={() => {
                             setEditingReportId(null);
                             setFormData({
                                 ...formData,
-                                category: 'Dog',
-                                breed: '',
-                                condition: 'Healthy',
+                                category: 'Injured Animal',
+                                category_id: 1,
                                 animalCount: 1,
                                 landmark: '',
-                                behaviorTags: [],
                                 visibility: 'Public',
+                                priorityLevel: 'Regular',
+                                isPossibleOwned: false,
                                 description: '',
                                 latitude: 14.801313,
                                 longitude: 121.003109,
-                                mediaFiles: []
+                                mediaFiles: [],
+                                existingMedia: [],
+                                mediaIdsToDelete: []
                             });
                             setIsAddReportModalOpen(true);
                         }}
@@ -299,8 +378,12 @@ const ResiHomePage = () => {
                             {/* Modal Header */}
                             <div className="px-10 pt-10 pb-6 flex justify-between items-center border-b border-gray-50">
                                 <div>
-                                    <h2 className="text-3xl font-black text-[#1a1208] uppercase tracking-tight">{editingReportId ? 'Edit Report' : 'Report a Stray'}</h2>
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Fill up the details below to help our team</p>
+                                    <h2 className="text-3xl font-black text-[#1a1208] uppercase tracking-tight">
+                                        {isViewMode ? 'View Report' : editingReportId ? 'Edit Report' : 'Report a Stray'}
+                                    </h2>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                                        {isViewMode ? 'Reviewing existing report information' : 'Fill up the details below to help our team'}
+                                    </p>
                                 </div>
                                 <button
                                     onClick={() => setIsAddReportModalOpen(false)}
@@ -313,59 +396,104 @@ const ResiHomePage = () => {
                             </div>
 
                             <div className="p-10 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                                {/* Category & Breed */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
-                                    <div className="flex flex-col">
-                                        <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4">Select Animal Category</label>
-                                        <div className="flex items-center gap-8 h-12 md:h-[50px]">
-                                            {['Dog', 'Cat'].map((cat) => (
-                                                <label
-                                                    key={cat}
-                                                    className="flex items-center gap-3 cursor-pointer group"
-                                                >
-                                                    <div className="relative flex items-center justify-center">
-                                                        <input
-                                                            type="radio"
-                                                            name="category"
-                                                            className="peer appearance-none w-5 h-5 rounded-full border-2 border-gray-200 checked:border-[#F97316] transition-all cursor-pointer"
-                                                            checked={formData.category === cat}
-                                                            onChange={() => setFormData({ ...formData, category: cat })}
-                                                        />
-                                                        <div className="absolute w-2.5 h-2.5 rounded-full bg-[#F97316] scale-0 peer-checked:scale-100 transition-transform duration-200" />
-                                                    </div>
-                                                    <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${formData.category === cat ? 'text-[#1a1208]' : 'text-gray-400 group-hover:text-gray-600'}`}>
-                                                        {cat}
-                                                    </span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4">Breed (Optional)</label>
-                                        <input
-                                            type="text"
-                                            placeholder="e.g. Aspin, Golden Retriever"
-                                            className="w-full h-12 md:h-[50px] bg-[#FAFAF9] border border-gray-50 rounded-2xl px-6 text-xs font-bold text-[#1a1208] focus:outline-none focus:border-orange-200 transition-all placeholder:text-gray-300 shadow-sm"
-                                            value={formData.breed}
-                                            onChange={(e) => setFormData({ ...formData, breed: e.target.value })}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Condition Selection */}
+                                {/* Report Category */}
                                 <div>
-                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4 block">Animal Condition</label>
+                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4 block">Report Category</label>
                                     <div className="flex flex-wrap gap-3">
-                                        {['Healthy', 'Injured', 'Aggressive', 'Thin'].map((cond) => (
+                                        {[
+                                            { id: 1, name: 'Injured Animal' },
+                                            { id: 2, name: 'Aggressive Stray' },
+                                            { id: 3, name: 'Possible Rabies Risk' },
+                                            { id: 4, name: 'Roaming Pack' },
+                                            { id: 5, name: 'Animal Rescue Needed' }
+                                        ].map((cat) => (
                                             <button
-                                                key={cond}
-                                                onClick={() => setFormData({ ...formData, condition: cond })}
-                                                className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${formData.condition === cond
+                                                key={cat.id}
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, category: cat.name, category_id: cat.id })}
+                                                className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${formData.category_id === cat.id
                                                     ? 'bg-[#F97316] text-white border-[#F97316] shadow-lg shadow-orange-100'
                                                     : 'bg-white text-gray-400 border-gray-100 hover:border-orange-100'
                                                     }`}
                                             >
-                                                {cond}
+                                                {cat.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Animal Specifications */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="flex flex-col">
+                                        <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4">Animal Type</label>
+                                        <div className="flex items-center gap-6 h-12">
+                                            {['Dog', 'Cat', 'Unknown'].map((type) => (
+                                                <CustomRadio
+                                                    key={type}
+                                                    name="animalType"
+                                                    label={type}
+                                                    checked={formData.animalType === type}
+                                                    onChange={() => setFormData({ ...formData, animalType: type })}
+                                                    disabled={isViewMode}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-col">
+                                        <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4">Animal Breed</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. Aspin, Golden Retriever"
+                                            className="w-full h-12 bg-[#FAFAF9] border border-gray-50 rounded-2xl px-6 text-xs font-bold"
+                                            value={formData.animalBreed}
+                                            onChange={(e) => setFormData({ ...formData, animalBreed: e.target.value })}
+                                            disabled={isViewMode}
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-col">
+                                        <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4">Animal Color</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. Brown and White, Black"
+                                            className="w-full h-12 bg-[#FAFAF9] border border-gray-50 rounded-2xl px-6 text-xs font-bold"
+                                            value={formData.animalColor}
+                                            onChange={(e) => setFormData({ ...formData, animalColor: e.target.value })}
+                                            disabled={isViewMode}
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-col">
+                                        <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4">Estimated Size</label>
+                                        <select
+                                            className="w-full h-12 bg-[#FAFAF9] border border-gray-50 rounded-2xl px-6 text-xs font-bold focus:outline-none"
+                                            value={formData.estimatedSize}
+                                            onChange={(e) => setFormData({ ...formData, estimatedSize: e.target.value })}
+                                            disabled={isViewMode}
+                                        >
+                                            <option value="Small">Small (Puppy/Kitten size)</option>
+                                            <option value="Medium">Medium (Regular size)</option>
+                                            <option value="Large">Large (Giant breed size)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Priority Level Selection */}
+                                <div>
+                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4 block">Priority Level</label>
+                                    <div className="flex flex-wrap gap-3">
+                                        {['Low', 'Regular', 'High'].map((prio) => (
+                                            <button
+                                                key={prio}
+                                                type="button"
+                                                onClick={() => !isViewMode && setFormData({ ...formData, priorityLevel: prio })}
+                                                className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${formData.priorityLevel === prio
+                                                    ? 'bg-[#F97316] text-white border-[#F97316] shadow-lg shadow-orange-100'
+                                                    : 'bg-white text-gray-400 border-gray-100 hover:border-orange-100'
+                                                    }`}
+                                            >
+                                                {prio}
                                             </button>
                                         ))}
                                     </div>
@@ -377,7 +505,8 @@ const ResiHomePage = () => {
                                     <div className="flex items-center gap-4">
                                         <div className="flex items-center bg-gray-50 rounded-xl p-1 border border-gray-100 shadow-inner">
                                             <button
-                                                onClick={() => setFormData({ ...formData, animalCount: Math.max(1, formData.animalCount - 1) })}
+                                                type="button"
+                                                onClick={() => !isViewMode && setFormData({ ...formData, animalCount: Math.max(1, formData.animalCount - 1) })}
                                                 className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-[#F97316] hover:bg-orange-50 transition-all active:scale-90"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -388,7 +517,8 @@ const ResiHomePage = () => {
                                                 {formData.animalCount}
                                             </div>
                                             <button
-                                                onClick={() => setFormData({ ...formData, animalCount: formData.animalCount + 1 })}
+                                                type="button"
+                                                onClick={() => !isViewMode && setFormData({ ...formData, animalCount: formData.animalCount + 1 })}
                                                 className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-[#F97316] hover:bg-orange-50 transition-all active:scale-90"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -405,115 +535,142 @@ const ResiHomePage = () => {
                                     </div>
                                 </div>
 
-                                {/* Behavior Tags */}
-                                <div>
-                                    <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4 block">Behavior / Traits</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {['Friendly', 'Frightened', 'Nursing', 'Barking', 'Roaming'].map((tag) => (
-                                            <button
-                                                key={tag}
-                                                onClick={() => {
-                                                    const tags = formData.behaviorTags.includes(tag)
-                                                        ? formData.behaviorTags.filter(t => t !== tag)
-                                                        : [...formData.behaviorTags, tag];
-                                                    setFormData({ ...formData, behaviorTags: tags });
-                                                }}
-                                                className={`px-4 py-2 rounded-full text-[9px] font-bold border transition-all flex items-center gap-2 ${formData.behaviorTags.includes(tag)
-                                                    ? 'bg-orange-50 text-[#F97316] border-[#F97316]'
-                                                    : 'bg-white text-gray-400 border-gray-100 hover:border-orange-100'
-                                                    }`}
-                                            >
-                                                {formData.behaviorTags.includes(tag) && <div className="w-1 h-1 rounded-full bg-[#F97316]" />}
-                                                {tag}
-                                            </button>
-                                        ))}
+                                {/* Is Possible Owned? */}
+                                <div className="flex items-center gap-4 p-6 bg-gray-50 rounded-[2rem] border border-gray-100">
+                                    <div className="relative flex items-center justify-center">
+                                        <input
+                                            type="checkbox"
+                                            className="peer appearance-none w-6 h-6 rounded-lg border-2 border-gray-200 checked:bg-[#F97316] checked:border-[#F97316] transition-all cursor-pointer"
+                                            checked={formData.isPossibleOwned}
+                                            onChange={(e) => setFormData({ ...formData, isPossibleOwned: e.target.checked })}
+                                            disabled={isViewMode}
+                                        />
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="absolute h-4 w-4 text-white scale-0 peer-checked:scale-100 transition-transform pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest">Possibly Owned Pet</label>
+                                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Check this if the animal looks like it has an owner</p>
                                     </div>
                                 </div>
 
                                 {/* Consolidated Media Upload */}
-                                <div>
+                                <div className="md:col-span-2">
                                     <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4 block">Upload Photos or Videos</label>
                                     <div className="relative">
-                                        {formData.mediaFiles.length > 0 ? (
+                                        {allMediaCount > 0 ? (
                                             <div className="space-y-4">
                                                 {/* Grid Preview (Facebook-like) */}
                                                 <div
-                                                    className={`relative grid gap-2 rounded-[2rem] overflow-hidden border-2 border-orange-500 bg-orange-50/10 p-2 cursor-pointer group/grid ${formData.mediaFiles.length === 1 ? 'grid-cols-1' :
-                                                            formData.mediaFiles.length === 2 ? 'grid-cols-2' :
-                                                                'grid-cols-2'
+                                                    className={`relative grid gap-2 rounded-[2rem] overflow-hidden border-2 border-orange-500 bg-orange-50/10 p-2 ${!isViewMode ? 'cursor-pointer group/grid' : ''} ${allMediaCount === 1 ? 'grid-cols-1' :
+                                                        allMediaCount === 2 ? 'grid-cols-2' :
+                                                            'grid-cols-2'
                                                         }`}
-                                                    onClick={() => document.getElementById('multi-upload')?.click()}
+                                                    onClick={() => !isViewMode && document.getElementById('multi-upload')?.click()}
                                                 >
-                                                    {formData.mediaFiles.slice(0, 4).map((file, index) => (
-                                                        <div key={index} className={`relative aspect-square rounded-2xl overflow-hidden group/item ${formData.mediaFiles.length === 3 && index === 0 ? 'row-span-2 aspect-auto' : ''
-                                                            }`}>
-                                                            {file.type.startsWith('video/') ? (
-                                                                <video
-                                                                    src={URL.createObjectURL(file)}
-                                                                    className="w-full h-full object-cover"
-                                                                />
+                                                    {/* Render Existing Media */}
+                                                    {formData.existingMedia.map((media, index) => (
+                                                        <div key={`exist-${media.media_id}`} className={`relative aspect-square rounded-2xl overflow-hidden group/item ${allMediaCount === 3 && index === 0 ? 'row-span-2 aspect-auto' : ''}`}>
+                                                            {media.media_type === 'Video' ? (
+                                                                <video src={media.file_url} className="w-full h-full object-cover" />
                                                             ) : (
-                                                                <img
-                                                                    src={URL.createObjectURL(file)}
-                                                                    alt="Preview"
-                                                                    className="w-full h-full object-cover"
-                                                                />
+                                                                <img src={media.file_url} alt="Existing" className="w-full h-full object-cover" />
                                                             )}
-                                                            {index === 3 && formData.mediaFiles.length > 4 && (
-                                                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                                                    <span className="text-white text-xl font-black">+{formData.mediaFiles.length - 4}</span>
-                                                                </div>
+                                                            {!isViewMode && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        const newExisting = formData.existingMedia.filter(m => m.media_id !== media.media_id);
+                                                                        setFormData({ 
+                                                                            ...formData, 
+                                                                            existingMedia: newExisting,
+                                                                            mediaIdsToDelete: [...formData.mediaIdsToDelete, media.media_id]
+                                                                        });
+                                                                    }}
+                                                                    className="absolute top-2 right-2 bg-black/60 hover:bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover/item:opacity-100 transition-all z-[30] flex items-center justify-center"
+                                                                    title="Remove existing media"
+                                                                >
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                                                                    </svg>
+                                                                </button>
                                                             )}
-                                                            {/* Delete individual button */}
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    const newFiles = [...formData.mediaFiles];
-                                                                    newFiles.splice(index, 1);
-                                                                    setFormData({ ...formData, mediaFiles: newFiles });
-                                                                }}
-                                                                className="absolute top-2 right-2 bg-black/40 hover:bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover/item:opacity-100 transition-all z-[30]"
-                                                            >
-                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                                                                </svg>
-                                                            </button>
+                                                            <div className="absolute top-2 left-2 bg-black/40 px-2 py-0.5 rounded text-[8px] font-black text-white uppercase tracking-widest">Stored</div>
                                                         </div>
                                                     ))}
 
-                                                    {/* Hover Add More Overlay */}
-                                                    <div className="absolute inset-0 bg-orange-600/20 backdrop-blur-[2px] opacity-0 group-hover/grid:opacity-100 transition-all flex flex-col items-center justify-center gap-2 z-20">
-                                                        <div className="w-12 h-12 rounded-full bg-white shadow-xl flex items-center justify-center text-[#F97316]">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-                                                            </svg>
+                                                    {/* Render New Media Files */}
+                                                    {formData.mediaFiles.map((file, index) => (
+                                                        <div key={`new-${index}`} className={`relative aspect-square rounded-2xl overflow-hidden group/item ${allMediaCount === 3 && (index + formData.existingMedia.length) === 0 ? 'row-span-2 aspect-auto' : ''}`}>
+                                                            {file.type.startsWith('video/') ? (
+                                                                <video src={URL.createObjectURL(file)} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <img src={URL.createObjectURL(file)} alt="Preview" className="w-full h-full object-cover" />
+                                                            )}
+                                                            {!isViewMode && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        const newFiles = [...formData.mediaFiles];
+                                                                        newFiles.splice(index, 1);
+                                                                        setFormData({ ...formData, mediaFiles: newFiles });
+                                                                    }}
+                                                                    className="absolute top-2 right-2 bg-black/60 hover:bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover/item:opacity-100 transition-all z-[30] flex items-center justify-center"
+                                                                    title="Remove new file"
+                                                                >
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                                                                    </svg>
+                                                                </button>
+                                                            )}
+                                                            <div className="absolute top-2 left-2 bg-[#F97316] px-2 py-0.5 rounded text-[8px] font-black text-white uppercase tracking-widest">New</div>
                                                         </div>
-                                                        <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] drop-shadow-md">Add More Photos</span>
-                                                    </div>
+                                                    ))}
+
+                                                    {/* Hover Add More Overlay (Only in Edit mode) */}
+                                                    {!isViewMode && (
+                                                        <div className="absolute inset-0 bg-orange-600/20 backdrop-blur-[2px] opacity-0 group-hover/grid:opacity-100 transition-all flex flex-col items-center justify-center gap-2 z-20">
+                                                            <div className="w-12 h-12 rounded-full bg-white shadow-xl flex items-center justify-center text-[#F97316]">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                                                                </svg>
+                                                            </div>
+                                                            <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] drop-shadow-md">Add More Media</span>
+                                                        </div>
+                                                    )}
                                                 </div>
 
-                                                <div className="flex justify-end">
-                                                    <button
-                                                        onClick={() => setFormData({ ...formData, mediaFiles: [] })}
-                                                        className="text-[10px] font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-all py-1"
-                                                    >
-                                                        Clear Selection
-                                                    </button>
-                                                </div>
+                                                {!isViewMode && (
+                                                    <div className="flex justify-end">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setFormData({ ...formData, mediaFiles: [] })}
+                                                            className="text-[10px] font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-all py-1"
+                                                        >
+                                                            Clear New Selection
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
                                         ) : (
                                             <div
-                                                className="w-full aspect-video rounded-[2rem] border-2 border-dashed border-gray-100 bg-[#FAFAF9] flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-orange-200 hover:bg-orange-50/10 transition-all group"
-                                                onClick={() => document.getElementById('multi-upload')?.click()}
+                                                className={`w-full aspect-video rounded-[2rem] border-2 border-dashed border-gray-100 bg-[#FAFAF9] flex flex-col items-center justify-center gap-4 transition-all group ${!isViewMode ? 'cursor-pointer hover:border-orange-200 hover:bg-orange-50/10' : ''}`}
+                                                onClick={() => !isViewMode && document.getElementById('multi-upload')?.click()}
                                             >
-                                                <div className="w-16 h-16 rounded-[1.5rem] bg-white shadow-sm flex items-center justify-center text-gray-300 group-hover:text-[#F97316] transition-colors">
+                                                <div className={`w-16 h-16 rounded-[1.5rem] bg-white shadow-sm flex items-center justify-center text-gray-300 transition-colors ${!isViewMode ? 'group-hover:text-[#F97316]' : ''}`}>
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                                                     </svg>
                                                 </div>
                                                 <div className="text-center">
-                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tap to add Photos or Videos</p>
-                                                    <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mt-1">Multiple files supported</p>
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                                        {isViewMode ? 'No media attached' : 'Tap to add Photos or Videos'}
+                                                    </p>
+                                                    {!isViewMode && <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mt-1">Multiple files supported</p>}
                                                 </div>
                                             </div>
                                         )}
@@ -590,6 +747,7 @@ const ResiHomePage = () => {
                                         className="w-full bg-[#FAFAF9] border border-gray-50 rounded-[1.5rem] px-6 py-4 text-xs font-medium text-[#1a1208] focus:outline-none focus:border-orange-200 transition-all placeholder:text-gray-300 shadow-sm"
                                         value={formData.landmark}
                                         onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
+                                        disabled={isViewMode}
                                     />
                                 </div>
 
@@ -605,15 +763,19 @@ const ResiHomePage = () => {
                                                 checked={formData.visibility === 'Public'}
                                                 onChange={(e) => setFormData({ ...formData, visibility: e.target.value })}
                                                 className="absolute opacity-0"
+                                                disabled={isViewMode}
                                             />
-                                            <div className="flex items-center gap-3 mb-2">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${formData.visibility === 'Public' ? 'bg-[#F97316] text-white' : 'bg-gray-100 text-gray-400'}`}>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                    </svg>
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${formData.visibility === 'Public' ? 'bg-[#F97316] text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                            </svg>
+                                                        </div>
+                                                        <span className={`text-[12px] font-black uppercase tracking-widest ${formData.visibility === 'Public' ? 'text-[#F97316]' : 'text-gray-600'}`}>Public Post</span>
+                                                    </div>
+                                                    <RadioCircle checked={formData.visibility === 'Public'} />
                                                 </div>
-                                                <span className={`text-[12px] font-black uppercase tracking-widest ${formData.visibility === 'Public' ? 'text-[#F97316]' : 'text-gray-600'}`}>Public Post</span>
-                                            </div>
                                             <p className="text-[10px] font-bold text-gray-400 leading-relaxed ml-11">Visible to all users in the subdivision feed.</p>
                                         </label>
                                         <label className={`relative flex flex-col p-5 rounded-[2rem] border-2 cursor-pointer transition-all ${formData.visibility === 'Private' ? 'border-[#F97316] bg-orange-50/20' : 'border-gray-50 bg-[#FAFAF9] hover:border-orange-100'}`}>
@@ -624,15 +786,19 @@ const ResiHomePage = () => {
                                                 checked={formData.visibility === 'Private'}
                                                 onChange={(e) => setFormData({ ...formData, visibility: e.target.value })}
                                                 className="absolute opacity-0"
+                                                disabled={isViewMode}
                                             />
-                                            <div className="flex items-center gap-3 mb-2">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${formData.visibility === 'Private' ? 'bg-[#F97316] text-white' : 'bg-gray-100 text-gray-400'}`}>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                                    </svg>
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${formData.visibility === 'Private' ? 'bg-[#F97316] text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                            </svg>
+                                                        </div>
+                                                        <span className={`text-[12px] font-black uppercase tracking-widest ${formData.visibility === 'Private' ? 'text-[#F97316]' : 'text-gray-600'}`}>Private Post</span>
+                                                    </div>
+                                                    <RadioCircle checked={formData.visibility === 'Private'} />
                                                 </div>
-                                                <span className={`text-[12px] font-black uppercase tracking-widest ${formData.visibility === 'Private' ? 'text-[#F97316]' : 'text-gray-600'}`}>Private Post</span>
-                                            </div>
                                             <p className="text-[10px] font-bold text-gray-400 leading-relaxed ml-11">Only visible to Admin, Subd. Leader, and Brgy Staff.</p>
                                         </label>
                                     </div>
@@ -647,30 +813,49 @@ const ResiHomePage = () => {
                                         className="w-full bg-[#FAFAF9] border border-gray-50 rounded-[2rem] p-6 text-sm font-medium focus:outline-none focus:border-orange-200 transition-all placeholder:text-gray-300 shadow-sm"
                                         value={formData.description}
                                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                        disabled={isViewMode}
                                     />
                                 </div>
                             </div>
 
                             {/* Modal Footer */}
-                            <div className="p-10 pt-0">
-                                <Button
-                                    disabled={isSubmitting}
-                                    className={`w-full py-5 text-white text-[12px] font-black uppercase tracking-[0.2em] rounded-[2rem] shadow-xl transition-all ${isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#F97316] shadow-orange-100 hover:scale-[1.02] active:scale-[0.98]'
-                                        }`}
-                                    onClick={handleSubmit}
-                                >
-                                    {isSubmitting ? (
-                                        <div className="flex items-center justify-center gap-2">
-                                            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                            Processing...
-                                        </div>
-                                    ) : (
-                                        editingReportId ? 'Update Report' : 'Submit Report'
-                                    )}
-                                </Button>
+                            <div className="p-10 pt-0 flex flex-col gap-4">
+                                {isViewMode ? (
+                                    <Button
+                                        className="w-full py-5 bg-[#1a1208] text-white text-[12px] font-black uppercase tracking-[0.2em] rounded-[2rem] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                        onClick={() => setIsViewMode(false)}
+                                    >
+                                        Edit Post
+                                    </Button>
+                                ) : (
+                                    <>
+                                        <Button
+                                            disabled={isSubmitting}
+                                            className={`w-full py-5 text-white text-[12px] font-black uppercase tracking-[0.2em] rounded-[2rem] shadow-xl transition-all ${isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#F97316] shadow-orange-100 hover:scale-[1.02] active:scale-[0.98]'
+                                                }`}
+                                            onClick={handleSubmit}
+                                        >
+                                            {isSubmitting ? (
+                                                <span className="flex items-center justify-center gap-2">
+                                                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    Processing...
+                                                </span>
+                                            ) : editingReportId ? 'Update Report' : 'Submit Report'}
+                                        </Button>
+                                        {editingReportId && (
+                                            <button
+                                                type="button"
+                                                onClick={handleReset}
+                                                className="w-full py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-[#F97316] transition-all"
+                                            >
+                                                Reset Changes
+                                            </button>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -721,13 +906,14 @@ const ResiHomePage = () => {
                                                     {openMenuId === report.report_id && (
                                                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
                                                             <button
-                                                                onClick={(e) => { e.stopPropagation(); handleEditClick(report); }}
+                                                                onClick={(e) => { e.stopPropagation(); handleEditClick(report, true); }}
                                                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-[#F97316] hover:bg-orange-50 transition-colors"
                                                             >
                                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                                                 </svg>
-                                                                Edit Post
+                                                                View Details
                                                             </button>
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); handleDeleteReport(report.report_id); setOpenMenuId(null); }}
@@ -749,65 +935,254 @@ const ResiHomePage = () => {
                                     <div className="px-4 sm:px-8 pt-4 pb-8 sm:pb-10">
                                         {/* Title & Status Badge - Horizontal Alignment */}
                                         <div className="mb-6 flex items-center justify-between gap-4">
-                                            <h2 className="text-2xl sm:text-4xl font-black text-[#1a1208] uppercase tracking-tighter leading-none">{categoryName}</h2>
+                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                                                <h2 className="text-2xl sm:text-4xl font-black text-[#1a1208] uppercase tracking-tighter leading-none">{categoryName}</h2>
+                                                <div className="flex items-center gap-2 px-2.5 py-1 bg-[#FAFAF9] border border-gray-100 rounded-lg shadow-sm w-fit">
+                                                    {report.visibility === 'Private' ? (
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                        </svg>
+                                                    ) : (
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                        </svg>
+                                                    )}
+                                                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{report.visibility}</span>
+                                                </div>
+                                            </div>
                                             <span className={`px-3 py-1 shrink-0 text-[9px] font-black uppercase tracking-widest rounded-full border shadow-sm ${report.status_id === 1 ? 'bg-orange-50 text-[#F97316] border-orange-100' :
-                                                    report.status_id === 6 ? 'bg-green-50 text-green-600 border-green-100' :
-                                                        report.status_id === 7 || report.status_id === 8 ? 'bg-purple-50 text-purple-600 border-purple-100' :
-                                                            report.status_id === 9 || report.status_id === 10 ? 'bg-teal-50 text-teal-600 border-teal-100' :
-                                                                'bg-blue-50 text-blue-600 border-blue-100'
+                                                report.status_id === 6 ? 'bg-green-50 text-green-600 border-green-100' :
+                                                    report.status_id === 7 || report.status_id === 8 ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                                                        report.status_id === 9 || report.status_id === 10 ? 'bg-teal-50 text-teal-600 border-teal-100' :
+                                                            'bg-blue-50 text-blue-600 border-blue-100'
                                                 }`}>
                                                 {statusName}
                                             </span>
                                         </div>
 
-                                        {/* Narrative */}
+                                        {/* Description */}
                                         <div className="mb-6">
-                                            <p className="text-[9px] sm:text-[10px] font-black text-[#1a1208] uppercase tracking-[0.2em] mb-2 sm:mb-2.5">Narrative</p>
-                                            <p className="text-[13px] sm:text-[15px] font-bold text-[#4a3b28] leading-relaxed italic">
-                                                "{report.description || 'No detailed description provided.'}"
+                                            <p className="text-[13px] sm:text-[15px] font-medium text-[#4a3b28] leading-relaxed">
+                                                {report.description || 'No detailed description provided.'}
                                             </p>
                                         </div>
 
-                                        {/* Media Grid: The Focus */}
-                                        {report.media && report.media.length > 0 && (
-                                            <div className="mb-6">
-                                                <div className={`grid gap-2 rounded-2xl sm:rounded-[2.5rem] overflow-hidden border-2 border-gray-50 shadow-inner bg-gray-50/30 ${report.media.length === 1 ? 'grid-cols-1' : 'grid-cols-2'
-                                                    }`}>
-                                                    {report.media.slice(0, 4).map((m: any, idx: number) => (
-                                                        <div
-                                                            key={m.media_id}
-                                                            className={`relative overflow-hidden cursor-pointer group/media ${report.media.length === 1 ? 'h-64 sm:h-96' :
-                                                                    report.media.length === 2 ? 'h-48 sm:h-72' :
-                                                                        report.media.length === 3 && idx === 0 ? 'row-span-2 h-[24rem] sm:h-[36rem]' : 'h-48 sm:h-72'
-                                                                }`}
-                                                            onClick={() => setActiveGallery({ media: report.media, index: idx })}
-                                                        >
-                                                            {m.media_type === 'Video' ? (
-                                                                <div className="w-full h-full relative">
-                                                                    <video src={m.file_url} className="w-full h-full object-cover" />
-                                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover/media:bg-black/30 transition-all">
-                                                                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/30">
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                                                                                <path d="M8 5v14l11-7z" />
-                                                                            </svg>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            ) : (
-                                                                <img
-                                                                    src={m.file_url}
-                                                                    alt="Media"
-                                                                    className="w-full h-full object-cover hover:scale-105 transition-all duration-1000 ease-out"
-                                                                />
-                                                            )}
-                                                            {idx === 3 && report.media.length > 4 && (
-                                                                <div className="absolute inset-0 bg-black/70 backdrop-blur-[4px] flex items-center justify-center text-white">
-                                                                    <span className="text-xl sm:text-3xl font-black tracking-tighter leading-none">+{report.media.length - 4}</span>
-                                                                </div>
+                                        {/* Rescue Progress Tracker (6 Stages) */}
+                                        <div className="mb-10 mt-4">
+                                            <div className="flex items-center justify-between relative px-2">
+                                                {/* Timeline Connector Line */}
+                                                <div className="absolute top-5 left-10 right-10 h-0.5 bg-gray-100 z-0">
+                                                    <div
+                                                        className="h-full bg-orange-500 transition-all duration-700"
+                                                        style={{
+                                                            width: `${(() => {
+                                                                const stages = [1, 4, 5, 7, 9, 6];
+                                                                const currentIndex = stages.indexOf(report.status_id);
+                                                                return currentIndex === -1 ? 0 : (currentIndex / (stages.length - 1)) * 100;
+                                                            })()}%`
+                                                        }}
+                                                    />
+                                                </div>
+
+                                                {[
+                                                    { id: 1, label: 'Reported', sub: 'Citizen Post' },
+                                                    { id: 4, label: 'Verified', sub: 'Forwarded' },
+                                                    { id: 5, label: 'Dispatched', sub: 'On the way' },
+                                                    { id: 7, label: 'Picked Up', sub: 'Secured' },
+                                                    { id: 9, label: 'Impounded', sub: 'At Shelter' },
+                                                    { id: 6, label: 'Resolved', sub: 'Complete' }
+                                                ].map((stage, idx) => {
+                                                    const isCompleted = [1, 4, 5, 7, 9, 6].indexOf(report.status_id) >= idx;
+                                                    const isCurrent = report.status_id === stage.id;
+                                                    const isSelected = selectedStage[report.report_id] === stage.id;
+                                                    const hasHistory = report.history?.some((h: any) => h.status_id === stage.id);
+
+                                                    return (
+                                                        <div key={stage.id} className="relative z-10 flex flex-col items-center group">
+                                                            <button
+                                                                onClick={() => {
+                                                                    if (hasHistory || stage.id === 1) {
+                                                                        setSelectedStage(prev => ({ ...prev, [report.report_id]: isSelected ? null : stage.id }));
+                                                                    }
+                                                                }}
+                                                                disabled={!hasHistory && stage.id !== 1}
+                                                                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${isSelected ? 'bg-orange-600 text-white scale-110 shadow-lg shadow-orange-200' :
+                                                                    isCurrent ? 'bg-orange-500 text-white animate-pulse shadow-md ring-4 ring-orange-50' :
+                                                                        isCompleted ? 'bg-orange-100 text-orange-600 border border-orange-200 hover:bg-orange-200' :
+                                                                            'bg-white text-gray-200 border border-gray-100'
+                                                                    }`}
+                                                            >
+                                                                {isCompleted && !isSelected ? (
+                                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                                                                ) : (
+                                                                    <span className="text-xs font-black">{idx + 1}</span>
+                                                                )}
+                                                            </button>
+                                                            <div className="absolute top-12 flex flex-col items-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap bg-gray-900 text-white px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest -translate-y-2 group-hover:translate-y-0 duration-300 shadow-xl">
+                                                                {stage.label}
+                                                                <span className="text-gray-400 mt-0.5">{stage.sub}</span>
+                                                            </div>
+                                                            {isSelected && (
+                                                                <div className="absolute top-14 w-1.5 h-1.5 bg-orange-600 rounded-full animate-bounce mt-1"></div>
                                                             )}
                                                         </div>
-                                                    ))}
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* Stage Specific Update Card */}
+                                        {selectedStage[report.report_id] && (
+                                            <div className="mb-10 animate-in fade-in slide-in-from-top-4 duration-500">
+                                                {(() => {
+                                                    const stageId = selectedStage[report.report_id];
+                                                    const stageData = [
+                                                        { id: 1, label: 'Reported', sub: 'Citizen Post' },
+                                                        { id: 4, label: 'Verified', sub: 'Forwarded to Barangay' },
+                                                        { id: 5, label: 'Dispatched', sub: 'Team is on the way' },
+                                                        { id: 7, label: 'Picked Up', sub: 'Animal successfully secured' },
+                                                        { id: 9, label: 'Impounded', sub: 'Transferred to municipal shelter' },
+                                                        { id: 6, label: 'Resolved', sub: 'Operation successfully closed' }
+                                                    ].find(s => s.id === stageId);
+
+                                                    const historyItem = report.history?.find((h: any) => h.status_id === stageId);
+                                                    const stageMedia = report.media?.filter((m: any) => {
+                                                        if (m.history_id !== historyItem?.history_id || !m.is_evidence) return false;
+                                                        const url = m.file_url.toLowerCase();
+                                                        return m.media_type !== 'Document' &&
+                                                            !url.endsWith('.pdf') &&
+                                                            !url.endsWith('.doc') &&
+                                                            !url.endsWith('.docx') &&
+                                                            !url.endsWith('.txt');
+                                                    }) || [];
+
+                                                    return (
+                                                        <div className="bg-[#FAFAF9] rounded-[2.5rem] border border-orange-100 overflow-hidden shadow-sm">
+                                                            <div className="p-8 pb-4 flex justify-between items-start">
+                                                                <div>
+                                                                    <p className="text-[10px] font-black text-orange-600 uppercase tracking-[0.2em] mb-1">Operational Stage {([1, 4, 5, 7, 9, 6].indexOf(stageId!) + 1)}</p>
+                                                                    <h4 className="text-xl font-black text-[#1a1208] uppercase tracking-tight">{stageData?.label}</h4>
+                                                                </div>
+                                                                {historyItem && (
+                                                                    <span className="text-[10px] font-bold text-gray-400 bg-white px-4 py-1.5 rounded-full border border-gray-50 shadow-sm">
+                                                                        {new Date(historyItem.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="px-8 pb-8 space-y-6">
+                                                                <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-50">
+                                                                    <p className="text-[13px] font-medium text-[#4a3b28] leading-relaxed">
+                                                                        {historyItem?.remarks || stageData?.sub || 'No additional remarks provided for this stage.'}
+                                                                    </p>
+                                                                </div>
+
+                                                                {stageMedia.length > 0 && (
+                                                                    <div className={`grid gap-2 rounded-2xl overflow-hidden ${stageMedia.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                                                                        {stageMedia.map((m: any, idx: number) => (
+                                                                            <div
+                                                                                key={m.media_id}
+                                                                                onClick={() => setActiveGallery({ media: stageMedia, index: idx })}
+                                                                                className={`relative cursor-pointer hover:opacity-90 transition-opacity ${stageMedia.length === 1 ? 'aspect-video' : 'aspect-square'}`}
+                                                                            >
+                                                                                {m.media_type === 'Video' ? (
+                                                                                    <video src={m.file_url} className="w-full h-full object-cover" />
+                                                                                ) : (
+                                                                                    <img src={m.file_url} className="w-full h-full object-cover" />
+                                                                                )}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+                                        )}
+
+                                        {/* Media Grid: The Focus */}
+                                        {(() => {
+                                            const originalMedia = report.media?.filter((m: any) => {
+                                                if (m.is_evidence) return false;
+                                                const url = m.file_url.toLowerCase();
+                                                return m.media_type !== 'Document' &&
+                                                    !url.endsWith('.pdf') &&
+                                                    !url.endsWith('.doc') &&
+                                                    !url.endsWith('.docx') &&
+                                                    !url.endsWith('.txt');
+                                            }) || [];
+                                            if (originalMedia.length === 0) return null;
+
+                                            return (
+                                                <div className="mb-6">
+                                                    <div className={`grid gap-2 rounded-2xl sm:rounded-[2.5rem] overflow-hidden border-2 border-gray-50 shadow-inner bg-gray-50/30 ${originalMedia.length === 1 ? 'grid-cols-1' : 'grid-cols-2'
+                                                        }`}>
+                                                        {originalMedia.slice(0, 4).map((m: any, idx: number) => (
+                                                            <div
+                                                                key={m.media_id}
+                                                                className={`relative overflow-hidden cursor-pointer group/media ${originalMedia.length === 1 ? 'h-64 sm:h-96' :
+                                                                    originalMedia.length === 2 ? 'h-48 sm:h-72' :
+                                                                        originalMedia.length === 3 && idx === 0 ? 'row-span-2 h-[24rem] sm:h-[36rem]' : 'h-48 sm:h-72'
+                                                                    }`}
+                                                                onClick={() => setActiveGallery({ media: originalMedia, index: idx })}
+                                                            >
+                                                                {m.media_type === 'Video' ? (
+                                                                    <div className="w-full h-full relative">
+                                                                        <video src={m.file_url} className="w-full h-full object-cover" />
+                                                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover/media:bg-black/30 transition-all">
+                                                                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/30">
+                                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                                                                                    <path d="M8 5v14l11-7z" />
+                                                                                </svg>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <img
+                                                                        src={m.file_url}
+                                                                        alt="Media"
+                                                                        className="w-full h-full object-cover hover:scale-105 transition-all duration-1000 ease-out"
+                                                                    />
+                                                                )}
+                                                                {idx === 3 && originalMedia.length > 4 && (
+                                                                    <div className="absolute inset-0 bg-black/70 backdrop-blur-[4px] flex items-center justify-center text-white">
+                                                                        <span className="text-xl sm:text-3xl font-black tracking-tighter leading-none">+{originalMedia.length - 4}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
+                                            );
+                                        })()}
+
+                                        {/* Animal Specs Grid */}
+                                        {(report.animal_type || report.animal_condition) && (
+                                            <div className="grid grid-cols-2 gap-3 mb-6">
+                                                {report.animal_type && (
+                                                    <div className="bg-orange-50/30 border border-orange-100/30 rounded-[1.5rem] p-3.5 flex items-center gap-4">
+                                                        <div className="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center text-orange-600 shrink-0">
+                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Species</p>
+                                                            <p className="text-[11px] sm:text-[13px] font-black text-[#1a1208] uppercase">{report.animal_type}</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {report.animal_condition && (
+                                                    <div className="bg-red-50/30 border border-red-100/30 rounded-[1.5rem] p-3.5 flex items-center gap-4">
+                                                        <div className="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center text-red-600 shrink-0">
+                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Condition</p>
+                                                            <p className="text-[11px] sm:text-[13px] font-black text-[#1a1208] uppercase">{report.animal_condition}</p>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
 
@@ -868,126 +1243,131 @@ const ResiHomePage = () => {
                                         {(expandedComments[report.report_id] || !report.comments || report.comments.length === 0) && (
                                             <div className="space-y-2 mb-6 max-h-72 overflow-y-auto custom-scrollbar pr-2 animate-in fade-in slide-in-from-top-2 duration-300">
                                                 {report.comments && report.comments.length > 0 ? (
-                                                    report.comments.filter((c: any) => !c.parent_comment_id).map((c: any) => {
-                                                        const replies = report.comments.filter((reply: any) => reply.parent_comment_id === c.comment_id);
-                                                        return (
-                                                            <div key={c.comment_id} className="mb-4 last:mb-0">
-                                                                <div className="flex gap-3 relative">
-                                                                    {/* Parent Avatar & Vertical Line */}
-                                                                    <div className="relative flex flex-col items-center shrink-0">
-                                                                        <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-[#F97316] font-black text-xs z-10 ring-4 ring-white border border-orange-100">
-                                                                            {c.user_name.charAt(0).toUpperCase()}
-                                                                        </div>
-                                                                        {(replies.length > 0 || replyingTo[report.report_id]?.commentId === c.comment_id) && (
-                                                                            <div className="absolute top-8 bottom-[-16px] left-1/2 -translate-x-1/2 w-[2px] bg-gray-100 z-0"></div>
-                                                                        )}
-                                                                    </div>
-
-                                                                    <div className="flex-1 pb-1">
-                                                                        {/* Parent Bubble */}
-                                                                        <div className="bg-[#FAFAF9] rounded-[1.5rem] p-3.5 px-4 border border-gray-50 shadow-sm inline-block">
-                                                                            <span className="block text-[11px] font-black text-[#1a1208] mb-0.5">{c.user_name}</span>
-                                                                            <p className="text-xs font-semibold text-gray-700 leading-relaxed pr-6">{c.message}</p>
-                                                                        </div>
-                                                                        {/* Parent Actions */}
-                                                                        <div className="flex items-center gap-4 mt-1.5 ml-3">
-                                                                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{new Date(c.created_at).toLocaleDateString()}</span>
-                                                                            <button
-                                                                                onClick={() => setReplyingTo(prev => ({ ...prev, [report.report_id]: { commentId: c.comment_id, userName: c.user_name } }))}
-                                                                                className="text-[10px] font-bold text-gray-500 hover:text-[#F97316] transition-colors"
-                                                                            >
-                                                                                Reply
-                                                                            </button>
-                                                                        </div>
-
-                                                                        {/* Replies Container */}
-                                                                        {replies.length > 0 && (
-                                                                            <div className="mt-4 space-y-4">
-                                                                                {replies.map((reply: any, index: number) => (
-                                                                                    <div key={reply.comment_id} className="flex gap-3 relative">
-                                                                                        {/* Horizontal connector curve */}
-                                                                                        <div className="absolute top-[-10px] left-[-28px] w-[28px] h-[26px] border-b-[2px] border-l-[2px] border-gray-100 rounded-bl-[12px] z-0 pointer-events-none"></div>
-
-                                                                                        {/* Mask to hide vertical line below the last reply */}
-                                                                                        {index === replies.length - 1 && replyingTo[report.report_id]?.commentId !== c.comment_id && (
-                                                                                            <div className="absolute top-[16px] bottom-[-100px] left-[-30px] w-[6px] bg-white z-0 pointer-events-none"></div>
-                                                                                        )}
-
-                                                                                        {/* Child Avatar */}
-                                                                                        <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 font-bold text-[10px] z-10 mt-1 ring-4 ring-white border border-gray-100 shrink-0">
-                                                                                            {reply.user_name.charAt(0).toUpperCase()}
-                                                                                        </div>
-
-                                                                                        <div className="flex-1">
-                                                                                            {/* Child Bubble */}
-                                                                                            <div className="bg-[#FAFAF9] rounded-[1.2rem] p-3 px-4 border border-gray-50 shadow-sm inline-block">
-                                                                                                <span className="block text-[10px] font-black text-gray-800 mb-0.5">{reply.user_name}</span>
-                                                                                                <p className="text-[11px] font-semibold text-gray-600 leading-relaxed pr-4">{reply.message}</p>
-                                                                                            </div>
-                                                                                            {/* Child Actions */}
-                                                                                            <div className="flex items-center gap-4 mt-1.5 ml-3">
-                                                                                                <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{new Date(reply.created_at).toLocaleDateString()}</span>
-                                                                                                <button
-                                                                                                    onClick={() => setReplyingTo(prev => ({ ...prev, [report.report_id]: { commentId: c.comment_id, userName: reply.user_name } }))}
-                                                                                                    className="text-[9px] font-bold text-gray-500 hover:text-[#F97316] transition-colors"
-                                                                                                >
-                                                                                                    Reply
-                                                                                                </button>
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                ))}
+                                                    report.comments
+                                                        .filter((c: any) => !c.parent_comment_id)
+                                                        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                                                        .map((c: any) => {
+                                                            const replies = report.comments
+                                                                .filter((reply: any) => reply.parent_comment_id === c.comment_id)
+                                                                .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                                                            return (
+                                                                <div key={c.comment_id} className="mb-4 last:mb-0">
+                                                                    <div className="flex gap-3 relative">
+                                                                        {/* Parent Avatar & Vertical Line */}
+                                                                        <div className="relative flex flex-col items-center shrink-0">
+                                                                            <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-[#F97316] font-black text-xs z-10 ring-4 ring-white border border-orange-100">
+                                                                                {c.user_name.charAt(0).toUpperCase()}
                                                                             </div>
-                                                                        )}
+                                                                            {(replies.length > 0 || replyingTo[report.report_id]?.commentId === c.comment_id) && (
+                                                                                <div className="absolute top-8 bottom-[-16px] left-1/2 -translate-x-1/2 w-[2px] bg-gray-100 z-0"></div>
+                                                                            )}
+                                                                        </div>
 
-                                                                        {/* Inline Reply Input */}
-                                                                        {replyingTo[report.report_id]?.commentId === c.comment_id && (
-                                                                            <div className="mt-4 flex items-center gap-3 relative z-10 animate-in fade-in slide-in-from-top-2 duration-200">
-                                                                                {/* Thread curve for the reply input itself */}
-                                                                                <div className="absolute top-[-10px] left-[-28px] w-[28px] h-[24px] border-b-[2px] border-l-[2px] border-gray-100 rounded-bl-[12px] z-0 pointer-events-none"></div>
-                                                                                {/* Mask to hide vertical line below the inline reply input */}
-                                                                                <div className="absolute top-[14px] bottom-[-100px] left-[-30px] w-[6px] bg-white z-0 pointer-events-none"></div>
+                                                                        <div className="flex-1 pb-1">
+                                                                            {/* Parent Bubble */}
+                                                                            <div className="bg-[#FAFAF9] rounded-[1.5rem] p-3.5 px-4 border border-gray-50 shadow-sm inline-block">
+                                                                                <span className="block text-[11px] font-black text-[#1a1208] mb-0.5">{c.user_name}</span>
+                                                                                <p className="text-xs font-semibold text-gray-700 leading-relaxed pr-6">{c.comment}</p>
+                                                                            </div>
+                                                                            {/* Parent Actions */}
+                                                                            <div className="flex items-center gap-4 mt-1.5 ml-3">
+                                                                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{new Date(c.created_at).toLocaleDateString()}</span>
+                                                                                <button
+                                                                                    onClick={() => setReplyingTo(prev => ({ ...prev, [report.report_id]: { commentId: c.comment_id, userName: c.user_name } }))}
+                                                                                    className="text-[10px] font-bold text-gray-500 hover:text-[#F97316] transition-colors"
+                                                                                >
+                                                                                    Reply
+                                                                                </button>
+                                                                            </div>
 
-                                                                                <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-[#F97316] font-black text-[10px] shrink-0 border border-orange-200 z-10 bg-white ring-4 ring-white">
-                                                                                    {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                                                                            {/* Replies Container */}
+                                                                            {replies.length > 0 && (
+                                                                                <div className="mt-4 space-y-4">
+                                                                                    {replies.map((reply: any, index: number) => (
+                                                                                        <div key={reply.comment_id} className="flex gap-3 relative">
+                                                                                            {/* Horizontal connector curve */}
+                                                                                            <div className="absolute top-[-10px] left-[-28px] w-[28px] h-[26px] border-b-[2px] border-l-[2px] border-gray-100 rounded-bl-[12px] z-0 pointer-events-none"></div>
+
+                                                                                            {/* Mask to hide vertical line below the last reply */}
+                                                                                            {index === replies.length - 1 && replyingTo[report.report_id]?.commentId !== c.comment_id && (
+                                                                                                <div className="absolute top-[16px] bottom-[-100px] left-[-30px] w-[6px] bg-white z-0 pointer-events-none"></div>
+                                                                                            )}
+
+                                                                                            {/* Child Avatar */}
+                                                                                            <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 font-bold text-[10px] z-10 mt-1 ring-4 ring-white border border-gray-100 shrink-0">
+                                                                                                {reply.user_name.charAt(0).toUpperCase()}
+                                                                                            </div>
+
+                                                                                            <div className="flex-1">
+                                                                                                {/* Child Bubble */}
+                                                                                                <div className="bg-[#FAFAF9] rounded-[1.2rem] p-3 px-4 border border-gray-50 shadow-sm inline-block">
+                                                                                                    <span className="block text-[10px] font-black text-gray-800 mb-0.5">{reply.user_name}</span>
+                                                                                                    <p className="text-[11px] font-semibold text-gray-600 leading-relaxed pr-4">{reply.comment}</p>
+                                                                                                </div>
+                                                                                                {/* Child Actions */}
+                                                                                                <div className="flex items-center gap-4 mt-1.5 ml-3">
+                                                                                                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{new Date(reply.created_at).toLocaleDateString()}</span>
+                                                                                                    <button
+                                                                                                        onClick={() => setReplyingTo(prev => ({ ...prev, [report.report_id]: { commentId: c.comment_id, userName: reply.user_name } }))}
+                                                                                                        className="text-[9px] font-bold text-gray-500 hover:text-[#F97316] transition-colors"
+                                                                                                    >
+                                                                                                        Reply
+                                                                                                    </button>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ))}
                                                                                 </div>
-                                                                                <div className="flex-1 relative flex items-center">
-                                                                                    <input
-                                                                                        type="text"
-                                                                                        autoFocus
-                                                                                        placeholder={`Replying to ${replyingTo[report.report_id]?.userName}...`}
-                                                                                        className="w-full bg-[#FAFAF9] border border-gray-100 rounded-[1.2rem] pl-4 pr-10 py-2 text-[11px] font-semibold text-[#1a1208] focus:outline-none focus:border-orange-200 focus:bg-white transition-all placeholder:text-gray-400 shadow-inner"
-                                                                                        value={commentInputs[report.report_id] || ''}
-                                                                                        onChange={(e) => setCommentInputs(prev => ({ ...prev, [report.report_id]: e.target.value }))}
-                                                                                        onKeyPress={(e) => e.key === 'Enter' && handleAddComment(report.report_id)}
-                                                                                    />
+                                                                            )}
+
+                                                                            {/* Inline Reply Input */}
+                                                                            {replyingTo[report.report_id]?.commentId === c.comment_id && (
+                                                                                <div className="mt-4 flex items-center gap-3 relative z-10 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                                                    {/* Thread curve for the reply input itself */}
+                                                                                    <div className="absolute top-[-10px] left-[-28px] w-[28px] h-[24px] border-b-[2px] border-l-[2px] border-gray-100 rounded-bl-[12px] z-0 pointer-events-none"></div>
+                                                                                    {/* Mask to hide vertical line below the inline reply input */}
+                                                                                    <div className="absolute top-[14px] bottom-[-100px] left-[-30px] w-[6px] bg-white z-0 pointer-events-none"></div>
+
+                                                                                    <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-[#F97316] font-black text-[10px] shrink-0 border border-orange-200 z-10 bg-white ring-4 ring-white">
+                                                                                        {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                                                                                    </div>
+                                                                                    <div className="flex-1 relative flex items-center">
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            autoFocus
+                                                                                            placeholder={`Replying to ${replyingTo[report.report_id]?.userName}...`}
+                                                                                            className="w-full bg-[#FAFAF9] border border-gray-100 rounded-[1.2rem] pl-4 pr-10 py-2 text-[11px] font-semibold text-[#1a1208] focus:outline-none focus:border-orange-200 focus:bg-white transition-all placeholder:text-gray-400 shadow-inner"
+                                                                                            value={commentInputs[report.report_id] || ''}
+                                                                                            onChange={(e) => setCommentInputs(prev => ({ ...prev, [report.report_id]: e.target.value }))}
+                                                                                            onKeyPress={(e) => e.key === 'Enter' && handleAddComment(report.report_id)}
+                                                                                        />
+                                                                                        <button
+                                                                                            onClick={() => {
+                                                                                                setReplyingTo(prev => ({ ...prev, [report.report_id]: null }));
+                                                                                                setCommentInputs(prev => ({ ...prev, [report.report_id]: '' }));
+                                                                                            }}
+                                                                                            className="absolute right-3 text-gray-400 hover:text-red-500 transition-colors"
+                                                                                        >
+                                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                                                                            </svg>
+                                                                                        </button>
+                                                                                    </div>
                                                                                     <button
-                                                                                        onClick={() => {
-                                                                                            setReplyingTo(prev => ({ ...prev, [report.report_id]: null }));
-                                                                                            setCommentInputs(prev => ({ ...prev, [report.report_id]: '' }));
-                                                                                        }}
-                                                                                        className="absolute right-3 text-gray-400 hover:text-red-500 transition-colors"
+                                                                                        onClick={() => handleAddComment(report.report_id)}
+                                                                                        className="bg-[#F97316] text-white rounded-full w-8 h-8 flex items-center justify-center shadow-md shadow-orange-100 hover:scale-105 active:scale-95 transition-all shrink-0"
                                                                                     >
-                                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 relative left-[1px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                                                                                         </svg>
                                                                                     </button>
                                                                                 </div>
-                                                                                <button
-                                                                                    onClick={() => handleAddComment(report.report_id)}
-                                                                                    className="bg-[#F97316] text-white rounded-full w-8 h-8 flex items-center justify-center shadow-md shadow-orange-100 hover:scale-105 active:scale-95 transition-all shrink-0"
-                                                                                >
-                                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 relative left-[1px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                                                                    </svg>
-                                                                                </button>
-                                                                            </div>
-                                                                        )}
+                                                                            )}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                        );
-                                                    })
+                                                            );
+                                                        })
                                                 ) : (
                                                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic text-center py-4">No comments yet. Be the first to comment!</p>
                                                 )}
@@ -1103,6 +1483,32 @@ const ResiHomePage = () => {
                     </div>
                 </div>
             )}
+            <ResiMobileNav 
+                isNavbarMenuOpen={isNavbarMenuOpen} 
+                onAddReportClick={() => {
+                    setEditingReportId(null);
+                    setFormData({
+                        category: 'Injured Animal',
+                        category_id: 1,
+                        animalCount: 1,
+                        landmark: '',
+                        visibility: 'Public',
+                        priorityLevel: 'Regular',
+                        isPossibleOwned: false,
+                        animalType: 'Dog',
+                        animalBreed: '',
+                        animalColor: '',
+                        estimatedSize: 'Medium',
+                        description: '',
+                        latitude: 14.801313,
+                        longitude: 121.003109,
+                        mediaFiles: [],
+                        existingMedia: [],
+                        mediaIdsToDelete: []
+                    });
+                    setIsAddReportModalOpen(true);
+                }} 
+            />
         </div>
     );
 };

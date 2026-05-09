@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+import os
+import uuid
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import List
@@ -6,6 +8,7 @@ from app.database import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate, UserResponse
 from app.utils.auth import get_password_hash
+from app.utils.cloudinary_config import upload_to_cloudinary
 
 router = APIRouter(
     prefix="/users",
@@ -91,6 +94,38 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    db.delete(db_user)
-    db.commit()
-    return {"message": "User deleted successfully"}
+    try:
+        db.delete(db_user)
+        db.commit()
+        return {"message": "User deleted successfully"}
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete user because they have associated reports, pets, or activity logs. Please deactivate the user instead."
+        )
+
+@router.post("/{user_id}/profile-picture", response_model=UserResponse)
+async def upload_profile_picture(
+    user_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    file_extension = os.path.splitext(file.filename)[1]
+    unique_filename = f"profile_{user_id}_{uuid.uuid4().hex[:8]}{file_extension}"
+
+    try:
+        file_content = await file.read()
+        file_url = upload_to_cloudinary(file_content, unique_filename)
+        
+        user.profile_picture = file_url
+        db.commit()
+        db.refresh(user)
+        return user
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Cloudinary upload failed: {str(e)}")

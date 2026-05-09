@@ -4,34 +4,68 @@ from datetime import datetime
 
 from app.schemas.report import ReportResponse
 
-class RequestStatusBase(BaseModel):
+
+class RescueStatusBase(BaseModel):
     status_name: str
 
-class RequestStatusResponse(RequestStatusBase):
+
+class RescueStatusResponse(RescueStatusBase):
     status_id: int
+
     class Config:
         from_attributes = True
 
-class RescueRequestBase(BaseModel):
+
+# DB table is "rescues" (not "rescue_requests")
+class RescueBase(BaseModel):
     report_id: int
-    leader_id: int
+    staff_id: Optional[int] = None
+    status_id: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class RescueCreate(RescueBase):
+    pass
+
+
+class RescueUpdate(BaseModel):
+    status_id: Optional[int] = None
+    staff_id: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class RescueResponse(RescueBase):
+    rescue_id: int
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    report: Optional[ReportResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+# Legacy alias schemas — kept for backward compatibility with existing frontend calls
+class RescueRequestCreate(RescueBase):
+    leader_id: Optional[int] = None
     title: Optional[str] = None
     description: Optional[str] = None
-    status_id: Optional[int] = 1
 
-class RescueRequestCreate(RescueRequestBase):
-    pass
 
 class RescueRequestUpdate(BaseModel):
     status_id: Optional[int] = None
     barangay_staff_id: Optional[int] = None
 
-class RescueRequestResponse(RescueRequestBase):
-    request_id: int
-    created_at: datetime
+
+class RescueRequestResponse(RescueBase):
+    rescue_id: int
+    request_id: Optional[int] = None # Alias for frontend compatibility
+    leader_id: Optional[int] = None
     barangay_staff_id: Optional[int] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    created_at: Optional[datetime] = None
     report: Optional[ReportResponse] = None
     leader_name: Optional[str] = None
-    
+
     class Config:
         from_attributes = True

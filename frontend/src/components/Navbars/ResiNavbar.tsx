@@ -2,11 +2,25 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import Button from '../Button';
 
-const ResiNavbar = () => {
+interface ResiNavbarProps {
+    onMenuToggle?: (isOpen: boolean) => void;
+}
+
+const ResiNavbar = ({ onMenuToggle }: ResiNavbarProps) => {
     const navigate = useNavigate();
     const location = useLocation();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+    const userStr = localStorage.getItem('resident_user');
+    const user = userStr ? JSON.parse(userStr) : null;
+    const profilePic = user?.profile_picture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || 'User'}`;
+
+    const toggleMenu = () => {
+        const newState = !isMenuOpen;
+        setIsMenuOpen(newState);
+        if (onMenuToggle) onMenuToggle(newState);
+    };
 
     const handleLogout = () => {
         localStorage.removeItem('resi_user');
@@ -51,6 +65,19 @@ const ResiNavbar = () => {
                 </svg>
             )
         },
+        {
+            path: '/resident/pets',
+            label: 'Pets',
+            icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 21.5c-3.5 0-6.5-2.5-6.5-5.5s2.5-4.5 6.5-4.5 6.5 1.5 6.5 4.5-3 5.5-6.5 5.5Z" fill="#F97316" stroke="#1a1208" strokeWidth="1.5" />
+                    <ellipse cx="5.5" cy="11.5" rx="2.2" ry="3.8" transform="rotate(-25 5.5 11.5)" fill="#F97316" stroke="#1a1208" strokeWidth="1.5" />
+                    <ellipse cx="18.5" cy="11.5" rx="2.2" ry="3.8" transform="rotate(25 18.5 11.5)" fill="#F97316" stroke="#1a1208" strokeWidth="1.5" />
+                    <ellipse cx="9.5" cy="7.5" rx="2.2" ry="4.5" fill="#F97316" stroke="#1a1208" strokeWidth="1.5" />
+                    <ellipse cx="14.5" cy="7.5" rx="2.2" ry="4.5" fill="#F97316" stroke="#1a1208" strokeWidth="1.5" />
+                </svg>
+            )
+        },
     ];
 
     return (
@@ -90,7 +117,7 @@ const ResiNavbar = () => {
                                     {/* Avatar Container */}
                                     <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-md group-hover:border-[#F97316] transition-all duration-300">
                                         <img
-                                            src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
+                                            src={profilePic}
                                             alt="User"
                                             className="w-full h-full object-cover bg-gray-100"
                                         />
@@ -113,6 +140,9 @@ const ResiNavbar = () => {
                                             <Link to="/resident/profile" className="flex items-center px-6 py-3 text-xs font-bold text-[#4a3b28] hover:bg-[#FAFAF9] hover:text-[#F97316] transition-all">
                                                 View Profile
                                             </Link>
+                                            <Link to="/resident/pets" className="flex items-center px-6 py-3 text-xs font-bold text-[#4a3b28] hover:bg-[#FAFAF9] hover:text-[#F97316] transition-all">
+                                                My Pets
+                                            </Link>
                                             <Link to="/resident/settings" className="flex items-center px-6 py-3 text-xs font-bold text-[#4a3b28] hover:bg-[#FAFAF9] hover:text-[#F97316] transition-all">
                                                 Preferences
                                             </Link>
@@ -129,10 +159,19 @@ const ResiNavbar = () => {
                             </div>
                         </div>
 
-                        {/* MOBILE TOGGLE */}
-                        <div className="md:hidden">
+                        {/* MOBILE ACTIONS */}
+                        <div className="md:hidden flex items-center gap-2">
+                            {/* Notification Bell */}
+                            <button className="p-2.5 text-[#4a3b28] hover:text-[#F97316] transition-all relative flex items-center justify-center active:scale-95">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                </svg>
+                                <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-[#EF4444] border-2 border-white rounded-full shadow-sm"></span>
+                            </button>
+
+                            {/* Menu Toggle */}
                             <button
-                                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                                onClick={toggleMenu}
                                 className="p-3 text-[#1a1208] hover:bg-gray-50 rounded-2xl transition-all flex items-center justify-center border border-gray-50 shadow-sm active:scale-95"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -154,7 +193,7 @@ const ResiNavbar = () => {
                             <h2 className="text-2xl font-black tracking-tighter text-[#1a1208] uppercase leading-none">STRAY-SAFE</h2>
                             <p className="text-[10px] font-black text-[#F97316] uppercase tracking-widest mt-2">Compassionate Guardian</p>
                         </div>
-                        <button onClick={() => setIsMenuOpen(false)} className="p-2 text-gray-400 hover:text-[#1a1208]">
+                        <button onClick={() => { setIsMenuOpen(false); if (onMenuToggle) onMenuToggle(false); }} className="p-2 text-gray-400 hover:text-[#1a1208]">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
                             </svg>
@@ -183,7 +222,7 @@ const ResiNavbar = () => {
                                     <Link
                                         key={link.path}
                                         to={link.path}
-                                        onClick={() => setIsMenuOpen(false)}
+                                        onClick={() => { setIsMenuOpen(false); if (onMenuToggle) onMenuToggle(false); }}
                                         className={`flex flex-col items-center justify-center p-6 rounded-[2rem] transition-all border ${location.pathname === link.path
                                             ? 'bg-orange-50 text-[#F97316] border-orange-100'
                                             : 'bg-white text-[#4a3b28] border-gray-100 shadow-sm'
@@ -218,7 +257,7 @@ const ResiNavbar = () => {
                         <div>
                             <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-6 px-2">Quick Actions</p>
                             <div className="space-y-4">
-                                <Link to="/resident/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center justify-between p-4 group">
+                                <Link to="/resident/profile" onClick={() => { setIsMenuOpen(false); if (onMenuToggle) onMenuToggle(false); }} className="flex items-center justify-between p-4 group">
                                     <div className="flex items-center gap-4 text-[#4a3b28]">
                                         <div className="p-3 bg-gray-50 rounded-2xl group-hover:bg-orange-50 group-hover:text-[#F97316] transition-all">
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

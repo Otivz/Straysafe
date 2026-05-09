@@ -1,16 +1,20 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, func, ForeignKey, Numeric, Boolean, Enum
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from app.database import Base
+
 
 class ReportCategory(Base):
     __tablename__ = "report_categories"
     category_id = Column(Integer, primary_key=True, index=True)
     category_name = Column(String(100), unique=True, nullable=False)
 
+
+# DB table is "report_status" (not "report_statuses")
 class ReportStatus(Base):
-    __tablename__ = "report_statuses"
+    __tablename__ = "report_status"
     status_id = Column(Integer, primary_key=True, index=True)
-    status_name = Column(String(60), unique=True, nullable=False)
+    status_name = Column(String(50), unique=True, nullable=False)
+
 
 class Report(Base):
     __tablename__ = "reports"
@@ -19,21 +23,30 @@ class Report(Base):
     user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     subdivision_id = Column(Integer, ForeignKey("subdivisions.subdivision_id"), nullable=False)
     category_id = Column(Integer, ForeignKey("report_categories.category_id"), nullable=False)
+    pet_id = Column(Integer, nullable=True)  # FK to pets omitted until pets table is created
     
+    animal_type = Column(Enum('Dog', 'Cat', 'Unknown'), default='Unknown')
+    animal_breed = Column(String(100), nullable=True)
+    animal_color = Column(String(255), nullable=True)
+    estimated_size = Column(Enum('Small', 'Medium', 'Large'), nullable=True)
+
     description = Column(Text, nullable=True)
-    
+
     latitude = Column(Numeric(10, 8), nullable=False)
     longitude = Column(Numeric(11, 8), nullable=False)
-    
+
     animal_count = Column(Integer, default=1)
     landmark = Column(String(255), nullable=True)
-    
-    priority_level = Column(Enum('Low', 'Regular', 'High', 'Emergency', name='priority_level'), default='Regular')
-    visibility = Column(Enum('Public', 'Private', name='report_visibility'), default='Public')
-    
-    status_id = Column(Integer, ForeignKey("report_statuses.status_id", ondelete="SET NULL"), nullable=True)
-    is_archived = Column(Boolean, default=False)
-    
+
+    # DB ENUM: 'Low','Regular','High' only
+    priority_level = Column(Enum('Low', 'Regular', 'High'), default='Regular')
+    visibility = Column(Enum('Public', 'Private'), default='Public')
+
+    is_possible_owned = Column(Boolean, default=False)
+
+    # DB column is current_status_id (not status_id)
+    current_status_id = Column(Integer, ForeignKey("report_status.status_id"), nullable=True)
+
     created_at = Column(DateTime, server_default=func.now())
 
     # Relationships
@@ -41,82 +54,93 @@ class Report(Base):
     category = relationship("ReportCategory")
     status = relationship("ReportStatus")
     subdivision = relationship("Subdivision")
-    media = relationship("ReportMedia", backref="report", cascade="all, delete-orphan")
+    media = relationship("ReportMedia", back_populates="report", cascade="all, delete-orphan")
     comments = relationship("Comment", backref="report", cascade="all, delete-orphan")
-    rescue_requests = relationship("RescueRequest", back_populates="report", cascade="all, delete-orphan")
-    ai_predictions = relationship("AIPrediction", backref="report", cascade="all, delete-orphan")
+    rescues = relationship("Rescue", back_populates="report", cascade="all, delete-orphan")
     verifications = relationship("ReportVerification", backref="report", cascade="all, delete-orphan")
+    history = relationship("StatusHistory", back_populates="report", cascade="all, delete-orphan", order_by="StatusHistory.created_at")
+
 
 class ReportMedia(Base):
     __tablename__ = "report_media"
-    
+
     media_id = Column(Integer, primary_key=True, index=True)
     report_id = Column(Integer, ForeignKey("reports.report_id", ondelete="CASCADE"), nullable=False)
     file_url = Column(String(255), nullable=False)
-    media_type = Column(Enum('Image', 'Video', 'Document', name='media_type'), nullable=False)
+    # DB ENUM: 'Image','Video','Document'
+    media_type = Column(Enum('Image', 'Video', 'Document'), nullable=False)
     uploaded_at = Column(DateTime, server_default=func.now())
+
+    # Relationships
+    report = relationship("Report", back_populates="media")
+
 
 class Comment(Base):
     __tablename__ = "comments"
-    
+
     comment_id = Column(Integer, primary_key=True, index=True)
     report_id = Column(Integer, ForeignKey("reports.report_id", ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     parent_comment_id = Column(Integer, ForeignKey("comments.comment_id", ondelete="CASCADE"), nullable=True)
-    message = Column(Text, nullable=False)
+    comment = Column(Text, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
-    
-    user = relationship("User")
 
-class RequestStatus(Base):
-    __tablename__ = "request_statuses"
+    user = relationship("User")
+    replies = relationship("Comment", backref=backref("parent", remote_side=[comment_id]), cascade="all, delete-orphan")
+
+
+# DB table is "rescue_status" (not "request_statuses")
+class RescueStatus(Base):
+    __tablename__ = "rescue_status"
     status_id = Column(Integer, primary_key=True, index=True)
     status_name = Column(String(50), unique=True, nullable=False)
 
-class RescueRequest(Base):
-    __tablename__ = "rescue_requests"
-    request_id = Column(Integer, primary_key=True, index=True)
+
+# DB table is "rescues" (not "rescue_requests")
+class Rescue(Base):
+    __tablename__ = "rescues"
+
+    rescue_id = Column(Integer, primary_key=True, index=True)
     report_id = Column(Integer, ForeignKey("reports.report_id", ondelete="CASCADE"), nullable=False)
-    leader_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
-    barangay_staff_id = Column(Integer, ForeignKey("users.user_id"), nullable=True)
-    
-    title = Column(String(150), nullable=True)
-    description = Column(Text, nullable=True)
-    status_id = Column(Integer, ForeignKey("request_statuses.status_id"), nullable=True)
-    
-    created_at = Column(DateTime, server_default=func.now())
+    staff_id = Column(Integer, ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
+    status_id = Column(Integer, ForeignKey("rescue_status.status_id"), nullable=True)
+    notes = Column(Text, nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
 
     # Relationships
-    report = relationship("Report", back_populates="rescue_requests")
-    leader = relationship("User", foreign_keys=[leader_id])
-    barangay_staff = relationship("User", foreign_keys=[barangay_staff_id])
-    status = relationship("RequestStatus")
+    report = relationship("Report", back_populates="rescues")
+    staff = relationship("User", foreign_keys=[staff_id])
+    status = relationship("RescueStatus")
 
-class AIPrediction(Base):
-    __tablename__ = "ai_predictions"
-    prediction_id = Column(Integer, primary_key=True, index=True)
-    report_id = Column(Integer, ForeignKey("reports.report_id", ondelete="CASCADE"), nullable=False)
-    species_prediction = Column(String(50))
-    breed_prediction = Column(String(50))
-    condition_prediction = Column(Text)
-    behavior_tags = Column(Text)
-    confidence = Column(Numeric(5, 2))
-    model_version = Column(String(50))
-    processed_at = Column(DateTime, server_default=func.now())
-
-class VerificationStatus(Base):
-    __tablename__ = "verification_statuses"
-    status_id = Column(Integer, primary_key=True, index=True)
-    status_name = Column(String(50), unique=True, nullable=False)
 
 class ReportVerification(Base):
     __tablename__ = "report_verifications"
+
     verification_id = Column(Integer, primary_key=True, index=True)
     report_id = Column(Integer, ForeignKey("reports.report_id", ondelete="CASCADE"), nullable=False)
-    leader_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
-    status_id = Column(Integer, ForeignKey("verification_statuses.status_id"), nullable=False)
+    leader_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    # FK to report_status (not verification_statuses)
+    status_id = Column(Integer, ForeignKey("report_status.status_id"), nullable=False)
     remarks = Column(Text)
     verified_at = Column(DateTime, server_default=func.now())
-    
+
     leader = relationship("User")
-    verification_status = relationship("VerificationStatus")
+
+
+class StatusHistory(Base):
+    __tablename__ = "status_history"
+
+    history_id = Column(Integer, primary_key=True, index=True)
+    # DB has both report_id and rescue_id (both nullable)
+    report_id = Column(Integer, ForeignKey("reports.report_id", ondelete="CASCADE"), nullable=True)
+    rescue_id = Column(Integer, ForeignKey("rescues.rescue_id", ondelete="CASCADE"), nullable=True)
+    # DB has separate status IDs for report and rescue
+    report_status_id = Column(Integer, ForeignKey("report_status.status_id"), nullable=True)
+    rescue_status_id = Column(Integer, ForeignKey("rescue_status.status_id"), nullable=True)
+    updated_by = Column(Integer, ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
+    remarks = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    report = relationship("Report", back_populates="history")
+    updater = relationship("User")

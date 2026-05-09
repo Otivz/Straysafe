@@ -27,6 +27,7 @@ interface MapComponentProps {
     center?: [number, number];
     zoom?: number;
     showHeatmap?: boolean;
+    onLocationChange?: (lat: number, lng: number) => void;
 }
 
 // Internal component to handle view changes
@@ -53,8 +54,18 @@ const MapComponent = ({
     height = "100%", 
     center = [14.6760, 121.0437], 
     zoom = 13,
-    showHeatmap = true
+    showHeatmap = true,
+    onLocationChange
 }: MapComponentProps) => {
+    const eventHandlers = {
+        dragend(e: any) {
+            const marker = e.target;
+            if (marker != null && onLocationChange) {
+                const { lat, lng } = marker.getLatLng();
+                onLocationChange(lat, lng);
+            }
+        },
+    };
     return (
         <MapContainer 
             center={center} 
@@ -75,7 +86,11 @@ const MapComponent = ({
                 />
             )}
 
-            <Marker position={center}>
+            <Marker 
+                position={center} 
+                draggable={!!onLocationChange}
+                eventHandlers={eventHandlers}
+            >
                 <Popup>
                     Location: {center[0].toFixed(4)}, {center[1].toFixed(4)}
                 </Popup>

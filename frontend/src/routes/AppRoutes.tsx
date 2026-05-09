@@ -15,6 +15,8 @@ import SubdReports from '../pages/Subd_Leaders/SubdReports';
 import LandingPage from '../pages/citizen/LandingPage';
 import ResidentsLogin from '../pages/citizen/ResidentsLogin';
 import ResiHomePage from '../pages/citizen/ResiHomePage';
+import ResidentPet from '../pages/citizen/ResidentPet';
+import ResiProfile from '../pages/citizen/ResiProfile';
 import BrgyDashboard from '../pages/Barangay_Staff/BrgyDashboard';
 import BrgyRescueRequests from '../pages/Barangay_Staff/BrgyRescueRequests';
 
@@ -50,6 +52,8 @@ const AppRoutes = () => {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<ResidentsLogin />} />
             <Route path="/resident-home" element={<ResiHomePage />} />
+            <Route path="/resident/pets" element={<ResidentPet />} />
+            <Route path="/resident/profile" element={<ResiProfile />} />
 
 
             {/* Catch-all Redirect to Login */}
