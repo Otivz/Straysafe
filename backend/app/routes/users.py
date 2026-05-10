@@ -3,7 +3,7 @@ import os
 import uuid
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from typing import List
+from typing import List, Optional
 from app.database import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate, UserResponse
@@ -16,8 +16,17 @@ router = APIRouter(
 )
 
 @router.get("/", response_model=List[UserResponse])
-def get_users(db: Session = Depends(get_db)):
-    return db.query(User).all()
+def get_users(
+    role_id: Optional[int] = None,
+    position_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(User)
+    if role_id:
+        query = query.filter(User.role_id == role_id)
+    if position_id:
+        query = query.filter(User.position_id == position_id)
+    return query.all()
 
 @router.get("/{user_id}", response_model=UserResponse)
 def get_user(user_id: int, db: Session = Depends(get_db)):

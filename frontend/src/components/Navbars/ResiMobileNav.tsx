@@ -63,10 +63,10 @@ const ResiMobileNav = ({ isNavbarMenuOpen, onAddReportClick }: ResiMobileNavProp
                 className={`flex flex-col items-center gap-1 ${location.pathname === '/resident/profile' ? 'text-[#F97316]' : 'text-gray-400'}`}
             >
                 <div className={`w-6 h-6 rounded-full border-2 overflow-hidden bg-gray-100 ${location.pathname === '/resident/profile' ? 'border-[#F97316]' : 'border-gray-200'}`}>
-                    {user?.profile_image ? (
-                        <img src={user.profile_image} alt="Profile" className="w-full h-full object-cover" />
+                    {user?.profile_picture ? (
+                        <img src={user.profile_picture} alt="Profile" className="w-full h-full object-cover" />
                     ) : (
-                        <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || 'Felix'}`} alt="Profile" className="w-full h-full object-cover" />
+                        <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || 'User'}`} alt="Profile" className="w-full h-full object-cover" />
                     )}
                 </div>
                 <span className="text-[8px] font-black uppercase tracking-widest">Profile</span>

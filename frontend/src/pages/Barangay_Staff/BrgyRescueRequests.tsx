@@ -32,6 +32,9 @@ interface RescueRequest {
         media?: { media_id: number; file_url: string; media_type: string }[];
     };
     leader_name?: string;
+    leader_position?: string;
+    assigned_staff_name?: string;
+    staff_id?: number;
 }
 
 const statusMap: Record<number, string> = {
@@ -76,6 +79,9 @@ const BrgyRescueRequests = () => {
     const [statusUpdateMessage, setStatusUpdateMessage] = useState('');
     const [statusUpdateCondition, setStatusUpdateCondition] = useState('');
     const [activeGallery, setActiveGallery] = useState<{ media: any[], index: number } | null>(null);
+    const [personnel, setPersonnel] = useState<any[]>([]);
+    const [selectedPersonnelId, setSelectedPersonnelId] = useState<number | null>(null);
+    const [assignmentRemarks, setAssignmentRemarks] = useState('');
 
     const userStr = localStorage.getItem('staff_user') || sessionStorage.getItem('staff_user');
     const currentUser = userStr ? JSON.parse(userStr) : null;
@@ -98,96 +104,102 @@ const BrgyRescueRequests = () => {
         }
     };
 
+    const fetchPersonnel = async () => {
+        try {
+            const response = await axios.get('http://localhost:8000/users/?role_id=3');
+            setPersonnel(response.data);
+        } catch (error) {
+            console.error('Error fetching personnel:', error);
+        }
+    };
+
+    const openRequestModal = (request: RescueRequest) => {
+        console.log("Opening request details:", request);
+        setViewingRequest(request);
+    };
+
     useEffect(() => {
         fetchRequests();
+        fetchPersonnel();
     }, []);
 
-    const executeStatusUpdate = async (requestId: number, reportId: number, statusId: number, mediaFiles: File[], message: string = "", condition: string = "") => {
-        if (!currentUser) return;
+    const handleUpdateStatus = async () => {
+        if (!statusToUpdate || !currentUser) return;
+        
+        // Validation: Must select personnel for status 5 (Dispatched)
+        if (statusToUpdate.statusId === 5 && !selectedPersonnelId) {
+            alert('Please select a personnel to handle this rescue.');
+            return;
+        }
 
+        setIsUpdating(true);
         try {
-            setIsUpdating(true);
+            // 1. Update Rescue Status (Internal Dashboard Status)
+            const rescuePayload = {
+                status_id: statusToUpdate.statusId === 3 ? 3 : 2, // 2 = Approved/Active, 3 = Rejected
+                barangay_staff_id: currentUser.user_id,
+                assigned_personnel_id: selectedPersonnelId,
+                remarks: assignmentRemarks
+            };
+            await axios.patch(`http://localhost:8000/rescue-requests/${statusToUpdate.requestId}`, rescuePayload);
 
-            // 1. Update Rescue Request Status
-            const requestStatusId = statusId > 3 ? 2 : statusId;
-            await axios.patch(`http://localhost:8000/rescue-requests/${requestId}`, {
-                status_id: requestStatusId,
-                barangay_staff_id: currentUser?.user_id
+            // 2. Update the actual Report Status (The circles)
+            const statusResponse = await axios.patch(`http://localhost:8000/reports/${statusToUpdate.reportId}/status`, {
+                status_id: statusToUpdate.statusId,
+                user_id: currentUser.user_id, // Pass user_id for history tracking
+                status_remarks: statusUpdateMessage || `Status updated to ${statusMap[statusToUpdate.statusId] || reportStatusMap[statusToUpdate.statusId]}`,
+                animal_condition: statusUpdateCondition
             });
 
-            // 2. Update Report Status
-            const reportStatus = statusId;
-
-            const statusResponse = await axios.patch(`http://localhost:8000/reports/${reportId}/status`, {
-                status_id: reportStatus,
-                status_remarks: message,
-                animal_condition: condition
-            });
-
-            // 3. Upload Media if present
-            if (mediaFiles.length > 0) {
+            // 3. Upload Media if any
+            if (statusMediaFiles.length > 0) {
                 const newHistoryId = statusResponse.data.history?.slice(-1)[0]?.history_id;
-                let failCount = 0;
-                for (const file of mediaFiles) {
-                    const mediaData = new FormData();
-                    mediaData.append("file", file);
-                    mediaData.append("is_evidence", "true");
+                for (const file of statusMediaFiles) {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('is_evidence', 'true');
                     if (newHistoryId) {
-                        mediaData.append("history_id", newHistoryId.toString());
+                        formData.append('history_id', newHistoryId.toString());
                     }
                     try {
-                        await axios.post(`http://localhost:8000/reports/${reportId}/media`, mediaData, {
+                        await axios.post(`http://localhost:8000/reports/${statusToUpdate.reportId}/media`, formData, {
                             headers: { 'Content-Type': 'multipart/form-data' }
                         });
                     } catch (err) {
-                        console.error('Failed to upload status media:', err);
-                        failCount++;
+                        console.error('Media upload failed:', err);
                     }
-                }
-                if (failCount > 0) {
-                    alert(`${failCount} evidence files failed to upload.`);
                 }
             }
 
-            // Update local state for immediate UI feedback
-            if (viewingRequest) {
-                const updatedRequest = {
-                    ...viewingRequest,
-                    status_id: requestStatusId,
-                    report: {
-                        ...viewingRequest.report,
-                        status_id: reportStatus
-                    }
-                };
-                setViewingRequest(updatedRequest as any);
-            }
-
+            alert('Status updated successfully');
             setIsStatusModalOpen(false);
-            // setViewingRequest(null); // Keep it open but updated
-            setStatusToUpdate(null);
             setStatusMediaFiles([]);
             setStatusUpdateMessage('');
             setStatusUpdateCondition('');
+            setSelectedPersonnelId(null);
+            setAssignmentRemarks('');
             fetchRequests();
+            setViewingRequest(null);
         } catch (error) {
             console.error('Error updating status:', error);
-            alert('Failed to update status.');
+            alert('Failed to update status');
         } finally {
             setIsUpdating(false);
         }
     };
 
-    const handleUpdateStatus = () => {
-        if (!statusToUpdate) return;
-        executeStatusUpdate(statusToUpdate.requestId, statusToUpdate.reportId, statusToUpdate.statusId, statusMediaFiles, statusUpdateMessage, statusUpdateCondition);
-    };
-
     const openStatusUpdate = (requestId: number, reportId: number, statusId: number) => {
-        if (statusId === 2 || statusId === 3) {
-            executeStatusUpdate(requestId, reportId, statusId, [], "");
-        } else {
-            setStatusToUpdate({ requestId, reportId, statusId });
-            setIsStatusModalOpen(true);
+        setStatusToUpdate({ requestId, reportId, statusId });
+        setIsStatusModalOpen(true);
+        
+        // Pre-fill animal condition from citizen report
+        if (viewingRequest?.report?.condition) {
+            setStatusUpdateCondition(viewingRequest.report.condition);
+        }
+
+        // Pre-fill if already assigned
+        if (viewingRequest?.staff_id) {
+            setSelectedPersonnelId(viewingRequest.staff_id);
         }
     };
 
@@ -221,6 +233,7 @@ const BrgyRescueRequests = () => {
                                             <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Request ID</th>
                                             <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Title</th>
                                             <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Escalated By</th>
+                                            <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Assigned</th>
                                             <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Date</th>
                                             <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status</th>
                                             <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Action</th>
@@ -228,9 +241,9 @@ const BrgyRescueRequests = () => {
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
                                         {loading ? (
-                                            <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-400">Loading requests...</td></tr>
+                                            <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-400">Loading requests...</td></tr>
                                         ) : requests.length === 0 ? (
-                                            <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-400">No pending rescue requests.</td></tr>
+                                            <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-400">No pending rescue requests.</td></tr>
                                         ) : requests.map((req, index) => (
                                             <tr key={req.rescue_id || index} className="hover:bg-gray-50/30 transition-colors">
                                                 <td className="px-6 py-4 text-xs font-mono text-gray-400">#REQ-{(req.rescue_id || 0).toString().padStart(4, '0')}</td>
@@ -246,29 +259,47 @@ const BrgyRescueRequests = () => {
                                                         <span className="text-xs text-gray-700">{req.leader_name || 'Subd Leader'}</span>
                                                     </div>
                                                 </td>
+                                                <td className="px-6 py-4">
+                                                    {req.assigned_staff_name ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-[8px] font-bold text-blue-600 border border-blue-200">
+                                                                {req.assigned_staff_name.charAt(0)}
+                                                            </div>
+                                                            <span className="text-[10px] font-bold text-gray-900">{req.assigned_staff_name}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-[10px] font-medium text-gray-400 italic">Not Assigned</span>
+                                                    )}
+                                                </td>
                                                 <td className="px-6 py-4 text-xs text-gray-500">
                                                     {new Date(req.created_at || req.report?.created_at || Date.now()).toLocaleDateString()}
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     {(() => {
-                                                        const isApproved = req.status_id === 2;
                                                         const reportStatus = req.report?.status_id;
+                                                        
+                                                        // If it's already approved (status_id 2), show the actual report status
+                                                        if (req.status_id === 2 && reportStatus) {
+                                                            const label = reportStatusMap[reportStatus] || "Approved";
+                                                            let colorClass = "bg-blue-50 text-blue-600 border border-blue-100"; // Default for active rescue
+                                                            
+                                                            if (reportStatus === 6) colorClass = "bg-green-50 text-green-600 border border-green-100";
+                                                            if (reportStatus === 3) colorClass = "bg-red-50 text-red-600 border border-red-100";
+                                                            
+                                                            return (
+                                                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${colorClass}`}>
+                                                                    {label}
+                                                                </span>
+                                                            );
+                                                        }
 
-                                                        let label = statusMap[req.status_id];
-                                                        let colorClass = "bg-orange-50 text-orange-600"; // Default Pending
-
+                                                        // Otherwise show the base rescue request status (Pending/Rejected)
+                                                        let label = statusMap[req.status_id] || "Pending";
+                                                        let colorClass = "bg-orange-50 text-orange-600 border border-orange-100";
+                                                        
                                                         if (req.status_id === 3) {
                                                             label = "Rejected";
-                                                            colorClass = "bg-red-50 text-red-600";
-                                                        } else if (isApproved && reportStatus) {
-                                                            label = reportStatusMap[reportStatus] || "Approved";
-
-                                                            // Color mapping based on report status
-                                                            if (reportStatus === 5) colorClass = "bg-blue-50 text-blue-600 border border-blue-100"; // In Progress
-                                                            if (reportStatus === 6) colorClass = "bg-green-50 text-green-600 border border-green-100"; // Resolved
-                                                            if (reportStatus === 7) colorClass = "bg-indigo-50 text-indigo-600 border border-indigo-100"; // Picked Up
-                                                            if (reportStatus === 9) colorClass = "bg-purple-50 text-purple-600 border border-purple-100"; // Impounded
-                                                            if (reportStatus === 10) colorClass = "bg-emerald-50 text-emerald-600 border border-emerald-100"; // Released
+                                                            colorClass = "bg-red-50 text-red-600 border border-red-100";
                                                         }
 
                                                         return (
@@ -280,7 +311,7 @@ const BrgyRescueRequests = () => {
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <button
-                                                        onClick={() => setViewingRequest(req)}
+                                                        onClick={() => openRequestModal(req)}
                                                         className="text-[10px] font-bold text-[#F97316] hover:underline"
                                                     >
                                                         {req.status_id === 1 ? 'Review Request' : 'Update Status'}
@@ -313,7 +344,6 @@ const BrgyRescueRequests = () => {
                         </div>
 
                         <div className="overflow-y-auto custom-scrollbar flex-1 bg-[#FBFBFB]">
-                            {/* Rescue Progress Tracker (6 Stages) */}
                             <div className="px-8 py-10 bg-white border-b border-gray-100/50">
                                 <div className="flex items-center justify-between relative px-2">
                                     <div className="absolute top-5 left-10 right-10 h-0.5 bg-gray-100 z-0">
@@ -337,8 +367,13 @@ const BrgyRescueRequests = () => {
                                         { id: 9, label: 'Impounded' },
                                         { id: 6, label: 'Resolved' }
                                     ].map((stage, idx) => {
-                                        const isCompleted = [1, 4, 5, 7, 9, 6].indexOf(viewingRequest.report?.status_id) >= idx;
-                                        const isCurrent = viewingRequest.report?.status_id === stage.id;
+                                        const displayStatusId = statusToUpdate?.statusId || viewingRequest.report?.status_id || 1;
+                                        const stages = [1, 4, 5, 7, 9, 6];
+                                        const currentIndex = stages.indexOf(displayStatusId);
+                                        const optIndex = stages.indexOf(stage.id);
+                                        
+                                        const isCompleted = currentIndex > optIndex;
+                                        const isCurrent = displayStatusId === stage.id;
 
                                         return (
                                             <div key={stage.id} className="relative z-10 flex flex-col items-center">
@@ -362,8 +397,6 @@ const BrgyRescueRequests = () => {
                             </div>
 
                             <div className="p-8 flex flex-col gap-6">
-
-                                {/* 1. ESCALATION NOTE */}
                                 <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6">
                                     <h4 className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-4">Subdivision Escalation Note</h4>
                                     <p className="text-sm font-bold text-gray-900 leading-relaxed italic">"{viewingRequest.description}"</p>
@@ -372,29 +405,42 @@ const BrgyRescueRequests = () => {
                                             {viewingRequest.leader_name?.charAt(0) || 'L'}
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-bold text-gray-900">{viewingRequest.leader_name}</p>
-                                            <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-2">Subdivision Leader • {new Date(viewingRequest.created_at || viewingRequest.report?.created_at || Date.now()).toLocaleDateString()}</p>
-                                            
-                                            {/* Letter Actions */}
-                                            {viewingRequest.report?.media?.some(m => m.media_type === 'Document' || m.file_url.toLowerCase().endsWith('.pdf') || m.file_url.toLowerCase().endsWith('.docx')) && (
-                                                <div className="flex gap-2 mt-2">
-                                                    <a 
-                                                        href={viewingRequest.report.media.find(m => m.media_type === 'Document' || m.file_url.toLowerCase().endsWith('.pdf') || m.file_url.toLowerCase().endsWith('.docx'))?.file_url} 
-                                                        target="_blank" 
-                                                        rel="noopener noreferrer"
-                                                        className="px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-orange-200 transition-all border border-orange-200/50"
-                                                    >
-                                                        View Letter
-                                                    </a>
-                                                </div>
-                                            )}
+                                            <p className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Sent by:</p>
+                                            <p className="text-sm font-black text-orange-700">{viewingRequest.leader_name || "Subdivision Leader"}</p>
+                                            <p className="text-[9px] text-gray-500 uppercase tracking-widest font-medium">{viewingRequest.leader_position || "Subdivision Official"} • {new Date(viewingRequest.created_at || viewingRequest.report?.created_at || Date.now()).toLocaleDateString()}</p>
                                         </div>
                                     </div>
+                                    {viewingRequest.report?.media?.some(m => m.media_type === 'Document' || m.file_url.toLowerCase().endsWith('.pdf') || m.file_url.toLowerCase().endsWith('.docx')) && (
+                                        <button 
+                                            onClick={() => {
+                                                const letter = viewingRequest.report?.media?.find(m => m.media_type === 'Document' || m.file_url.toLowerCase().endsWith('.pdf') || m.file_url.toLowerCase().endsWith('.docx'));
+                                                if (letter) setActiveGallery({ media: [letter], index: 0 });
+                                            }}
+                                            className="mt-4 w-full py-3 bg-white border border-orange-200 text-orange-600 text-[9px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-orange-600 hover:text-white transition-all shadow-sm"
+                                        >
+                                            View Official Endorsement Letter
+                                        </button>
+                                    )}
                                 </div>
 
-                                {/* 2. INCIDENT SPECS */}
+                                {viewingRequest.assigned_staff_name && (
+                                    <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-6">
+                                        <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4">Assigned Personnel</h4>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-black shadow-md border-2 border-white">
+                                                {viewingRequest.assigned_staff_name.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-black text-gray-900">{viewingRequest.assigned_staff_name}</p>
+                                                <p className="text-[9px] text-gray-400 uppercase tracking-widest">Active Responder • Barangay Staff</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                     {[
+                                        { label: 'Category', value: categoryMap[viewingRequest.report?.category_id || 0] || 'Rescue', color: 'orange' },
                                         { label: 'Animal', value: viewingRequest.report?.animal_type || 'Unknown', color: 'blue' },
                                         { label: 'Condition', value: viewingRequest.report?.condition || 'Unknown', color: 'red' },
                                         { label: 'Priority', value: viewingRequest.report?.priority_level || 'Normal', color: 'orange' },
@@ -402,99 +448,17 @@ const BrgyRescueRequests = () => {
                                     ].map((spec, i) => (
                                         <div key={i} className="bg-white border border-gray-100 p-4 rounded-2xl">
                                             <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-1">{spec.label}</p>
-                                            <p className={`text-xs font-black text-${spec.color}-600 uppercase tracking-widest`}>{spec.value}</p>
+                                            <p className={`text-xs font-black text-gray-900 uppercase tracking-widest`}>{spec.value}</p>
                                         </div>
                                     ))}
                                 </div>
 
-                                {/* 3. ORIGINAL REPORT */}
                                 <div className="bg-white border border-gray-100 rounded-[2.5rem] p-8 shadow-sm">
-                                    <div className="flex items-start justify-between mb-6">
-                                        <div>
-                                            <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest">Original Resident Report</h4>
-                                            <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest font-bold">Reported by {viewingRequest.report?.reporter_name}</p>
-                                        </div>
-                                        <span className="px-4 py-1.5 bg-gray-50 text-[10px] font-black text-gray-400 rounded-full border border-gray-100 uppercase tracking-widest">
-                                            {categoryMap[viewingRequest.report?.category_id || 1]}
-                                        </span>
-                                    </div>
-
+                                    <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4">Resident Report Description</h4>
                                     <p className="text-sm text-gray-600 leading-relaxed mb-6 font-medium">
                                         {viewingRequest.report?.description}
                                     </p>
 
-                                    {/* Media Grid */}
-                                    {viewingRequest.report?.media && viewingRequest.report.media.filter(m => {
-                                        const url = m.file_url.toLowerCase();
-                                        return m.media_type !== 'Document' && 
-                                               !url.endsWith('.pdf') && 
-                                               !url.endsWith('.doc') && 
-                                               !url.endsWith('.docx') && 
-                                               !url.endsWith('.txt') && 
-                                               !url.endsWith('.odt');
-                                    }).length > 0 && (
-                                        <div className="grid grid-cols-2 gap-3 mb-6">
-                                            {viewingRequest.report.media.filter(m => {
-                                                const url = m.file_url.toLowerCase();
-                                                return m.media_type !== 'Document' && 
-                                                       !url.endsWith('.pdf') && 
-                                                       !url.endsWith('.doc') && 
-                                                       !url.endsWith('.docx') && 
-                                                       !url.endsWith('.txt') && 
-                                                       !url.endsWith('.odt');
-                                            }).slice(0, 4).map((m, idx) => (
-                                                <div
-                                                    key={idx}
-                                                    className="relative aspect-video rounded-2xl overflow-hidden cursor-zoom-in group"
-                                                    onClick={() => {
-                                                        const filtered = viewingRequest.report!.media!.filter(m => {
-                                                            const url = m.file_url.toLowerCase();
-                                                            return m.media_type !== 'Document' && 
-                                                                   !url.endsWith('.pdf') && 
-                                                                   !url.endsWith('.doc') && 
-                                                                   !url.endsWith('.docx') && 
-                                                                   !url.endsWith('.txt') && 
-                                                                   !url.endsWith('.odt');
-                                                        });
-                                                        setActiveGallery({ media: filtered, index: idx });
-                                                    }}
-                                                >
-                                                    {m.media_type.startsWith('video') ? (
-                                                        <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                                                            <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
-                                                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.333-5.89a1.5 1.5 0 000-2.538L6.3 2.841z" /></svg>
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <img src={m.file_url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="Incident Media" />
-                                                    )}
-                                                    {idx === 3 && viewingRequest.report!.media!.filter(m => {
-                                                        const url = m.file_url.toLowerCase();
-                                                        return m.media_type !== 'Document' && 
-                                                               !url.endsWith('.pdf') && 
-                                                               !url.endsWith('.doc') && 
-                                                               !url.endsWith('.docx') && 
-                                                               !url.endsWith('.txt') && 
-                                                               !url.endsWith('.odt');
-                                                    }).length > 4 && (
-                                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                                            <span className="text-white text-lg font-black">+{viewingRequest.report!.media!.filter(m => {
-                                                                const url = m.file_url.toLowerCase();
-                                                                return m.media_type !== 'Document' && 
-                                                                       !url.endsWith('.pdf') && 
-                                                                       !url.endsWith('.doc') && 
-                                                                       !url.endsWith('.docx') && 
-                                                                       !url.endsWith('.txt') && 
-                                                                       !url.endsWith('.odt');
-                                                            }).length - 4}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    {/* Location */}
                                     <div className="flex flex-col gap-3">
                                         <div className="flex items-center gap-3 text-gray-500">
                                             <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600">
@@ -516,7 +480,6 @@ const BrgyRescueRequests = () => {
                             </div>
                         </div>
 
-                        {/* Footer - Actions */}
                         <div className="px-8 py-6 border-t border-gray-100 bg-gray-50/50 flex flex-col gap-4">
                             {viewingRequest.status_id === 1 ? (
                                 <>
@@ -549,33 +512,42 @@ const BrgyRescueRequests = () => {
                                         { id: 9, label: 'Impounded', sub: 'At shelter' },
                                         { id: 6, label: 'Resolved', sub: 'Operation complete' }
                                     ].map((opt) => {
+                                        // Define the strict order of stages for the progress bar
                                         const stages = [1, 4, 5, 7, 9, 6];
-                                        const currentIndex = stages.indexOf(viewingRequest.report?.status_id);
+                                        
+                                        // Use the status being updated to if the modal is open, otherwise use current status
+                                        const displayStatusId = statusToUpdate?.statusId || viewingRequest.report?.status_id || 1;
+                                        
+                                        const currentIndex = stages.indexOf(displayStatusId);
                                         const optIndex = stages.indexOf(opt.id);
-                                        const isCompleted = currentIndex >= optIndex;
-                                        const isCurrent = viewingRequest.report?.status_id === opt.id;
+                                        
+                                        // A stage is "Completed" if it's BEFORE the display status
+                                        const isCompleted = currentIndex > optIndex;
+                                        // A stage is "Current" if it matches the display status
+                                        const isCurrent = displayStatusId === opt.id;
 
                                         return (
                                             <button
                                                 key={opt.id}
                                                 onClick={() => openStatusUpdate(viewingRequest.rescue_id, viewingRequest.report_id, opt.id)}
                                                 className={`p-4 rounded-2xl border transition-all group text-left relative overflow-hidden ${isCurrent ? 'bg-orange-50 border-orange-500 shadow-md ring-2 ring-orange-100' :
-                                                        isCompleted ? 'bg-white border-green-100 hover:border-orange-500 hover:shadow-lg' :
+                                                        isCompleted ? 'bg-green-50/30 border-green-200' :
                                                             'bg-white border-gray-100 hover:border-orange-500 hover:shadow-lg'
                                                     }`}
                                             >
-                                                {isCompleted && (
+                                                {(isCompleted || isCurrent) && (
                                                     <div className="absolute top-2 right-2">
-                                                        <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
-                                                            <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                                        <div className={`w-4 h-4 rounded-full flex items-center justify-center ${isCurrent ? 'bg-orange-500' : 'bg-green-500'}`}>
+                                                            <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                            </svg>
                                                         </div>
                                                     </div>
                                                 )}
-                                                <p className={`text-[10px] font-black uppercase tracking-widest ${isCurrent ? 'text-orange-600' : 'text-gray-900 group-hover:text-orange-600'
-                                                    }`}>
+                                                <p className={`text-[10px] font-black uppercase tracking-widest ${isCurrent ? 'text-orange-600' : isCompleted ? 'text-green-700' : 'text-gray-900 group-hover:text-orange-600'}`}>
                                                     {opt.label}
                                                 </p>
-                                                <p className="text-[9px] text-gray-400 mt-0.5">{opt.sub}</p>
+                                                <p className={`text-[9px] mt-0.5 ${isCompleted ? 'text-green-600/70' : 'text-gray-400'}`}>{opt.sub}</p>
                                             </button>
                                         );
                                     })}
@@ -600,25 +572,56 @@ const BrgyRescueRequests = () => {
                                 New Status: <span className="text-orange-600">{statusMap[statusToUpdate.statusId] || reportStatusMap[statusToUpdate.statusId]}</span>
                             </p>
 
-                            <div className="bg-gray-50 rounded-3xl p-6 border border-gray-100 mb-8">
-                                <p className="text-xs font-bold text-gray-600 leading-relaxed">
-                                    Please provide a brief message and real-time image or video evidence of the animal's current status and location.
-                                </p>
-                            </div>
+                            <div className="space-y-6 max-h-[40vh] overflow-y-auto px-1 custom-scrollbar">
+                                {/* Personnel Assignment Section - Only show for "Team Dispatched" (5) */}
+                                {statusToUpdate.statusId === 5 && (
+                                    <div className="space-y-4 bg-orange-50/50 p-6 rounded-[2rem] border border-orange-100">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <div className="w-8 h-8 rounded-full bg-orange-600 text-white flex items-center justify-center">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                            </div>
+                                            <label className="text-[11px] font-black text-gray-900 uppercase tracking-widest">Assign Personnel</label>
+                                        </div>
+                                        
+                                        <select 
+                                            value={selectedPersonnelId || ''}
+                                            onChange={(e) => setSelectedPersonnelId(Number(e.target.value))}
+                                            className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-orange-500 outline-none shadow-sm"
+                                        >
+                                            <option value="">Select Personnel...</option>
+                                            {personnel.map(p => (
+                                                <option key={p.user_id} value={p.user_id}>{p.name}</option>
+                                            ))}
+                                        </select>
 
-                            <div className="space-y-6">
+                                        <textarea
+                                            placeholder="Special instructions for the team..."
+                                            value={assignmentRemarks}
+                                            onChange={(e) => setAssignmentRemarks(e.target.value)}
+                                            className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-orange-500 outline-none shadow-sm min-h-[80px] resize-none"
+                                        />
+                                    </div>
+                                )}
+
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Status Message / Title</label>
                                     <textarea
-                                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-orange-100 focus:border-orange-500 outline-none transition-all min-h-[100px] placeholder:text-gray-300"
-                                        placeholder="e.g. Animal successfully rescued and transported to shelter..."
                                         value={statusUpdateMessage}
                                         onChange={(e) => setStatusUpdateMessage(e.target.value)}
+                                        placeholder="Describe the update or findings..."
+                                        className="w-full bg-gray-50 border-none rounded-2xl p-4 text-xs font-bold text-gray-900 placeholder-gray-300 focus:ring-2 focus:ring-orange-500 outline-none min-h-[100px] resize-none"
                                     />
                                 </div>
 
                                 <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Current Animal Condition</label>
+                                    <div className="flex justify-between items-end ml-1">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Current Animal Condition</label>
+                                        {viewingRequest?.report?.condition && (
+                                            <span className="text-[9px] font-black text-orange-600 uppercase tracking-tight bg-orange-50 px-2 py-0.5 rounded-lg border border-orange-100">
+                                                Initially Reported: {viewingRequest.report.condition}
+                                            </span>
+                                        )}
+                                    </div>
                                     <div className="grid grid-cols-3 gap-2">
                                         {['Healthy', 'Injured', 'Aggressive', 'Thin', 'Nursing', 'Deceased'].map((cond) => (
                                             <button
@@ -673,12 +676,16 @@ const BrgyRescueRequests = () => {
                                     className="!bg-gray-900 hover:!bg-black !rounded-2xl py-4 !border-none"
                                     disabled={isUpdating}
                                 >
-                                    {isUpdating ? 'Uploading...' : 'Confirm Status Update'}
+                                    {isUpdating ? 'Updating...' : 'Confirm Status Update'}
                                 </Button>
                                 <button
                                     onClick={() => {
                                         setIsStatusModalOpen(false);
                                         setStatusMediaFiles([]);
+                                        setStatusUpdateMessage('');
+                                        setStatusUpdateCondition('');
+                                        setSelectedPersonnelId(null);
+                                        setAssignmentRemarks('');
                                     }}
                                     className="py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-900 transition-colors"
                                 >
@@ -692,52 +699,42 @@ const BrgyRescueRequests = () => {
 
             {/* Gallery Viewer */}
             {activeGallery && (
-                <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col animate-in fade-in duration-300">
-                    <div className="p-8 flex justify-between items-center">
-                        <div>
-                            <p className="text-white font-black uppercase tracking-widest text-sm">Incident Documentation</p>
-                            <p className="text-gray-500 text-[10px] uppercase tracking-widest mt-1">File {activeGallery.index + 1} of {activeGallery.media.length}</p>
-                        </div>
-                        <button
-                            onClick={() => setActiveGallery(null)}
-                            className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all"
-                        >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                    </div>
+                <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-4 md:p-12" onClick={() => setActiveGallery(null)}>
+                    <button className="absolute top-8 right-8 text-white/50 hover:text-white transition-all p-4 rounded-full hover:bg-white/10">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
 
-                    <div className="flex-1 relative flex items-center justify-center p-8">
-                        {activeGallery.media[activeGallery.index].media_type.startsWith('video') ? (
-                            <video
-                                src={activeGallery.media[activeGallery.index].file_url}
-                                controls
-                                autoPlay
-                                className="max-w-full max-h-full rounded-2xl shadow-2xl"
-                            />
-                        ) : (
-                            <img
-                                src={activeGallery.media[activeGallery.index].file_url}
-                                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
-                            />
-                        )}
-
-                        {activeGallery.media.length > 1 && (
-                            <>
-                                <button
-                                    onClick={() => setActiveGallery(prev => ({ ...prev!, index: (prev!.index - 1 + prev!.media.length) % prev!.media.length }))}
-                                    className="absolute left-8 w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all border border-white/10"
-                                >
-                                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                                </button>
-                                <button
-                                    onClick={() => setActiveGallery(prev => ({ ...prev!, index: (prev!.index + 1) % prev!.media.length }))}
-                                    className="absolute right-8 w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all border border-white/10"
-                                >
-                                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                </button>
-                            </>
-                        )}
-                    </div>
+                    {(() => {
+                        const currentMedia = activeGallery.media[activeGallery.index];
+                        const isVideo = currentMedia.media_type === 'Video' || currentMedia.file_url.toLowerCase().match(/\.(mp4|webm|ogg)$/);
+                        const isDoc = currentMedia.media_type === 'Document' || currentMedia.file_url.toLowerCase().match(/\.(pdf|doc|docx)$/);
+                        
+                        if (isVideo) {
+                            return <video src={currentMedia.file_url} controls autoPlay className="max-w-full max-h-full rounded-2xl shadow-2xl ring-1 ring-white/10" onClick={e => e.stopPropagation()} />;
+                        }
+                        if (isDoc) {
+                            return (
+                                <div className="w-full h-full flex flex-col items-center justify-center gap-6" onClick={e => e.stopPropagation()}>
+                                    <div className="w-full max-w-5xl h-[85vh] bg-white rounded-[2.5rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)] border border-white/20">
+                                        <iframe 
+                                            src={currentMedia.file_url} 
+                                            className="w-full h-full border-none" 
+                                            title="Document Viewer" 
+                                        />
+                                    </div>
+                                    <div className="flex gap-4">
+                                        <a href={currentMedia.file_url} target="_blank" rel="noopener noreferrer" className="px-10 py-4 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-orange-700 transition-all shadow-xl shadow-orange-900/20">
+                                            Open Direct Link
+                                        </a>
+                                        <button onClick={() => setActiveGallery(null)} className="px-10 py-4 bg-white/10 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-white/20 transition-all border border-white/10 backdrop-blur-md">
+                                            Close Preview
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        }
+                        return <img src={currentMedia.file_url} className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl ring-1 ring-white/10" onClick={e => e.stopPropagation()} />;
+                    })()}
                 </div>
             )}
         </div>

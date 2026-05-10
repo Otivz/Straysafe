@@ -163,7 +163,7 @@ def update_report_status(report_id: int, status_update: ReportStatusUpdate, db: 
     db_history = StatusHistory(
         report_id=report_id,
         report_status_id=status_update.status_id,
-        updated_by=None,  # nullable in DB
+        updated_by=status_update.user_id,  # Link the update to the user
         remarks=final_remarks
     )
     db.add(db_history)

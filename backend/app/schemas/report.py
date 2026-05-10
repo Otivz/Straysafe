@@ -86,6 +86,7 @@ class ReportResponse(ReportBase):
 
 class ReportStatusUpdate(BaseModel):
     status_id: int
+    user_id: Optional[int] = None
     remarks: Optional[str] = None
     status_remarks: Optional[str] = None
     animal_condition: Optional[str] = None

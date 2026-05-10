@@ -1,4 +1,5 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import AdminLogin from '../pages/Admin/AdminLogin';
 import AdminDashboard from '../pages/Admin/AdminDashboard';
 import AdminUserManagement from '../pages/Admin/AdminUserManagement';
@@ -22,6 +23,56 @@ import BrgyRescueRequests from '../pages/Barangay_Staff/BrgyRescueRequests';
 
 
 const AppRoutes = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    useEffect(() => {
+        const checkSession = async () => {
+            // Identify which user is logged in
+            const adminUser = localStorage.getItem('admin_user') || sessionStorage.getItem('admin_user');
+            const staffUser = localStorage.getItem('staff_user') || sessionStorage.getItem('staff_user');
+            const residentUser = localStorage.getItem('resident_user') || sessionStorage.getItem('resident_user');
+
+            let user = null;
+            let type = '';
+
+            if (adminUser) { user = JSON.parse(adminUser); type = 'admin'; }
+            else if (staffUser) { user = JSON.parse(staffUser); type = 'staff'; }
+            else if (residentUser) { user = JSON.parse(residentUser); type = 'resident'; }
+
+            if (user && user.user_id) {
+                try {
+                    const res = await fetch(`http://localhost:8000/auth/verify-session/${user.user_id}`);
+                    if (res.status === 404) {
+                        // User not in DB, force logout
+                        console.warn("Session invalid: User not found in database. Logging out...");
+                        handleLogout(type);
+                    }
+                } catch (error) {
+                    console.error("Session check failed:", error);
+                }
+            }
+        };
+
+        const handleLogout = (type: string) => {
+            if (type === 'admin') {
+                localStorage.removeItem('admin_user');
+                sessionStorage.removeItem('admin_user');
+                if (!location.pathname.includes('/admin/login')) navigate('/admin/login');
+            } else if (type === 'staff') {
+                localStorage.removeItem('staff_user');
+                sessionStorage.removeItem('staff_user');
+                if (!location.pathname.includes('/staff/login')) navigate('/staff/login');
+            } else if (type === 'resident') {
+                localStorage.removeItem('resident_user');
+                sessionStorage.removeItem('resident_user');
+                if (!location.pathname.includes('/login')) navigate('/login');
+            }
+        };
+
+        checkSession();
+    }, [location.pathname, navigate]);
+
     return (
         <Routes>
             {/* Public Routes */}

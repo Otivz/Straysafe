@@ -44,5 +44,21 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
         "user_id": user.user_id,
         "email": user.email,
         "name": user.name,
-        "role_id": user.role_id
+        "role_id": user.role_id,
+        "profile_picture": user.profile_picture,
+        "phone": user.phone,
+        "address": user.address,
+        "status": user.status,
+        "is_verified": user.is_verified,
+        "created_at": user.created_at
     }
+
+@router.get("/verify-session/{user_id}")
+def verify_session(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    return {"status": "valid", "user_id": user.user_id}

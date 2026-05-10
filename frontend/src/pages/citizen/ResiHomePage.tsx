@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Button from '../../components/Button';
 import CustomRadio, { RadioCircle } from '../../components/CustomRadio';
@@ -27,10 +27,12 @@ const DefaultIcon = L.icon({
 L.Marker.prototype.options.icon = DefaultIcon;
 
 // Custom component to handle map clicks and move marker
-const LocationPicker = ({ onLocationSelect, position }: { onLocationSelect: (lat: number, lng: number) => void, position: [number, number] }) => {
+const LocationPicker = ({ onLocationSelect, position, disabled }: { onLocationSelect: (lat: number, lng: number) => void, position: [number, number], disabled?: boolean }) => {
     useMapEvents({
         click(e) {
-            onLocationSelect(e.latlng.lat, e.latlng.lng);
+            if (!disabled) {
+                onLocationSelect(e.latlng.lat, e.latlng.lng);
+            }
         },
     });
 
@@ -39,23 +41,44 @@ const LocationPicker = ({ onLocationSelect, position }: { onLocationSelect: (lat
 
 const ResiHomePage = () => {
     const location = useLocation();
+    const navigate = useNavigate();
     const [isAddReportModalOpen, setIsAddReportModalOpen] = useState(false);
     const [isViewMode, setIsViewMode] = useState(false);
     const [originalData, setOriginalData] = useState<any>(null);
     const [isNavbarMenuOpen, setIsNavbarMenuOpen] = useState(false);
+    const [returnUrl, setReturnUrl] = useState<string | null>(null);
 
     useEffect(() => {
+        if (location.state?.from) {
+            setReturnUrl(location.state.from);
+        }
         if (location.state?.openAddModal) {
+            setEditingReportId(null);
+            setFormData({
+                category: 'Injured Animal', category_id: 1, animalCount: 1, landmark: '',
+                visibility: 'Public', priorityLevel: 'Regular', isPossibleOwned: false,
+                animalType: 'Dog', animalBreed: '', animalColor: '', estimatedSize: 'Medium',
+                description: '', latitude: 14.801313, longitude: 121.003109,
+                mediaFiles: [], existingMedia: [], mediaIdsToDelete: []
+            });
             setIsAddReportModalOpen(true);
             // Clear state so it doesn't reopen on refresh
-            window.history.replaceState({}, document.title);
+            navigate(location.pathname, { replace: true, state: {} });
         }
         if (location.state?.editReport) {
             handleEditClick(location.state.editReport, location.state.isViewMode);
             // Clear state so it doesn't reopen on refresh
-            window.history.replaceState({}, document.title);
+            navigate(location.pathname, { replace: true, state: {} });
         }
     }, [location.state]);
+
+    const handleCloseModal = () => {
+        setIsAddReportModalOpen(false);
+        if (returnUrl) {
+            navigate(returnUrl);
+            setReturnUrl(null);
+        }
+    };
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [reports, setReports] = useState<any[]>([]);
@@ -292,7 +315,7 @@ const ResiHomePage = () => {
                 }
 
                 alert(isEditing ? 'Report updated successfully!' : 'Report submitted successfully!');
-                setIsAddReportModalOpen(false);
+                handleCloseModal();
                 setEditingReportId(null);
                 fetchReports(); // Refresh the feed
                 setFormData({
@@ -326,10 +349,10 @@ const ResiHomePage = () => {
     const allMediaCount = (formData.existingMedia?.length || 0) + (formData.mediaFiles?.length || 0);
 
     return (
-        <div className="min-h-screen bg-[#FAFAF9] font-sans">
+        <div className="min-h-screen bg-[#F7F7F7] font-sans pb-24">
             <ResiNavbar onMenuToggle={(isOpen) => setIsNavbarMenuOpen(isOpen)} />
 
-            <main className="max-w-6xl mx-auto p-4 sm:p-8 pt-20 sm:pt-28 pb-24 sm:pb-8">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-24 sm:pb-8">
 
                 {/* Top Actions - Hidden on mobile, shown on desktop */}
                 <div className="hidden sm:flex justify-end items-center mb-10">
@@ -370,7 +393,7 @@ const ResiHomePage = () => {
                         {/* Backdrop */}
                         <div
                             className="absolute inset-0 bg-[#1a1208]/60 backdrop-blur-md animate-in fade-in duration-300"
-                            onClick={() => setIsAddReportModalOpen(false)}
+                            onClick={handleCloseModal}
                         />
 
                         {/* Modal Content */}
@@ -386,7 +409,7 @@ const ResiHomePage = () => {
                                     </p>
                                 </div>
                                 <button
-                                    onClick={() => setIsAddReportModalOpen(false)}
+                                    onClick={handleCloseModal}
                                     className="p-3 bg-gray-50 text-gray-400 hover:text-[#1a1208] rounded-2xl transition-all"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -410,11 +433,12 @@ const ResiHomePage = () => {
                                             <button
                                                 key={cat.id}
                                                 type="button"
+                                                disabled={isViewMode}
                                                 onClick={() => setFormData({ ...formData, category: cat.name, category_id: cat.id })}
                                                 className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${formData.category_id === cat.id
                                                     ? 'bg-[#F97316] text-white border-[#F97316] shadow-lg shadow-orange-100'
-                                                    : 'bg-white text-gray-400 border-gray-100 hover:border-orange-100'
-                                                    }`}
+                                                    : `bg-white text-gray-400 border-gray-100 ${!isViewMode ? 'hover:border-orange-100' : ''}`
+                                                    } ${isViewMode && formData.category_id !== cat.id ? 'opacity-40' : ''}`}
                                             >
                                                 {cat.name}
                                             </button>
@@ -487,11 +511,12 @@ const ResiHomePage = () => {
                                             <button
                                                 key={prio}
                                                 type="button"
-                                                onClick={() => !isViewMode && setFormData({ ...formData, priorityLevel: prio })}
+                                                disabled={isViewMode}
+                                                onClick={() => setFormData({ ...formData, priorityLevel: prio })}
                                                 className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${formData.priorityLevel === prio
                                                     ? 'bg-[#F97316] text-white border-[#F97316] shadow-lg shadow-orange-100'
-                                                    : 'bg-white text-gray-400 border-gray-100 hover:border-orange-100'
-                                                    }`}
+                                                    : `bg-white text-gray-400 border-gray-100 ${!isViewMode ? 'hover:border-orange-100' : ''}`
+                                                    } ${isViewMode && formData.priorityLevel !== prio ? 'opacity-40' : ''}`}
                                             >
                                                 {prio}
                                             </button>
@@ -506,8 +531,9 @@ const ResiHomePage = () => {
                                         <div className="flex items-center bg-gray-50 rounded-xl p-1 border border-gray-100 shadow-inner">
                                             <button
                                                 type="button"
-                                                onClick={() => !isViewMode && setFormData({ ...formData, animalCount: Math.max(1, formData.animalCount - 1) })}
-                                                className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-[#F97316] hover:bg-orange-50 transition-all active:scale-90"
+                                                disabled={isViewMode}
+                                                onClick={() => setFormData({ ...formData, animalCount: Math.max(1, formData.animalCount - 1) })}
+                                                className={`w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-[#F97316] transition-all ${!isViewMode ? 'hover:bg-orange-50 active:scale-90' : 'opacity-40'}`}
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M20 12H4" />
@@ -518,8 +544,9 @@ const ResiHomePage = () => {
                                             </div>
                                             <button
                                                 type="button"
-                                                onClick={() => !isViewMode && setFormData({ ...formData, animalCount: formData.animalCount + 1 })}
-                                                className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-[#F97316] hover:bg-orange-50 transition-all active:scale-90"
+                                                disabled={isViewMode}
+                                                onClick={() => setFormData({ ...formData, animalCount: formData.animalCount + 1 })}
+                                                className={`w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-[#F97316] transition-all ${!isViewMode ? 'hover:bg-orange-50 active:scale-90' : 'opacity-40'}`}
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
@@ -583,8 +610,8 @@ const ResiHomePage = () => {
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         const newExisting = formData.existingMedia.filter(m => m.media_id !== media.media_id);
-                                                                        setFormData({ 
-                                                                            ...formData, 
+                                                                        setFormData({
+                                                                            ...formData,
                                                                             existingMedia: newExisting,
                                                                             mediaIdsToDelete: [...formData.mediaIdsToDelete, media.media_id]
                                                                         });
@@ -708,10 +735,11 @@ const ResiHomePage = () => {
                                             <LocationPicker
                                                 position={[formData.latitude, formData.longitude]}
                                                 onLocationSelect={(lat, lng) => setFormData({ ...formData, latitude: lat, longitude: lng })}
+                                                disabled={isViewMode}
                                             />
                                         </MapContainer>
                                         <div className="absolute top-4 right-4 z-[20] bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl border border-gray-100 shadow-sm pointer-events-none">
-                                            <p className="text-[9px] font-black text-[#F97316] uppercase tracking-widest">Click map to move pin</p>
+                                            <p className="text-[9px] font-black text-[#F97316] uppercase tracking-widest">{isViewMode ? 'Sighting Location' : 'Click map to move pin'}</p>
                                         </div>
                                     </div>
 
@@ -755,7 +783,7 @@ const ResiHomePage = () => {
                                 <div>
                                     <label className="text-[11px] font-black text-[#1a1208] uppercase tracking-widest mb-4 block">Report Visibility</label>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <label className={`relative flex flex-col p-5 rounded-[2rem] border-2 cursor-pointer transition-all ${formData.visibility === 'Public' ? 'border-[#F97316] bg-orange-50/20' : 'border-gray-50 bg-[#FAFAF9] hover:border-orange-100'}`}>
+                                        <label className={`relative flex flex-col p-5 rounded-[2rem] border-2 transition-all ${formData.visibility === 'Public' ? 'border-[#F97316] bg-orange-50/20' : `border-gray-50 bg-[#FAFAF9] ${!isViewMode ? 'hover:border-orange-100 cursor-pointer' : 'cursor-default'}`}`}>
                                             <input
                                                 type="radio"
                                                 name="visibility"
@@ -765,20 +793,20 @@ const ResiHomePage = () => {
                                                 className="absolute opacity-0"
                                                 disabled={isViewMode}
                                             />
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${formData.visibility === 'Public' ? 'bg-[#F97316] text-white' : 'bg-gray-100 text-gray-400'}`}>
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                            </svg>
-                                                        </div>
-                                                        <span className={`text-[12px] font-black uppercase tracking-widest ${formData.visibility === 'Public' ? 'text-[#F97316]' : 'text-gray-600'}`}>Public Post</span>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${formData.visibility === 'Public' ? 'bg-[#F97316] text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
                                                     </div>
-                                                    <RadioCircle checked={formData.visibility === 'Public'} />
+                                                    <span className={`text-[12px] font-black uppercase tracking-widest ${formData.visibility === 'Public' ? 'text-[#F97316]' : 'text-gray-600'}`}>Public Post</span>
                                                 </div>
+                                                <RadioCircle checked={formData.visibility === 'Public'} disabled={isViewMode} />
+                                            </div>
                                             <p className="text-[10px] font-bold text-gray-400 leading-relaxed ml-11">Visible to all users in the subdivision feed.</p>
                                         </label>
-                                        <label className={`relative flex flex-col p-5 rounded-[2rem] border-2 cursor-pointer transition-all ${formData.visibility === 'Private' ? 'border-[#F97316] bg-orange-50/20' : 'border-gray-50 bg-[#FAFAF9] hover:border-orange-100'}`}>
+                                        <label className={`relative flex flex-col p-5 rounded-[2rem] border-2 transition-all ${formData.visibility === 'Private' ? 'border-[#F97316] bg-orange-50/20' : `border-gray-50 bg-[#FAFAF9] ${!isViewMode ? 'hover:border-orange-100 cursor-pointer' : 'cursor-default'}`}`}>
                                             <input
                                                 type="radio"
                                                 name="visibility"
@@ -788,17 +816,17 @@ const ResiHomePage = () => {
                                                 className="absolute opacity-0"
                                                 disabled={isViewMode}
                                             />
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${formData.visibility === 'Private' ? 'bg-[#F97316] text-white' : 'bg-gray-100 text-gray-400'}`}>
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                                            </svg>
-                                                        </div>
-                                                        <span className={`text-[12px] font-black uppercase tracking-widest ${formData.visibility === 'Private' ? 'text-[#F97316]' : 'text-gray-600'}`}>Private Post</span>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${formData.visibility === 'Private' ? 'bg-[#F97316] text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                        </svg>
                                                     </div>
-                                                    <RadioCircle checked={formData.visibility === 'Private'} />
+                                                    <span className={`text-[12px] font-black uppercase tracking-widest ${formData.visibility === 'Private' ? 'text-[#F97316]' : 'text-gray-600'}`}>Private Post</span>
                                                 </div>
+                                                <RadioCircle checked={formData.visibility === 'Private'} disabled={isViewMode} />
+                                            </div>
                                             <p className="text-[10px] font-bold text-gray-400 leading-relaxed ml-11">Only visible to Admin, Subd. Leader, and Brgy Staff.</p>
                                         </label>
                                     </div>
@@ -1483,8 +1511,8 @@ const ResiHomePage = () => {
                     </div>
                 </div>
             )}
-            <ResiMobileNav 
-                isNavbarMenuOpen={isNavbarMenuOpen} 
+            <ResiMobileNav
+                isNavbarMenuOpen={isNavbarMenuOpen}
                 onAddReportClick={() => {
                     setEditingReportId(null);
                     setFormData({
@@ -1507,7 +1535,7 @@ const ResiHomePage = () => {
                         mediaIdsToDelete: []
                     });
                     setIsAddReportModalOpen(true);
-                }} 
+                }}
             />
         </div>
     );

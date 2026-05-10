@@ -48,3 +48,8 @@ class User(Base):
     
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    role = relationship("Role")
+    position = relationship("Position")
+    subdivision = relationship("Subdivision")
