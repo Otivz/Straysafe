@@ -10,7 +10,7 @@ class ReportCategory(Base):
 
 
 # DB table is "report_status" (not "report_statuses")
-class ReportStatus(Base):
+class ReportStatus(Base):   
     __tablename__ = "report_status"
     status_id = Column(Integer, primary_key=True, index=True)
     status_name = Column(String(50), unique=True, nullable=False)
@@ -107,11 +107,14 @@ class Rescue(Base):
     notes = Column(Text, nullable=True)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
+    leader_id = Column(Integer, ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
 
     # Relationships
     report = relationship("Report", back_populates="rescues")
     staff = relationship("User", foreign_keys=[staff_id])
+    leader = relationship("User", foreign_keys=[leader_id])
     status = relationship("RescueStatus")
+    assignments = relationship("RescueAssignment", back_populates="rescue", cascade="all, delete-orphan")
 
 
 class ReportVerification(Base):
@@ -144,3 +147,22 @@ class StatusHistory(Base):
 
     report = relationship("Report", back_populates="history")
     updater = relationship("User")
+
+
+class RescueAssignment(Base):
+    __tablename__ = "rescue_assignments"
+
+    assignment_id = Column(Integer, primary_key=True, index=True)
+    rescue_id = Column(Integer, ForeignKey("rescues.rescue_id", ondelete="CASCADE"), nullable=False)
+    staff_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    assigned_by = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    assigned_at = Column(DateTime, server_default=func.now())
+    
+    # DB ENUM: 'Assigned', 'In Transit', 'On Site', 'Completed', 'Cancelled'
+    assignment_status = Column(Enum('Assigned', 'In Transit', 'On Site', 'Completed', 'Cancelled'), default='Assigned')
+    remarks = Column(Text, nullable=True)
+
+    # Relationships
+    rescue = relationship("Rescue", back_populates="assignments")
+    staff = relationship("User", foreign_keys=[staff_id])
+    assigner = relationship("User", foreign_keys=[assigned_by])

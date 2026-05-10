@@ -119,10 +119,10 @@ const ResiProfile = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#F7F7F7] font-sans pb-20">
+        <div className="min-h-screen bg-[#F7F7F7] font-sans pb-24">
             <ResiNavbar onMenuToggle={(isOpen) => setIsNavbarMenuOpen(isOpen)} />
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 sm:pt-36">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32">
                 <div className="flex flex-col lg:flex-row gap-8">
                     
                     {/* Left Column: Profile Card */}
@@ -259,8 +259,8 @@ const ResiProfile = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                             {/* Create New Report Placeholder */}
                             <button 
-                                onClick={() => navigate('/resident-home', { state: { openAddModal: true } })}
-                                className="bg-white border-2 border-dashed border-gray-100 rounded-lg p-10 flex flex-col items-center justify-center gap-4 group hover:border-[#F97316] hover:bg-orange-50/30 transition-all min-h-[320px]"
+                                onClick={() => navigate('/resident-home', { state: { openAddModal: true, from: '/resident/profile' } })}
+                                className="hidden md:flex bg-white border-2 border-dashed border-gray-100 rounded-lg p-10 flex-col items-center justify-center gap-4 group hover:border-[#F97316] hover:bg-orange-50/30 transition-all min-h-[320px]"
                             >
                                 <div className="w-16 h-16 rounded-full bg-[#F97316] flex items-center justify-center text-white shadow-lg shadow-orange-100 group-hover:scale-110 transition-transform">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -306,7 +306,7 @@ const ResiProfile = () => {
                                                     <button 
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            navigate('/resident-home', { state: { editReport: report, isViewMode: true } });
+                                                            navigate('/resident-home', { state: { editReport: report, isViewMode: true, from: '/resident/profile' } });
                                                         }}
                                                         className="w-full flex items-center gap-3 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-[#F97316] hover:bg-orange-50 transition-colors"
                                                     >
@@ -364,7 +364,10 @@ const ResiProfile = () => {
                     </div>
                 </div>
             </main>
-            <ResiMobileNav isNavbarMenuOpen={isNavbarMenuOpen} />
+            <ResiMobileNav 
+                isNavbarMenuOpen={isNavbarMenuOpen} 
+                onAddReportClick={() => navigate('/resident-home', { state: { openAddModal: true, from: '/resident/profile' } })}
+            />
 
             {/* Edit Profile Modal */}
             {isEditModalOpen && (

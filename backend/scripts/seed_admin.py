@@ -32,7 +32,23 @@ def seed_db():
                 db.add(Role(role_id=r_id, role_name=r_name))
         db.commit()
 
-        # 2. Seed Barangay
+        # 2. Seed Positions
+        print("Seeding positions...")
+        positions = [
+            'President',
+            'Secretary',
+            'Barangay Staff',
+            'Tanod',
+            'Animal Rescuer',
+            'Barangay Captain'
+        ]
+        for p_name in positions:
+            pos = db.query(Position).filter(Position.position_name == p_name).first()
+            if not pos:
+                db.add(Position(position_name=p_name))
+        db.commit()
+
+        # 3. Seed Barangay
         print("Seeding barangay...")
         barangay = db.query(Barangay).filter(Barangay.barangay_id == 1).first()
         if not barangay:
@@ -40,7 +56,7 @@ def seed_db():
             db.add(barangay)
             db.commit()
 
-        # 3. Seed Subdivisions
+        # 4. Seed Subdivisions
         print("Seeding subdivisions...")
         subdivisions = [
             {'id': 1, 'name': 'Selera Homes', 'barangay_id': 1}
@@ -51,36 +67,93 @@ def seed_db():
                 db.add(Subdivision(subdivision_id=sub['id'], subdivision_name=sub['name'], barangay_id=sub['barangay_id']))
         db.commit()
 
-        # 4. Seed Admin User
+        # 5. Seed Users
+        print("Seeding users...")
+        seed_password = os.getenv("SEED_PASSWORD", "password123")
+        default_password_hash = get_password_hash(seed_password)
+        
+        users_to_seed = [
+            {
+                "name": "Emmanuel Vito Cruz",
+                "email": os.getenv("CITIZEN_EMAIL"),
+                "role_id": 1, # Citizen
+                "status": "Active",
+                "is_verified": True
+            },
+            {
+                "name": "Kyla Joy Arriola",
+                "email": os.getenv("SUBD_LEADER_EMAIL"),
+                "role_id": 2, # Subdivision Leader
+                "subdivision_id": 1,
+                "status": "Active",
+                "is_verified": True
+            },
+            {
+                "name": "Kyla Bianca Frias",
+                "email": os.getenv("BRGY_STAFF_EMAIL"),
+                "role_id": 3, # Barangay Staff
+                "position_id": db.query(Position).filter(Position.position_name == "Barangay Captain").first().position_id,
+                "status": "Active",
+                "is_verified": True
+            }
+        ]
+
+        for user_data in users_to_seed:
+            if not user_data["email"]:
+                print(f"Skipping seeding for {user_data['name']} (email not found in .env)")
+                continue
+
+            user = db.query(User).filter(User.email == user_data["email"]).first()
+            if not user:
+                print(f"Creating user: {user_data['email']}")
+                new_user = User(
+                    name=user_data["name"],
+                    email=user_data["email"],
+                    password=default_password_hash,
+                    role_id=user_data["role_id"],
+                    subdivision_id=user_data.get("subdivision_id"),
+                    position_id=user_data.get("position_id"),
+                    status=user_data["status"],
+                    is_verified=user_data["is_verified"]
+                )
+                db.add(new_user)
+            else:
+                print(f"User {user_data['email']} exists. Updating role and status...")
+                user.role_id = user_data["role_id"]
+                user.status = user_data["status"]
+                user.is_verified = user_data["is_verified"]
+                if "subdivision_id" in user_data:
+                    user.subdivision_id = user_data["subdivision_id"]
+                if "position_id" in user_data:
+                    user.position_id = user_data["position_id"]
+
+        # 6. Seed Admin User
         admin_email = os.getenv("ADMIN_EMAIL")
         admin_password = os.getenv("ADMIN_PASSWORD")
         
-        # Look for existing admin by email
         admin = db.query(User).filter(User.email == admin_email).first()
-        
-        hashed_password = get_password_hash(admin_password)
+        hashed_admin_password = get_password_hash(admin_password)
         
         if not admin:
             print(f"Creating default admin: {admin_email}")
             new_admin = User(
                 name="System Admin",
                 email=admin_email,
-                password=hashed_password,
+                password=hashed_admin_password,
                 role_id=4,
                 status="Active",
                 is_verified=True
             )
             db.add(new_admin)
-            print("Successfully created admin user.")
         else:
-            print(f"Admin user {admin_email} exists. Updating password to match .env...")
-            admin.password = hashed_password
-            admin.role_id = 4  # Ensure they are an admin
-            admin.status = "Active" # Ensure they are active
+            print(f"Admin user {admin_email} exists. Updating password...")
+            admin.password = hashed_admin_password
+            admin.role_id = 4
+            admin.status = "Active"
             admin.is_verified = True
-            print("Successfully updated admin user.")
             
         db.commit()
+        print("Database seeding completed successfully!")
             
     except Exception as e:
         print(f"Error seeding database: {e}")

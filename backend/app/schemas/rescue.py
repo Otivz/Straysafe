@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 from app.schemas.report import ReportResponse
@@ -11,6 +11,18 @@ class RescueStatusBase(BaseModel):
 
 class RescueStatusResponse(RescueStatusBase):
     status_id: int
+
+    class Config:
+        from_attributes = True
+
+
+class RescueAssignmentResponse(BaseModel):
+    assignment_id: int
+    staff_id: int
+    assigned_by: int
+    assigned_at: datetime
+    assignment_status: str
+    remarks: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -54,6 +66,8 @@ class RescueRequestCreate(RescueBase):
 class RescueRequestUpdate(BaseModel):
     status_id: Optional[int] = None
     barangay_staff_id: Optional[int] = None
+    assigned_personnel_id: Optional[int] = None
+    remarks: Optional[str] = None
 
 
 class RescueRequestResponse(RescueBase):
@@ -66,6 +80,9 @@ class RescueRequestResponse(RescueBase):
     created_at: Optional[datetime] = None
     report: Optional[ReportResponse] = None
     leader_name: Optional[str] = None
+    leader_position: Optional[str] = None
+    assigned_staff_name: Optional[str] = None
+    assignments: Optional[List[RescueAssignmentResponse]] = None
 
     class Config:
         from_attributes = True

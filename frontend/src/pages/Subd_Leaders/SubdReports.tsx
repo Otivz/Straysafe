@@ -174,7 +174,10 @@ const SubdReports = () => {
             });
 
             // 2. Update status to Escalated (4)
-            await axios.patch(`${API_URL}/${escalatingReportId}/status`, { status_id: 4 });
+            await axios.patch(`${API_URL}/${escalatingReportId}/status`, { 
+                status_id: 4,
+                user_id: currentUserId 
+            });
 
             // 3. Create official Rescue Request record
             await axios.post('http://localhost:8000/rescue-requests/', {
@@ -624,7 +627,7 @@ const SubdReports = () => {
                                                             <p className="text-[10px] font-bold text-gray-400 mt-0.5">Sent to Barangay for Rescue Request</p>
                                                         </div>
                                                     </div>
-                                                    <button 
+                                                    <button
                                                         onClick={() => {
                                                             const letter = viewReport.media?.find(m => m.media_type === 'Document' || m.file_url.toLowerCase().endsWith('.pdf') || m.file_url.toLowerCase().endsWith('.docx'));
                                                             if (letter) setActiveGallery({ media: [letter], index: 0 });
@@ -640,115 +643,113 @@ const SubdReports = () => {
                                         {/* Media Gallery */}
                                         {viewReport.media && viewReport.media.filter(m => {
                                             const url = m.file_url.toLowerCase();
-                                            return m.media_type !== 'Document' && 
-                                                   !url.endsWith('.pdf') && 
-                                                   !url.endsWith('.doc') && 
-                                                   !url.endsWith('.docx') && 
-                                                   !url.endsWith('.txt');
+                                            return m.media_type !== 'Document' &&
+                                                !url.endsWith('.pdf') &&
+                                                !url.endsWith('.doc') &&
+                                                !url.endsWith('.docx') &&
+                                                !url.endsWith('.txt');
                                         }).length > 0 && (
-                                            <div>
-                                                <div className="flex items-center justify-between mb-4">
-                                                    <h5 className="text-[11px] font-black text-[#1a1208] uppercase tracking-[0.2em]">Evidence Gallery</h5>
-                                                    <span className="text-[10px] font-bold text-gray-400 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
+                                                <div>
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <h5 className="text-[11px] font-black text-[#1a1208] uppercase tracking-[0.2em]">Evidence Gallery</h5>
+                                                        <span className="text-[10px] font-bold text-gray-400 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
+                                                            {viewReport.media.filter(m => {
+                                                                const url = m.file_url.toLowerCase();
+                                                                return m.media_type !== 'Document' &&
+                                                                    !url.endsWith('.pdf') &&
+                                                                    !url.endsWith('.doc') &&
+                                                                    !url.endsWith('.docx') &&
+                                                                    !url.endsWith('.txt');
+                                                            }).length} {viewReport.media.filter(m => {
+                                                                const url = m.file_url.toLowerCase();
+                                                                return m.media_type !== 'Document' &&
+                                                                    !url.endsWith('.pdf') &&
+                                                                    !url.endsWith('.doc') &&
+                                                                    !url.endsWith('.docx') &&
+                                                                    !url.endsWith('.txt');
+                                                            }).length === 1 ? 'File' : 'Files'} Attached
+                                                        </span>
+                                                    </div>
+
+                                                    <div className={`grid gap-3 ${viewReport.media.filter(m => {
+                                                        const url = m.file_url.toLowerCase();
+                                                        return m.media_type !== 'Document' &&
+                                                            !url.endsWith('.pdf') &&
+                                                            !url.endsWith('.doc') &&
+                                                            !url.endsWith('.docx') &&
+                                                            !url.endsWith('.txt');
+                                                    }).length === 1 ? 'grid-cols-1' :
+                                                            viewReport.media.filter(m => {
+                                                                const url = m.file_url.toLowerCase();
+                                                                return m.media_type !== 'Document' &&
+                                                                    !url.endsWith('.pdf') &&
+                                                                    !url.endsWith('.doc') &&
+                                                                    !url.endsWith('.docx') &&
+                                                                    !url.endsWith('.txt');
+                                                            }).length === 2 ? 'grid-cols-2' :
+                                                                'grid-cols-2 sm:grid-cols-3'
+                                                        }`}>
                                                         {viewReport.media.filter(m => {
                                                             const url = m.file_url.toLowerCase();
-                                                            return m.media_type !== 'Document' && 
-                                                                   !url.endsWith('.pdf') && 
-                                                                   !url.endsWith('.doc') && 
-                                                                   !url.endsWith('.docx') && 
-                                                                   !url.endsWith('.txt');
-                                                        }).length} {viewReport.media.filter(m => {
-                                                            const url = m.file_url.toLowerCase();
-                                                            return m.media_type !== 'Document' && 
-                                                                   !url.endsWith('.pdf') && 
-                                                                   !url.endsWith('.doc') && 
-                                                                   !url.endsWith('.docx') && 
-                                                                   !url.endsWith('.txt');
-                                                        }).length === 1 ? 'File' : 'Files'} Attached
-                                                    </span>
-                                                </div>
-                                                
-                                                <div className={`grid gap-3 ${
-                                                    viewReport.media.filter(m => {
-                                                        const url = m.file_url.toLowerCase();
-                                                        return m.media_type !== 'Document' && 
-                                                               !url.endsWith('.pdf') && 
-                                                               !url.endsWith('.doc') && 
-                                                               !url.endsWith('.docx') && 
-                                                               !url.endsWith('.txt');
-                                                    }).length === 1 ? 'grid-cols-1' : 
-                                                    viewReport.media.filter(m => {
-                                                        const url = m.file_url.toLowerCase();
-                                                        return m.media_type !== 'Document' && 
-                                                               !url.endsWith('.pdf') && 
-                                                               !url.endsWith('.doc') && 
-                                                               !url.endsWith('.docx') && 
-                                                               !url.endsWith('.txt');
-                                                    }).length === 2 ? 'grid-cols-2' : 
-                                                    'grid-cols-2 sm:grid-cols-3'
-                                                }`}>
-                                                    {viewReport.media.filter(m => {
-                                                        const url = m.file_url.toLowerCase();
-                                                        return m.media_type !== 'Document' && 
-                                                               !url.endsWith('.pdf') && 
-                                                               !url.endsWith('.doc') && 
-                                                               !url.endsWith('.docx') && 
-                                                               !url.endsWith('.txt');
-                                                    }).map((m: any, idx: number) => (
-                                                        <div 
-                                                            key={m.media_id} 
-                                                            onClick={() => {
-                                                                const filtered = viewReport.media!.filter(m => {
+                                                            return m.media_type !== 'Document' &&
+                                                                !url.endsWith('.pdf') &&
+                                                                !url.endsWith('.doc') &&
+                                                                !url.endsWith('.docx') &&
+                                                                !url.endsWith('.txt');
+                                                        }).map((m: any, idx: number) => (
+                                                            <div
+                                                                key={m.media_id}
+                                                                onClick={() => {
+                                                                    const filtered = viewReport.media!.filter(m => {
+                                                                        const url = m.file_url.toLowerCase();
+                                                                        return m.media_type !== 'Document' &&
+                                                                            !url.endsWith('.pdf') &&
+                                                                            !url.endsWith('.doc') &&
+                                                                            !url.endsWith('.docx') &&
+                                                                            !url.endsWith('.txt');
+                                                                    });
+                                                                    setActiveGallery({ media: filtered, index: idx });
+                                                                }}
+                                                                className={`group relative rounded-2xl overflow-hidden bg-gray-100 border border-gray-100 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95 ${viewReport.media!.filter(m => {
                                                                     const url = m.file_url.toLowerCase();
-                                                                    return m.media_type !== 'Document' && 
-                                                                           !url.endsWith('.pdf') && 
-                                                                           !url.endsWith('.doc') && 
-                                                                           !url.endsWith('.docx') && 
-                                                                           !url.endsWith('.txt');
-                                                                });
-                                                                setActiveGallery({ media: filtered, index: idx });
-                                                            }}
-                                                            className={`group relative rounded-2xl overflow-hidden bg-gray-100 border border-gray-100 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95 ${
-                                                                viewReport.media!.filter(m => {
-                                                                    const url = m.file_url.toLowerCase();
-                                                                    return m.media_type !== 'Document' && 
-                                                                           !url.endsWith('.pdf') && 
-                                                                           !url.endsWith('.doc') && 
-                                                                           !url.endsWith('.docx') && 
-                                                                           !url.endsWith('.txt');
+                                                                    return m.media_type !== 'Document' &&
+                                                                        !url.endsWith('.pdf') &&
+                                                                        !url.endsWith('.doc') &&
+                                                                        !url.endsWith('.docx') &&
+                                                                        !url.endsWith('.txt');
                                                                 }).length === 3 && idx === 0 ? 'sm:row-span-2 sm:h-full' : 'aspect-square'
-                                                            }`}
-                                                        >
-                                                            {m.media_type === 'Video' ? (
-                                                                <div className="relative w-full h-full">
-                                                                    <video src={m.file_url} className="w-full h-full object-cover" />
-                                                                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                                                                        <div className="w-12 h-12 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center text-white ring-4 ring-white/20">
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 fill-current" viewBox="0 0 20 20">
-                                                                                <path d="M4.516 7.548c0-.446.362-.809.808-.809.446 0 .808.363.808.809v4.904c0 .446-.362.809-.808.809-.446 0-.808-.363-.808-.809V7.548zm5.281 0c0-.446.362-.809.808-.809.446 0 .808.363.808.809v4.904c0 .446-.362.809-.808.809-.446 0-.808-.363-.808-.809V7.548z" />
-                                                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                                                                            </svg>
+                                                                    }`}
+                                                            >
+                                                                {m.media_type === 'Video' ? (
+                                                                    <div className="relative w-full h-full">
+                                                                        <video src={m.file_url} className="w-full h-full object-cover" />
+                                                                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                                                                            <div className="w-12 h-12 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center text-white ring-4 ring-white/20">
+                                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 fill-current" viewBox="0 0 20 20">
+                                                                                    <path d="M4.516 7.548c0-.446.362-.809.808-.809.446 0 .808.363.808.809v4.904c0 .446-.362.809-.808.809-.446 0-.808-.363-.808-.809V7.548zm5.281 0c0-.446.362-.809.808-.809.446 0 .808.363.808.809v4.904c0 .446-.362.809-.808.809-.446 0-.808-.363-.808-.809V7.548z" />
+                                                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                                                                </svg>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
+                                                                ) : (
+                                                                    <img src={m.file_url} alt="Report evidence" className="w-full h-full object-cover" />
+                                                                )}
+
+                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                                                                    <span className="text-[10px] font-bold text-white uppercase tracking-widest flex items-center gap-2">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                                        </svg>
+                                                                        Click to Expand
+                                                                    </span>
                                                                 </div>
-                                                            ) : (
-                                                                <img src={m.file_url} alt="Report evidence" className="w-full h-full object-cover" />
-                                                            )}
-                                                            
-                                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-                                                                <span className="text-[10px] font-bold text-white uppercase tracking-widest flex items-center gap-2">
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                                    </svg>
-                                                                    Click to Expand
-                                                                </span>
                                                             </div>
-                                                        </div>
-                                                    ))}
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
+                                            )}
 
                                         {/* AI Insights & Data Assessment */}
                                         <div className="bg-orange-50/50 rounded-2xl p-6 border border-orange-100/50">
@@ -809,122 +810,122 @@ const SubdReports = () => {
                                                                 const replies = viewReport.comments
                                                                     ?.filter((reply: any) => reply.parent_comment_id === c.comment_id)
                                                                     .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) || [];
-                                                            return (
-                                                                <div key={c.comment_id} className="mb-4 last:mb-0">
-                                                                    <div className="flex gap-3 relative">
-                                                                        {/* Parent Avatar & Vertical Line */}
-                                                                        <div className="relative flex flex-col items-center shrink-0">
-                                                                            <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-[#F97316] font-black text-xs z-10 ring-4 ring-white border border-orange-100">
-                                                                                {c.user_name?.charAt(0).toUpperCase() || 'U'}
-                                                                            </div>
-                                                                            {(replies.length > 0 || replyingTo[viewReport.report_id]?.commentId === c.comment_id) && (
-                                                                                <div className="absolute top-8 bottom-[-16px] left-1/2 -translate-x-1/2 w-[2px] bg-gray-100 z-0"></div>
-                                                                            )}
-                                                                        </div>
-
-                                                                        <div className="flex-1 pb-1">
-                                                                            {/* Parent Bubble */}
-                                                                            <div className="bg-[#FAFAF9] rounded-[1.5rem] p-3.5 px-4 border border-gray-50 shadow-sm inline-block">
-                                                                                <span className="block text-[11px] font-black text-[#1a1208] mb-0.5">{c.user_name || 'User'}</span>
-                                                                                <p className="text-xs font-semibold text-gray-700 leading-relaxed pr-6">{c.comment}</p>
-                                                                            </div>
-                                                                            {/* Parent Actions */}
-                                                                            <div className="flex items-center gap-4 mt-1.5 ml-3">
-                                                                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{new Date(c.created_at).toLocaleDateString()}</span>
-                                                                                <button
-                                                                                    onClick={() => setReplyingTo(prev => ({ ...prev, [viewReport.report_id]: { commentId: c.comment_id, userName: c.user_name || 'User' } }))}
-                                                                                    className="text-[10px] font-bold text-gray-500 hover:text-[#F97316] transition-colors"
-                                                                                >
-                                                                                    Reply
-                                                                                </button>
-                                                                            </div>
-
-                                                                            {/* Replies Container */}
-                                                                            {replies.length > 0 && (
-                                                                                <div className="mt-4 space-y-4">
-                                                                                    {replies.map((reply: any, index: number) => (
-                                                                                        <div key={reply.comment_id} className="flex gap-3 relative">
-                                                                                            {/* Horizontal connector curve */}
-                                                                                            <div className="absolute top-[-10px] left-[-28px] w-[28px] h-[26px] border-b-[2px] border-l-[2px] border-gray-100 rounded-bl-[12px] z-0 pointer-events-none"></div>
-
-                                                                                            {/* Mask to hide vertical line below the last reply */}
-                                                                                            {index === replies.length - 1 && replyingTo[viewReport.report_id]?.commentId !== c.comment_id && (
-                                                                                                <div className="absolute top-[16px] bottom-[-100px] left-[-30px] w-[6px] bg-white z-0 pointer-events-none"></div>
-                                                                                            )}
-
-                                                                                            {/* Child Avatar */}
-                                                                                            <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 font-bold text-[10px] z-10 mt-1 ring-4 ring-white border border-gray-100 shrink-0">
-                                                                                                {reply.user_name?.charAt(0).toUpperCase() || 'U'}
-                                                                                            </div>
-
-                                                                                            <div className="flex-1">
-                                                                                                {/* Child Bubble */}
-                                                                                                <div className="bg-[#FAFAF9] rounded-[1.2rem] p-3 px-4 border border-gray-50 shadow-sm inline-block">
-                                                                                                    <span className="block text-[10px] font-black text-gray-800 mb-0.5">{reply.user_name || 'User'}</span>
-                                                                                                    <p className="text-[11px] font-semibold text-gray-600 leading-relaxed pr-4">{reply.comment}</p>
-                                                                                                </div>
-                                                                                                {/* Child Actions */}
-                                                                                                <div className="flex items-center gap-4 mt-1.5 ml-3">
-                                                                                                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{new Date(reply.created_at).toLocaleDateString()}</span>
-                                                                                                    <button
-                                                                                                        onClick={() => setReplyingTo(prev => ({ ...prev, [viewReport.report_id]: { commentId: c.comment_id, userName: reply.user_name || 'User' } }))}
-                                                                                                        className="text-[9px] font-bold text-gray-500 hover:text-[#F97316] transition-colors"
-                                                                                                    >
-                                                                                                        Reply
-                                                                                                    </button>
-                                                                                                </div>
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    ))}
+                                                                return (
+                                                                    <div key={c.comment_id} className="mb-4 last:mb-0">
+                                                                        <div className="flex gap-3 relative">
+                                                                            {/* Parent Avatar & Vertical Line */}
+                                                                            <div className="relative flex flex-col items-center shrink-0">
+                                                                                <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-[#F97316] font-black text-xs z-10 ring-4 ring-white border border-orange-100">
+                                                                                    {c.user_name?.charAt(0).toUpperCase() || 'U'}
                                                                                 </div>
-                                                                            )}
+                                                                                {(replies.length > 0 || replyingTo[viewReport.report_id]?.commentId === c.comment_id) && (
+                                                                                    <div className="absolute top-8 bottom-[-16px] left-1/2 -translate-x-1/2 w-[2px] bg-gray-100 z-0"></div>
+                                                                                )}
+                                                                            </div>
 
-                                                                            {/* Inline Reply Input */}
-                                                                            {replyingTo[viewReport.report_id]?.commentId === c.comment_id && (
-                                                                                <div className="mt-4 flex items-center gap-3 relative z-10 animate-in fade-in slide-in-from-top-2 duration-200">
-                                                                                    <div className="absolute top-[-10px] left-[-28px] w-[28px] h-[24px] border-b-[2px] border-l-[2px] border-gray-100 rounded-bl-[12px] z-0 pointer-events-none"></div>
-                                                                                    <div className="absolute top-[14px] bottom-[-100px] left-[-30px] w-[6px] bg-white z-0 pointer-events-none"></div>
+                                                                            <div className="flex-1 pb-1">
+                                                                                {/* Parent Bubble */}
+                                                                                <div className="bg-[#FAFAF9] rounded-[1.5rem] p-3.5 px-4 border border-gray-50 shadow-sm inline-block">
+                                                                                    <span className="block text-[11px] font-black text-[#1a1208] mb-0.5">{c.user_name || 'User'}</span>
+                                                                                    <p className="text-xs font-semibold text-gray-700 leading-relaxed pr-6">{c.comment}</p>
+                                                                                </div>
+                                                                                {/* Parent Actions */}
+                                                                                <div className="flex items-center gap-4 mt-1.5 ml-3">
+                                                                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{new Date(c.created_at).toLocaleDateString()}</span>
+                                                                                    <button
+                                                                                        onClick={() => setReplyingTo(prev => ({ ...prev, [viewReport.report_id]: { commentId: c.comment_id, userName: c.user_name || 'User' } }))}
+                                                                                        className="text-[10px] font-bold text-gray-500 hover:text-[#F97316] transition-colors"
+                                                                                    >
+                                                                                        Reply
+                                                                                    </button>
+                                                                                </div>
 
-                                                                                    <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-[#F97316] font-black text-[10px] shrink-0 border border-orange-200 z-10 bg-white ring-4 ring-white">
-                                                                                        {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'S'}
+                                                                                {/* Replies Container */}
+                                                                                {replies.length > 0 && (
+                                                                                    <div className="mt-4 space-y-4">
+                                                                                        {replies.map((reply: any, index: number) => (
+                                                                                            <div key={reply.comment_id} className="flex gap-3 relative">
+                                                                                                {/* Horizontal connector curve */}
+                                                                                                <div className="absolute top-[-10px] left-[-28px] w-[28px] h-[26px] border-b-[2px] border-l-[2px] border-gray-100 rounded-bl-[12px] z-0 pointer-events-none"></div>
+
+                                                                                                {/* Mask to hide vertical line below the last reply */}
+                                                                                                {index === replies.length - 1 && replyingTo[viewReport.report_id]?.commentId !== c.comment_id && (
+                                                                                                    <div className="absolute top-[16px] bottom-[-100px] left-[-30px] w-[6px] bg-white z-0 pointer-events-none"></div>
+                                                                                                )}
+
+                                                                                                {/* Child Avatar */}
+                                                                                                <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 font-bold text-[10px] z-10 mt-1 ring-4 ring-white border border-gray-100 shrink-0">
+                                                                                                    {reply.user_name?.charAt(0).toUpperCase() || 'U'}
+                                                                                                </div>
+
+                                                                                                <div className="flex-1">
+                                                                                                    {/* Child Bubble */}
+                                                                                                    <div className="bg-[#FAFAF9] rounded-[1.2rem] p-3 px-4 border border-gray-50 shadow-sm inline-block">
+                                                                                                        <span className="block text-[10px] font-black text-gray-800 mb-0.5">{reply.user_name || 'User'}</span>
+                                                                                                        <p className="text-[11px] font-semibold text-gray-600 leading-relaxed pr-4">{reply.comment}</p>
+                                                                                                    </div>
+                                                                                                    {/* Child Actions */}
+                                                                                                    <div className="flex items-center gap-4 mt-1.5 ml-3">
+                                                                                                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{new Date(reply.created_at).toLocaleDateString()}</span>
+                                                                                                        <button
+                                                                                                            onClick={() => setReplyingTo(prev => ({ ...prev, [viewReport.report_id]: { commentId: c.comment_id, userName: reply.user_name || 'User' } }))}
+                                                                                                            className="text-[9px] font-bold text-gray-500 hover:text-[#F97316] transition-colors"
+                                                                                                        >
+                                                                                                            Reply
+                                                                                                        </button>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        ))}
                                                                                     </div>
-                                                                                    <div className="flex-1 relative flex items-center">
-                                                                                        <input
-                                                                                            type="text"
-                                                                                            autoFocus
-                                                                                            placeholder={`Replying to ${replyingTo[viewReport.report_id]?.userName}...`}
-                                                                                            className="w-full bg-[#FAFAF9] border border-gray-100 rounded-[1.2rem] pl-4 pr-10 py-2 text-[11px] font-semibold text-[#1a1208] focus:outline-none focus:border-orange-200 focus:bg-white transition-all placeholder:text-gray-400 shadow-inner"
-                                                                                            value={commentInputs[viewReport.report_id] || ''}
-                                                                                            onChange={(e) => setCommentInputs(prev => ({ ...prev, [viewReport.report_id]: e.target.value }))}
-                                                                                            onKeyPress={(e) => e.key === 'Enter' && handleAddComment(viewReport.report_id)}
-                                                                                        />
+                                                                                )}
+
+                                                                                {/* Inline Reply Input */}
+                                                                                {replyingTo[viewReport.report_id]?.commentId === c.comment_id && (
+                                                                                    <div className="mt-4 flex items-center gap-3 relative z-10 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                                                        <div className="absolute top-[-10px] left-[-28px] w-[28px] h-[24px] border-b-[2px] border-l-[2px] border-gray-100 rounded-bl-[12px] z-0 pointer-events-none"></div>
+                                                                                        <div className="absolute top-[14px] bottom-[-100px] left-[-30px] w-[6px] bg-white z-0 pointer-events-none"></div>
+
+                                                                                        <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-[#F97316] font-black text-[10px] shrink-0 border border-orange-200 z-10 bg-white ring-4 ring-white">
+                                                                                            {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'S'}
+                                                                                        </div>
+                                                                                        <div className="flex-1 relative flex items-center">
+                                                                                            <input
+                                                                                                type="text"
+                                                                                                autoFocus
+                                                                                                placeholder={`Replying to ${replyingTo[viewReport.report_id]?.userName}...`}
+                                                                                                className="w-full bg-[#FAFAF9] border border-gray-100 rounded-[1.2rem] pl-4 pr-10 py-2 text-[11px] font-semibold text-[#1a1208] focus:outline-none focus:border-orange-200 focus:bg-white transition-all placeholder:text-gray-400 shadow-inner"
+                                                                                                value={commentInputs[viewReport.report_id] || ''}
+                                                                                                onChange={(e) => setCommentInputs(prev => ({ ...prev, [viewReport.report_id]: e.target.value }))}
+                                                                                                onKeyPress={(e) => e.key === 'Enter' && handleAddComment(viewReport.report_id)}
+                                                                                            />
+                                                                                            <button
+                                                                                                onClick={() => {
+                                                                                                    setReplyingTo(prev => ({ ...prev, [viewReport.report_id]: null }));
+                                                                                                    setCommentInputs(prev => ({ ...prev, [viewReport.report_id]: '' }));
+                                                                                                }}
+                                                                                                className="absolute right-3 text-gray-400 hover:text-red-500 transition-colors"
+                                                                                            >
+                                                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                                                                                </svg>
+                                                                                            </button>
+                                                                                        </div>
                                                                                         <button
-                                                                                            onClick={() => {
-                                                                                                setReplyingTo(prev => ({ ...prev, [viewReport.report_id]: null }));
-                                                                                                setCommentInputs(prev => ({ ...prev, [viewReport.report_id]: '' }));
-                                                                                            }}
-                                                                                            className="absolute right-3 text-gray-400 hover:text-red-500 transition-colors"
+                                                                                            onClick={() => handleAddComment(viewReport.report_id)}
+                                                                                            className="bg-[#F97316] text-white rounded-full w-8 h-8 flex items-center justify-center shadow-md shadow-orange-100 hover:scale-105 active:scale-95 transition-all shrink-0"
                                                                                         >
-                                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 relative left-[1px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                                                                                             </svg>
                                                                                         </button>
                                                                                     </div>
-                                                                                    <button
-                                                                                        onClick={() => handleAddComment(viewReport.report_id)}
-                                                                                        className="bg-[#F97316] text-white rounded-full w-8 h-8 flex items-center justify-center shadow-md shadow-orange-100 hover:scale-105 active:scale-95 transition-all shrink-0"
-                                                                                    >
-                                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 relative left-[1px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                                                                        </svg>
-                                                                                    </button>
-                                                                                </div>
-                                                                            )}
+                                                                                )}
+                                                                            </div>
                                                                         </div>
                                                                     </div>
-                                                                </div>
-                                                            );
-                                                        })
+                                                                );
+                                                            })
                                                     ) : (
                                                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic text-center py-4">No comments yet. Be the first to comment!</p>
                                                     )}
@@ -1015,8 +1016,8 @@ const SubdReports = () => {
                                 <h3 className="text-2xl font-black text-[#1a1208] tracking-tight">Report New Incident</h3>
                                 <p className="text-xs text-gray-400 mt-1.5 font-medium">Provide details about the stray or animal incident observed.</p>
                             </div>
-                            <button 
-                                onClick={() => setIsModalOpen(false)} 
+                            <button
+                                onClick={() => setIsModalOpen(false)}
                                 className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-all"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1028,7 +1029,7 @@ const SubdReports = () => {
                         {/* Form Body */}
                         <form onSubmit={handleSaveReport} className="p-10 overflow-y-auto custom-scrollbar flex-1 bg-white">
                             <div className="space-y-10">
-                                
+
                                 {/* Row 1: Animal Type & Category */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="space-y-3">
@@ -1039,11 +1040,10 @@ const SubdReports = () => {
                                                     key={type}
                                                     type="button"
                                                     onClick={() => setFormData({ ...formData, animal_type: type })}
-                                                    className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-                                                        formData.animal_type === type 
-                                                            ? 'bg-white text-[#F97316] shadow-sm' 
+                                                    className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${formData.animal_type === type
+                                                            ? 'bg-white text-[#F97316] shadow-sm'
                                                             : 'text-gray-400 hover:text-gray-600'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {type}
                                                 </button>
@@ -1099,11 +1099,10 @@ const SubdReports = () => {
                                                     key={cond}
                                                     type="button"
                                                     onClick={() => setFormData({ ...formData, condition: cond })}
-                                                    className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
-                                                        formData.condition === cond 
-                                                            ? 'bg-orange-50 border-orange-200 text-[#F97316]' 
+                                                    className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${formData.condition === cond
+                                                            ? 'bg-orange-50 border-orange-200 text-[#F97316]'
                                                             : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200 hover:text-gray-600'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {cond}
                                                 </button>
@@ -1118,11 +1117,10 @@ const SubdReports = () => {
                                                     key={count}
                                                     type="button"
                                                     onClick={() => setFormData({ ...formData, animal_count: parseInt(count) || 4 })}
-                                                    className={`flex-1 py-3 rounded-xl text-xs font-black transition-all border ${
-                                                        (count === '4+' ? formData.animal_count >= 4 : formData.animal_count === parseInt(count))
-                                                            ? 'bg-orange-50 border-orange-200 text-[#F97316]' 
+                                                    className={`flex-1 py-3 rounded-xl text-xs font-black transition-all border ${(count === '4+' ? formData.animal_count >= 4 : formData.animal_count === parseInt(count))
+                                                            ? 'bg-orange-50 border-orange-200 text-[#F97316]'
                                                             : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200 hover:text-gray-600'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {count}
                                                 </button>
@@ -1152,11 +1150,10 @@ const SubdReports = () => {
                                                 key={tag}
                                                 type="button"
                                                 onClick={() => toggleBehaviorTag(tag)}
-                                                className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${
-                                                    formData.behavior_tags.includes(tag)
+                                                className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${formData.behavior_tags.includes(tag)
                                                         ? 'bg-[#1a1208] border-[#1a1208] text-white shadow-lg shadow-gray-200 scale-105'
                                                         : 'bg-white border-gray-100 text-gray-400 hover:border-gray-300 hover:text-gray-600'
-                                                }`}
+                                                    }`}
                                             >
                                                 {tag}
                                             </button>
@@ -1172,8 +1169,8 @@ const SubdReports = () => {
                                             <div className="space-y-4">
                                                 <div
                                                     className={`relative grid gap-2 rounded-[2rem] overflow-hidden border-2 border-orange-500 bg-orange-50/10 p-2 cursor-pointer group/grid ${formData.mediaFiles.length === 1 ? 'grid-cols-1' :
-                                                            formData.mediaFiles.length === 2 ? 'grid-cols-2' :
-                                                                'grid-cols-2'
+                                                        formData.mediaFiles.length === 2 ? 'grid-cols-2' :
+                                                            'grid-cols-2'
                                                         }`}
                                                     onClick={() => document.getElementById('leader-multi-upload')?.click()}
                                                 >
@@ -1246,9 +1243,9 @@ const SubdReports = () => {
                                         <span className="text-[9px] font-bold text-[#F97316] bg-orange-50 px-3 py-1 rounded-full border border-orange-100 uppercase tracking-widest animate-pulse">Drag Marker to adjust</span>
                                     </div>
                                     <div className="w-full h-[350px] rounded-[2.5rem] overflow-hidden border-2 border-gray-50 shadow-inner relative group/map">
-                                        <MapComponent 
-                                            center={[formData.latitude, formData.longitude]} 
-                                            zoom={18} 
+                                        <MapComponent
+                                            center={[formData.latitude, formData.longitude]}
+                                            zoom={18}
                                             onLocationChange={(lat, lng) => setFormData({ ...formData, latitude: lat, longitude: lng })}
                                         />
                                         <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
@@ -1292,15 +1289,13 @@ const SubdReports = () => {
                                                 key={opt.id}
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, visibility: opt.id })}
-                                                className={`p-6 rounded-[2rem] border-2 text-left transition-all flex gap-4 ${
-                                                    formData.visibility === opt.id 
-                                                        ? 'bg-orange-50 border-[#F97316] ring-4 ring-orange-50' 
+                                                className={`p-6 rounded-[2rem] border-2 text-left transition-all flex gap-4 ${formData.visibility === opt.id
+                                                        ? 'bg-orange-50 border-[#F97316] ring-4 ring-orange-50'
                                                         : 'bg-white border-gray-100 hover:border-gray-200'
-                                                }`}
+                                                    }`}
                                             >
-                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
-                                                    formData.visibility === opt.id ? 'bg-[#F97316] text-white shadow-lg' : 'bg-gray-50 text-gray-400'
-                                                }`}>
+                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${formData.visibility === opt.id ? 'bg-[#F97316] text-white shadow-lg' : 'bg-gray-50 text-gray-400'
+                                                    }`}>
                                                     {opt.icon}
                                                 </div>
                                                 <div>
@@ -1497,10 +1492,10 @@ const SubdReports = () => {
                                 />
                             ) : (() => {
                                 const currentMedia = activeGallery.media[activeGallery.index];
-                                const isDoc = currentMedia.media_type === 'Document' || 
-                                             currentMedia.file_url.toLowerCase().endsWith('.pdf') || 
-                                             currentMedia.file_url.toLowerCase().endsWith('.docx');
-                                
+                                const isDoc = currentMedia.media_type === 'Document' ||
+                                    currentMedia.file_url.toLowerCase().endsWith('.pdf') ||
+                                    currentMedia.file_url.toLowerCase().endsWith('.docx');
+
                                 if (isDoc) {
                                     return (
                                         <div className="w-full h-full flex flex-col items-center justify-center gap-8">

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
 import Button from '../Button';
 
 interface ResiNavbarProps {
@@ -13,7 +14,23 @@ const ResiNavbar = ({ onMenuToggle }: ResiNavbarProps) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     const userStr = localStorage.getItem('resident_user');
-    const user = userStr ? JSON.parse(userStr) : null;
+    const initialUser = userStr ? JSON.parse(userStr) : null;
+    const [user, setUser] = useState(initialUser);
+
+    useEffect(() => {
+        const fetchLatestProfile = async () => {
+            if (!initialUser?.user_id) return;
+            try {
+                const res = await axios.get(`http://localhost:8000/users/${initialUser.user_id}`);
+                localStorage.setItem('resident_user', JSON.stringify(res.data));
+                setUser(res.data);
+            } catch (err) {
+                console.error("Failed to refresh profile", err);
+            }
+        };
+        fetchLatestProfile();
+    }, [initialUser?.user_id]);
+
     const profilePic = user?.profile_picture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || 'User'}`;
 
     const toggleMenu = () => {
@@ -23,62 +40,12 @@ const ResiNavbar = ({ onMenuToggle }: ResiNavbarProps) => {
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('resi_user');
+        localStorage.removeItem('resident_user');
+        sessionStorage.removeItem('resident_user');
         navigate('/login');
     };
 
-    const navLinks = [
-        {
-            path: '/resident-home',
-            label: 'Home',
-            icon: (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-            )
-        },
-        {
-            path: '/resident/report',
-            label: 'Report',
-            icon: (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-            )
-        },
-        {
-            path: '/resident/map',
-            label: 'Live',
-            icon: (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-            )
-        },
-        {
-            path: '/resident/my-reports',
-            label: 'My',
-            icon: (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01m-.01 4h.01" />
-                </svg>
-            )
-        },
-        {
-            path: '/resident/pets',
-            label: 'Pets',
-            icon: (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 21.5c-3.5 0-6.5-2.5-6.5-5.5s2.5-4.5 6.5-4.5 6.5 1.5 6.5 4.5-3 5.5-6.5 5.5Z" fill="#F97316" stroke="#1a1208" strokeWidth="1.5" />
-                    <ellipse cx="5.5" cy="11.5" rx="2.2" ry="3.8" transform="rotate(-25 5.5 11.5)" fill="#F97316" stroke="#1a1208" strokeWidth="1.5" />
-                    <ellipse cx="18.5" cy="11.5" rx="2.2" ry="3.8" transform="rotate(25 18.5 11.5)" fill="#F97316" stroke="#1a1208" strokeWidth="1.5" />
-                    <ellipse cx="9.5" cy="7.5" rx="2.2" ry="4.5" fill="#F97316" stroke="#1a1208" strokeWidth="1.5" />
-                    <ellipse cx="14.5" cy="7.5" rx="2.2" ry="4.5" fill="#F97316" stroke="#1a1208" strokeWidth="1.5" />
-                </svg>
-            )
-        },
-    ];
+
 
     return (
         <>
@@ -205,57 +172,18 @@ const ResiNavbar = ({ onMenuToggle }: ResiNavbarProps) => {
                         <div className="bg-[#FAFAF9] rounded-[2.5rem] p-6 flex items-center justify-between border border-gray-50 shadow-sm">
                             <div className="flex items-center gap-4">
                                 <div className="relative w-16 h-16 rounded-3xl overflow-hidden border-2 border-white shadow-md">
-                                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" className="bg-[#415a52]" />
+                                    <img src={profilePic} alt="User" className="w-full h-full object-cover bg-gray-100" />
                                     <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-black text-[#1a1208] leading-tight">Emmanuel Vito Cruz</h3>
+                                    <h3 className="text-lg font-black text-[#1a1208] leading-tight">{user?.name || 'User Name'}</h3>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Navigation Grid */}
-                        <div>
-                            <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-6 px-2">Navigation</p>
-                            <div className="grid grid-cols-2 gap-4">
-                                {navLinks.map((link) => (
-                                    <Link
-                                        key={link.path}
-                                        to={link.path}
-                                        onClick={() => { setIsMenuOpen(false); if (onMenuToggle) onMenuToggle(false); }}
-                                        className={`flex flex-col items-center justify-center p-6 rounded-[2rem] transition-all border ${location.pathname === link.path
-                                            ? 'bg-orange-50 text-[#F97316] border-orange-100'
-                                            : 'bg-white text-[#4a3b28] border-gray-100 shadow-sm'
-                                            }`}
-                                    >
-                                        <div className={`mb-2 p-2 rounded-xl ${location.pathname === link.path ? 'text-[#F97316]' : 'text-[#4a3b28]'}`}>
-                                            {link.icon}
-                                        </div>
-                                        <span className="text-[10px] font-black uppercase tracking-widest">{link.label}</span>
-                                    </Link>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Main CTA */}
-                        <Button
-                            variant="primary"
-                            className="w-full py-6 bg-[#92400e] hover:bg-[#1a1208] text-white flex items-center justify-between px-8 rounded-3xl shadow-2xl shadow-orange-900/20 group"
-                        >
-                            <div className="flex items-center gap-4">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                <span className="text-xs font-black uppercase tracking-[0.2em]">View My Reports</span>
-                            </div>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                            </svg>
-                        </Button>
-
                         {/* Quick Actions */}
                         <div>
-                            <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-6 px-2">Quick Actions</p>
+                            <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-6 px-2">Account Actions</p>
                             <div className="space-y-4">
                                 <Link to="/resident/profile" onClick={() => { setIsMenuOpen(false); if (onMenuToggle) onMenuToggle(false); }} className="flex items-center justify-between p-4 group">
                                     <div className="flex items-center gap-4 text-[#4a3b28]">
@@ -264,13 +192,13 @@ const ResiNavbar = ({ onMenuToggle }: ResiNavbarProps) => {
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                             </svg>
                                         </div>
-                                        <span className="text-sm font-black text-[#4a3b28] uppercase tracking-widest">Profile Settings</span>
+                                        <span className="text-sm font-black text-[#4a3b28] uppercase tracking-widest">Settings</span>
                                     </div>
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
                                     </svg>
                                 </Link>
-
+                                
                                 <button onClick={handleLogout} className="w-full flex items-center justify-between p-4 group">
                                     <div className="flex items-center gap-4">
                                         <div className="p-3 bg-red-50 rounded-2xl group-hover:bg-[#EF4444] text-[#EF4444] group-hover:text-white transition-all">
@@ -278,7 +206,7 @@ const ResiNavbar = ({ onMenuToggle }: ResiNavbarProps) => {
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                                             </svg>
                                         </div>
-                                        <span className="text-sm font-black text-[#EF4444] uppercase tracking-widest">Logout Account</span>
+                                        <span className="text-sm font-black text-[#EF4444] uppercase tracking-widest">Logout</span>
                                     </div>
                                 </button>
                             </div>
