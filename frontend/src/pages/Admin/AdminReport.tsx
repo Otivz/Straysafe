@@ -129,7 +129,9 @@ const AdminReport = () => {
         try {
             setLoading(true);
             const response = await axios.get(`${API_URL}/`);
-            setReports(response.data);
+            // Sort by report_id descending to show new reports at the top
+            const sortedData = (response.data || []).sort((a: any, b: any) => b.report_id - a.report_id);
+            setReports(sortedData);
         } catch (error) {
             console.error('Error fetching reports:', error);
         } finally {

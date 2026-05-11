@@ -1,5 +1,6 @@
+from typing import Optional, List
 from sqlalchemy import Column, Integer, String, Text, DateTime, func, ForeignKey, Numeric, Boolean, Enum
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import relationship, backref, Mapped, mapped_column
 from app.database import Base
 
 
@@ -18,47 +19,52 @@ class ReportStatus(Base):
 
 class Report(Base):
     __tablename__ = "reports"
+    __allow_unmapped__ = True
 
-    report_id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
-    subdivision_id = Column(Integer, ForeignKey("subdivisions.subdivision_id"), nullable=False)
-    category_id = Column(Integer, ForeignKey("report_categories.category_id"), nullable=False)
-    pet_id = Column(Integer, nullable=True)  # FK to pets omitted until pets table is created
-    
-    animal_type = Column(Enum('Dog', 'Cat', 'Unknown'), default='Unknown')
-    animal_breed = Column(String(100), nullable=True)
-    animal_color = Column(String(255), nullable=True)
-    estimated_size = Column(Enum('Small', 'Medium', 'Large'), nullable=True)
+    report_id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    subdivision_id: Mapped[int] = mapped_column(Integer, ForeignKey("subdivisions.subdivision_id"), nullable=False)
+    category_id: Mapped[int] = mapped_column(Integer, ForeignKey("report_categories.category_id"), nullable=False)
+    pet_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # FK to pets omitted until pets table is created
 
-    description = Column(Text, nullable=True)
+    animal_type: Mapped[Optional[str]] = mapped_column(Enum('Dog', 'Cat', 'Unknown'), nullable=True, default='Unknown')
+    animal_breed: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    animal_color: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    estimated_size: Mapped[Optional[str]] = mapped_column(Enum('Small', 'Medium', 'Large'), nullable=True)
+
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     latitude = Column(Numeric(10, 8), nullable=False)
     longitude = Column(Numeric(11, 8), nullable=False)
 
-    animal_count = Column(Integer, default=1)
-    landmark = Column(String(255), nullable=True)
+    animal_count: Mapped[int] = mapped_column(Integer, default=1)
+    landmark: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # DB ENUM: 'Low','Regular','High' only
-    priority_level = Column(Enum('Low', 'Regular', 'High'), default='Regular')
-    visibility = Column(Enum('Public', 'Private'), default='Public')
+    priority_level: Mapped[Optional[str]] = mapped_column(Enum('Low', 'Regular', 'High'), nullable=True, default='Regular')
+    visibility: Mapped[Optional[str]] = mapped_column(Enum('Public', 'Private'), nullable=True, default='Public')
 
-    is_possible_owned = Column(Boolean, default=False)
+    is_possible_owned: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # DB column is current_status_id (not status_id)
-    current_status_id = Column(Integer, ForeignKey("report_status.status_id"), nullable=True)
+    current_status_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("report_status.status_id"), nullable=True)
 
     created_at = Column(DateTime, server_default=func.now())
 
     # Relationships
-    reporter = relationship("User", backref="reports")
+    reporter: Mapped[Optional["User"]] = relationship("User", backref="reports")
     category = relationship("ReportCategory")
     status = relationship("ReportStatus")
     subdivision = relationship("Subdivision")
-    media = relationship("ReportMedia", back_populates="report", cascade="all, delete-orphan")
-    comments = relationship("Comment", backref="report", cascade="all, delete-orphan")
-    rescues = relationship("Rescue", back_populates="report", cascade="all, delete-orphan")
-    verifications = relationship("ReportVerification", backref="report", cascade="all, delete-orphan")
-    history = relationship("StatusHistory", back_populates="report", cascade="all, delete-orphan", order_by="StatusHistory.created_at")
+    media: Mapped[List["ReportMedia"]] = relationship("ReportMedia", back_populates="report", cascade="all, delete-orphan")
+    comments: Mapped[List["Comment"]] = relationship("Comment", backref="report", cascade="all, delete-orphan")
+    rescues: Mapped[List["Rescue"]] = relationship("Rescue", back_populates="report", cascade="all, delete-orphan")
+    verifications: Mapped[List["ReportVerification"]] = relationship("ReportVerification", backref="report", cascade="all, delete-orphan")
+    history: Mapped[List["StatusHistory"]] = relationship("StatusHistory", back_populates="report", cascade="all, delete-orphan", order_by="StatusHistory.created_at")
+
+    # Transient fields populated at runtime (not DB columns)
+    reporter_name: Optional[str] = None
+    status_id: Optional[int] = None
 
 
 class ReportMedia(Base):
@@ -85,7 +91,7 @@ class Comment(Base):
     comment = Column(Text, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
-    user = relationship("User")
+    user: Mapped[Optional["User"]] = relationship("User")
     replies = relationship("Comment", backref=backref("parent", remote_side=[comment_id]), cascade="all, delete-orphan")
 
 
@@ -99,22 +105,31 @@ class RescueStatus(Base):
 # DB table is "rescues" (not "rescue_requests")
 class Rescue(Base):
     __tablename__ = "rescues"
+    __allow_unmapped__ = True
 
-    rescue_id = Column(Integer, primary_key=True, index=True)
-    report_id = Column(Integer, ForeignKey("reports.report_id", ondelete="CASCADE"), nullable=False)
-    staff_id = Column(Integer, ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
-    status_id = Column(Integer, ForeignKey("rescue_status.status_id"), nullable=True)
-    notes = Column(Text, nullable=True)
+    rescue_id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    report_id: Mapped[int] = mapped_column(Integer, ForeignKey("reports.report_id", ondelete="CASCADE"), nullable=False)
+    staff_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
+    status_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("rescue_status.status_id"), nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     leader_id = Column(Integer, ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
 
     # Relationships
-    report = relationship("Report", back_populates="rescues")
+    report: Mapped[Optional["Report"]] = relationship("Report", back_populates="rescues")
     staff = relationship("User", foreign_keys=[staff_id])
     leader = relationship("User", foreign_keys=[leader_id])
     status = relationship("RescueStatus")
-    assignments = relationship("RescueAssignment", back_populates="rescue", cascade="all, delete-orphan")
+    assignments: Mapped[List["RescueAssignment"]] = relationship("RescueAssignment", back_populates="rescue", cascade="all, delete-orphan")
+
+    # Transient fields populated at runtime (not DB columns)
+    title: Optional[str] = None
+    description: Optional[str] = None
+    leader_name: Optional[str] = None
+    leader_position: Optional[str] = None
+    assigned_staff_name: Optional[str] = None
+    request_id: Optional[int] = None
 
 
 class ReportVerification(Base):

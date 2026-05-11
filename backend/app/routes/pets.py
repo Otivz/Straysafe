@@ -28,7 +28,7 @@ def get_owner_pets(owner_id: int, db: Session = Depends(get_db)):
 
 @router.post("/", response_model=PetResponse)
 def create_pet(pet: PetCreate, db: Session = Depends(get_db)):
-    db_pet = Pet(**pet.dict())
+    db_pet = Pet(**pet.model_dump())
     db.add(db_pet)
     db.commit()
     db.refresh(db_pet)
@@ -40,7 +40,7 @@ def update_pet(pet_id: int, pet_update: PetUpdate, db: Session = Depends(get_db)
     if not db_pet:
         raise HTTPException(status_code=404, detail="Pet not found")
     
-    update_data = pet_update.dict(exclude_unset=True)
+    update_data = pet_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_pet, key, value)
     

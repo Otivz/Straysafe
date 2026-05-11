@@ -18,6 +18,9 @@ const AdminHeatMap = () => {
     const [loading, setLoading] = useState(true);
     const [timeFilter, setTimeFilter] = useState('7d');
     const [categoryFilter, setCategoryFilter] = useState('all');
+    const [heatmapPoints, setHeatmapPoints] = useState<[number, number, number][]>([]);
+    const [markers, setMarkers] = useState<any[]>([]);
+    const [mapMode, setMapMode] = useState<'heatmap' | 'pinpoint'>('pinpoint');
     const [showSummary, setShowSummary] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
 
@@ -32,7 +35,7 @@ const AdminHeatMap = () => {
     const fetchReports = async () => {
         try {
             setLoading(true);
-            const response = await axios.get('http://localhost:8000/reports');
+            const response = await axios.get('http://localhost:8000/reports/');
             setReports(response.data);
         } catch (error) {
             console.error('Error fetching reports for heatmap:', error);
@@ -45,6 +48,79 @@ const AdminHeatMap = () => {
         fetchReports();
     }, []);
 
+    useEffect(() => {
+        processReports();
+    }, [reports, timeFilter, categoryFilter]);
+
+    const processReports = () => {
+        if (!reports.length) {
+            setMarkers([]);
+            return;
+        }
+
+        // 1. Start with all reports
+        let filtered = [...reports];
+
+        // 2. Status Filter - Only show active ones unless user wants history
+        // For now, let's show all statuses to find your reports
+        // filtered = filtered.filter(r => r.current_status_id <= 3);
+
+        // 3. Time Filter Logic
+        const now = new Date();
+        const timeLimit = new Date();
+        if (timeFilter === '24h') timeLimit.setHours(now.getHours() - 24);
+        else if (timeFilter === '7d') timeLimit.setDate(now.getDate() - 7);
+        else if (timeFilter === '30d') timeLimit.setDate(now.getDate() - 30);
+
+        const timeFiltered = filtered.filter(r => new Date(r.created_at) >= timeLimit);
+        if (timeFiltered.length > 0) {
+            filtered = timeFiltered;
+        }
+
+        // 4. Category Filter Logic
+        if (categoryFilter !== 'all') {
+            filtered = filtered.filter(r => r.category_id.toString() === categoryFilter);
+        }
+
+        // 5. Map to Heatmap Points
+        const points = filtered
+            .filter(r => r.latitude && r.longitude)
+            .map((r: any) => [
+                parseFloat(r.latitude.toString()), 
+                parseFloat(r.longitude.toString()), 
+                r.priority_level === 'High' ? 1.0 : 0.6
+            ] as [number, number, number]);
+        setHeatmapPoints(points);
+
+        // 6. Map to Pinpoint Markers
+        const categoryMap: any = {
+            '1': 'Injured Animal',
+            '2': 'Aggressive Stray',
+            '3': 'Possible Rabies',
+            'all': 'Stray Animal'
+        };
+
+        const marks = filtered
+            .filter(r => r.latitude && r.longitude)
+            .map((r: any) => {
+                const date = new Date(r.created_at);
+                const timeStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                
+                return {
+                    id: r.report_id,
+                    lat: parseFloat(r.latitude.toString()),
+                    lng: parseFloat(r.longitude.toString()),
+                    title: r.description || 'No description provided.',
+                    priority: r.priority_level,
+                    category: categoryMap[r.category_id.toString()] || 'Stray Animal',
+                    time: timeStr
+                };
+            });
+        
+
+        setMarkers(marks);
+    };
+
     return (
         <div className="flex h-screen bg-[#0F172A] text-slate-200">
             <AdminSidebar />
@@ -53,6 +129,15 @@ const AdminHeatMap = () => {
                 <AdminNavbar />
 
                 <main className="flex-1 relative overflow-hidden flex flex-col">
+                    {loading && (
+                        <div className="absolute inset-0 z-[10000] bg-[#1B4340]/40 backdrop-blur-md flex items-center justify-center">
+                            <div className="flex flex-col items-center">
+                                <div className="w-12 h-12 border-4 border-teal-100/20 border-t-[#F97316] rounded-full animate-spin mb-4"></div>
+                                <span className="text-[10px] font-black text-white uppercase tracking-[0.3em] animate-pulse">Syncing Activity Data</span>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Map Overlay Stats & Control Dropdowns */}
                     <div className="absolute top-6 right-6 z-[9999] flex flex-col items-end gap-4">
                         <div className="flex gap-4">
@@ -227,21 +312,29 @@ const AdminHeatMap = () => {
                         </div>
                     </div>
 
-                    {/* The Actual Map */}
-                    <div className="w-full h-full relative">
-                        {loading && (
-                            <div className="absolute inset-0 z-[10000] bg-[#1B4340]/40 backdrop-blur-md flex items-center justify-center">
-                                <div className="flex flex-col items-center">
-                                    <div className="w-12 h-12 border-4 border-teal-100/20 border-t-[#F97316] rounded-full animate-spin mb-4"></div>
-                                    <span className="text-[10px] font-black text-white uppercase tracking-[0.3em] animate-pulse">Syncing Activity Data</span>
-                                </div>
-                            </div>
-                        )}
+                    {/* View Toggle Overlay */}
+                    <div className="absolute top-6 left-6 z-[500] flex bg-[#1B4340] p-1.5 rounded-2xl border border-teal-800/50 shadow-2xl">
+                        <button 
+                            onClick={() => setMapMode('heatmap')}
+                            className={`px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${mapMode === 'heatmap' ? 'bg-[#F97316] text-white' : 'text-teal-100/40 hover:text-teal-100'}`}
+                        >
+                            Heatmap
+                        </button>
+                        <button 
+                            onClick={() => setMapMode('pinpoint')}
+                            className={`px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${mapMode === 'pinpoint' ? 'bg-[#F97316] text-white' : 'text-teal-100/40 hover:text-teal-100'}`}
+                        >
+                            Pinpoint
+                        </button>
+                    </div>
+
+                    <div className="w-full h-full">
                         <MapComponent 
-                            height="100%"
-                            center={[14.8093, 121.0028]} // San Vicente Core
+                            center={[14.8093, 121.0028]} 
                             zoom={16}
-                            showHeatmap={true}
+                            heatmapPoints={heatmapPoints}
+                            markers={mapMode === 'pinpoint' ? markers : []}
+                            showHeatmap={mapMode === 'heatmap'}
                         />
                     </div>
                 </main>

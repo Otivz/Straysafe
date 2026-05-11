@@ -47,13 +47,13 @@ def get_rescue_requests(db: Session = Depends(get_db)):
     for rescue in rescues:
         # Populate dynamic fields for frontend compatibility
         if rescue.report:
-            rescue.report.reporter_name = rescue.report.reporter.name if rescue.report.reporter else "Citizen"
-            rescue.report.status_id = rescue.report.current_status_id # Map status correctly
+            rescue.report.reporter_name = rescue.report.reporter.name if rescue.report.reporter else "Citizen"  # type: ignore[attr-defined]
+            rescue.report.status_id = rescue.report.current_status_id  # type: ignore[attr-defined]
             rescue.title = f"Rescue: {rescue.report.animal_type} at {rescue.report.landmark}"
             rescue.description = rescue.report.description
         else:
             rescue.title = f"Rescue Request #{rescue.rescue_id}"
-            rescue.description = rescue.notes or "No description provided."
+            rescue.description = str(rescue.notes) if rescue.notes else "No description provided."
 
         # Determine the name of the Subdivision Leader who sent the request
         if rescue.leader:
@@ -84,14 +84,14 @@ def get_rescue_requests(db: Session = Depends(get_db)):
         if rescue.staff:
              # If staff_id is set on the rescue, that's the primary assigned person
              rescue.assigned_staff_name = rescue.staff.name
-        elif rescue.assignments and len(rescue.assignments) > 0:
+        elif rescue.assignments:
             # Fallback to history
-            latest = sorted(rescue.assignments, key=lambda x: x.assigned_at, reverse=True)[0]
+            latest = sorted(rescue.assignments, key=lambda x: x.assigned_at, reverse=True)[0]  # type: ignore[arg-type]
             assigned_staff = db.query(User).filter(User.user_id == latest.staff_id).first()
-            rescue.assigned_staff_name = assigned_staff.name if assigned_staff else None
+            rescue.assigned_staff_name = str(assigned_staff.name) if assigned_staff else None
             
         # Populate request_id for frontend compatibility
-        rescue.request_id = rescue.rescue_id
+        rescue.request_id = rescue.rescue_id  # type: ignore[assignment]
 
     return rescues
 

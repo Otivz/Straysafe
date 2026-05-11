@@ -124,7 +124,8 @@ async def upload_profile_picture(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    file_extension = os.path.splitext(file.filename)[1]
+    safe_filename = file.filename or ""
+    file_extension = os.path.splitext(safe_filename)[1]
     unique_filename = f"profile_{user_id}_{uuid.uuid4().hex[:8]}{file_extension}"
 
     try:

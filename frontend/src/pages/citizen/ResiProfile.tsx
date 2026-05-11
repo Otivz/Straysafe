@@ -12,6 +12,8 @@ const ResiProfile = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [openMenuId, setOpenMenuId] = useState<number | null>(null);
     const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,7 +48,7 @@ const ResiProfile = () => {
     const fetchUserProfile = async () => {
         const storedUser = localStorage.getItem('resident_user');
         const userId = storedUser ? JSON.parse(storedUser).user_id : initialUser.user_id;
-        
+
         try {
             const response = await axios.get(`http://localhost:8000/users/${userId}`);
             setUserData(response.data);
@@ -83,7 +85,7 @@ const ResiProfile = () => {
             alert('Failed to delete report');
         }
     };
-    
+
     const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -105,6 +107,24 @@ const ResiProfile = () => {
         }
     };
 
+    const handleMobileSearch = (query: string) => {
+        setSearchQuery(query);
+        setIsMobileSearchOpen(false);
+    };
+
+    const filteredReports = reports.filter((r) => {
+        const q = searchQuery.toLowerCase();
+        const categoryMap: Record<number, string> = {
+            1: 'Injured Animal', 2: 'Aggressive Stray', 3: 'Possible Rabies Risk',
+            4: 'Roaming Pack', 5: 'Animal Rescue Needed'
+        };
+        const categoryName = categoryMap[r.category_id] || '';
+        return (r.description && r.description.toLowerCase().includes(q)) ||
+            (r.landmark && r.landmark.toLowerCase().includes(q)) ||
+            (r.animal_type && r.animal_type.toLowerCase().includes(q)) ||
+            (categoryName.toLowerCase().includes(q));
+    });
+
     const handleSaveProfile = async () => {
         try {
             // Update in DB
@@ -120,25 +140,31 @@ const ResiProfile = () => {
 
     return (
         <div className="min-h-screen bg-[#F7F7F7] font-sans pb-24">
-            <ResiNavbar onMenuToggle={(isOpen) => setIsNavbarMenuOpen(isOpen)} />
+            <ResiNavbar
+                onMenuToggle={(isOpen) => setIsNavbarMenuOpen(isOpen)}
+                onSearch={setSearchQuery}
+                searchValue={searchQuery}
+                isMobileSearchOpen={isMobileSearchOpen}
+                onCloseSearch={() => setIsMobileSearchOpen(false)}
+            />
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32">
                 <div className="flex flex-col lg:flex-row gap-8">
-                    
+
                     {/* Left Column: Profile Card */}
                     <div className="lg:w-[400px] shrink-0">
                         <div className="bg-white border border-gray-200 rounded-lg p-8 shadow-sm text-center relative">
                             {/* Avatar */}
                             <div className="relative inline-block mb-4 mt-4 group">
                                 <div className="w-36 h-36 rounded-full overflow-hidden border-2 border-white shadow-xl mx-auto relative">
-                                    <img 
-                                        src={userData.profile_picture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} 
-                                        alt={userData.name} 
+                                    <img
+                                        src={userData.profile_picture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`}
+                                        alt={userData.name}
                                         className={`w-full h-full object-cover transition-all duration-300 ${isUploadingPhoto ? 'opacity-50 blur-sm' : 'group-hover:scale-110'}`}
                                     />
-                                    
+
                                     {/* Upload Overlay */}
-                                    <button 
+                                    <button
                                         onClick={() => fileInputRef.current?.click()}
                                         disabled={isUploadingPhoto}
                                         className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
@@ -159,12 +185,12 @@ const ResiProfile = () => {
                                         </div>
                                     )}
                                 </div>
-                                <input 
-                                    type="file" 
-                                    ref={fileInputRef} 
-                                    onChange={handlePhotoUpload} 
-                                    className="hidden" 
-                                    accept="image/*" 
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handlePhotoUpload}
+                                    className="hidden"
+                                    accept="image/*"
                                 />
                             </div>
 
@@ -230,9 +256,9 @@ const ResiProfile = () => {
                             </div>
 
                             <div className="mt-10 pt-6 border-t border-gray-100">
-                                <Button 
-                                    variant="primary" 
-                                    fullWidth 
+                                <Button
+                                    variant="primary"
+                                    fullWidth
                                     className="py-3 gap-2"
                                     onClick={() => setIsEditModalOpen(true)}
                                 >
@@ -250,7 +276,7 @@ const ResiProfile = () => {
                         <div className="bg-white border border-gray-200 rounded-lg shadow-sm mb-6">
                             <div className="px-8 py-6 border-b border-gray-100">
                                 <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wider relative inline-block">
-                                    Active Incident Reports
+                                    My Reports
                                     <div className="absolute -bottom-[25px] left-0 right-0 h-1 bg-[#F97316]"></div>
                                 </h2>
                             </div>
@@ -258,7 +284,7 @@ const ResiProfile = () => {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                             {/* Create New Report Placeholder */}
-                            <button 
+                            <button
                                 onClick={() => navigate('/resident-home', { state: { openAddModal: true, from: '/resident/profile' } })}
                                 className="hidden md:flex bg-white border-2 border-dashed border-gray-100 rounded-lg p-10 flex-col items-center justify-center gap-4 group hover:border-[#F97316] hover:bg-orange-50/30 transition-all min-h-[320px]"
                             >
@@ -271,101 +297,110 @@ const ResiProfile = () => {
                             </button>
 
                             {/* Report Cards */}
-                            {reports.map((report) => (
-                                <div key={report.report_id} className="bg-white border border-gray-200 rounded-lg overflow-hidden group shadow-sm hover:shadow-md transition-all flex flex-col">
-                                    <div className="h-44 relative overflow-hidden bg-gray-100">
-                                        <div className="absolute top-3 left-3 px-2 py-1 bg-black/50 backdrop-blur-md rounded text-[9px] font-black text-white uppercase tracking-widest z-10 flex items-center gap-1.5 shadow-sm">
-                                            {report.visibility === 'Private' ? (
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                                </svg>
-                                            ) : (
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                </svg>
-                                            )}
-                                            {report.visibility}
-                                        </div>
+                            {filteredReports.length === 0 ? (
+                                <div className="col-span-full text-center py-12 bg-white rounded-3xl border border-gray-100 shadow-sm">
+                                    <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">
+                                        {reports.length === 0 ? "You haven't submitted any reports yet." : "No reports match your search."}
+                                    </p>
+                                </div>
+                            ) : (
+                                filteredReports.map((report) => (
+                                    <div key={report.report_id} className="bg-white border border-gray-200 rounded-lg overflow-hidden group shadow-sm hover:shadow-md transition-all flex flex-col">
+                                        <div className="h-44 relative overflow-hidden bg-gray-100">
+                                            <div className="absolute top-3 left-3 px-2 py-1 bg-black/50 backdrop-blur-md rounded text-[9px] font-black text-white uppercase tracking-widest z-10 flex items-center gap-1.5 shadow-sm">
+                                                {report.visibility === 'Private' ? (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                    </svg>
+                                                ) : (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                    </svg>
+                                                )}
+                                                {report.visibility}
+                                            </div>
 
-                                        {/* 3-Dot Menu */}
-                                        <div className="absolute top-3 right-3 z-20" ref={openMenuId === report.report_id ? menuRef : null}>
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setOpenMenuId(openMenuId === report.report_id ? null : report.report_id);
-                                                }}
-                                                className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md text-white flex items-center justify-center hover:bg-white/40 transition-all border border-white/30"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
-                                                </svg>
-                                            </button>
-                                            {openMenuId === report.report_id && (
-                                                <div className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-2xl border border-gray-100 py-1 z-30 animate-in fade-in zoom-in-95 duration-200">
-                                                    <button 
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            navigate('/resident-home', { state: { editReport: report, isViewMode: true, from: '/resident/profile' } });
-                                                        }}
-                                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-[#F97316] hover:bg-orange-50 transition-colors"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                        </svg>
-                                                        View Details
-                                                    </button>
-                                                    <button 
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleDeleteReport(report.report_id);
-                                                            setOpenMenuId(null);
-                                                        }}
-                                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 transition-colors border-t border-gray-50"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                        Delete
-                                                    </button>
+                                            {/* 3-Dot Menu */}
+                                            <div className="absolute top-3 right-3 z-20" ref={openMenuId === report.report_id ? menuRef : null}>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setOpenMenuId(openMenuId === report.report_id ? null : report.report_id);
+                                                    }}
+                                                    className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md text-white flex items-center justify-center hover:bg-white/40 transition-all border border-white/30"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
+                                                    </svg>
+                                                </button>
+                                                {openMenuId === report.report_id && (
+                                                    <div className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-2xl border border-gray-100 py-1 z-30 animate-in fade-in zoom-in-95 duration-200">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                navigate('/resident-home', { state: { editReport: report, isViewMode: true, from: '/resident/profile' } });
+                                                            }}
+                                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-[#F97316] hover:bg-orange-50 transition-colors"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                            </svg>
+                                                            View Details
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeleteReport(report.report_id);
+                                                                setOpenMenuId(null);
+                                                            }}
+                                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 transition-colors border-t border-gray-50"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {report.media && report.media.length > 0 ? (
+                                                <img
+                                                    src={report.media[0].file_url}
+                                                    alt="Report"
+                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    </svg>
                                                 </div>
                                             )}
                                         </div>
-
-                                        {report.media && report.media.length > 0 ? (
-                                            <img 
-                                                src={report.media[0].file_url} 
-                                                alt="Report" 
-                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-gray-300">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                </svg>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="p-4 flex-1 flex flex-col">
-                                        <h3 className="text-sm font-medium text-gray-800 line-clamp-2 mb-4 hover:text-[#F97316] transition-colors cursor-pointer">
-                                            I sighted {report.animal_count} {report.animal_type}(s) near {report.landmark || 'unknown location'}. Status is {report.status}.
-                                        </h3>
-                                        <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
-                                            <div className="text-right ml-auto">
-                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Priority</p>
-                                                <p className="text-sm font-bold text-gray-800 uppercase">{report.priority_level}</p>
+                                        <div className="p-4 flex-1 flex flex-col">
+                                            <h3 className="text-sm font-medium text-gray-800 line-clamp-2 mb-4 hover:text-[#F97316] transition-colors cursor-pointer">
+                                                I sighted {report.animal_count} {report.animal_type}(s) near {report.landmark || 'unknown location'}. Status is {report.status}.
+                                            </h3>
+                                            <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
+                                                <div className="text-right ml-auto">
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Priority</p>
+                                                    <p className="text-sm font-bold text-gray-800 uppercase">{report.priority_level}</p>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                )))}
                         </div>
                     </div>
                 </div>
             </main>
-            <ResiMobileNav 
-                isNavbarMenuOpen={isNavbarMenuOpen} 
+            <ResiMobileNav
+                isNavbarMenuOpen={isNavbarMenuOpen}
+                isSearchOpen={isMobileSearchOpen}
+                onSearchClick={() => setIsMobileSearchOpen(true)}
                 onAddReportClick={() => navigate('/resident-home', { state: { openAddModal: true, from: '/resident/profile' } })}
             />
 
@@ -384,38 +419,38 @@ const ResiProfile = () => {
                         <div className="space-y-6">
                             <div>
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Full Name</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     className="w-full h-12 bg-gray-50 border border-gray-100 rounded-xl px-4 text-sm font-bold focus:outline-none focus:border-orange-200"
                                     value={editData.name}
-                                    onChange={(e) => setEditData({...editData, name: e.target.value})}
+                                    onChange={(e) => setEditData({ ...editData, name: e.target.value })}
                                 />
                             </div>
                             <div>
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Email Address</label>
-                                <input 
-                                    type="email" 
+                                <input
+                                    type="email"
                                     className="w-full h-12 bg-gray-50 border border-gray-100 rounded-xl px-4 text-sm font-bold focus:outline-none focus:border-orange-200"
                                     value={editData.email}
-                                    onChange={(e) => setEditData({...editData, email: e.target.value})}
+                                    onChange={(e) => setEditData({ ...editData, email: e.target.value })}
                                 />
                             </div>
                             <div>
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Contact Number</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     className="w-full h-12 bg-gray-50 border border-gray-100 rounded-xl px-4 text-sm font-bold focus:outline-none focus:border-orange-200"
                                     value={editData.phone}
-                                    onChange={(e) => setEditData({...editData, phone: e.target.value})}
+                                    onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
                                 />
                             </div>
                             <div>
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Address</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     className="w-full h-12 bg-gray-50 border border-gray-100 rounded-xl px-4 text-sm font-bold focus:outline-none focus:border-orange-200"
                                     value={editData.address}
-                                    onChange={(e) => setEditData({...editData, address: e.target.value})}
+                                    onChange={(e) => setEditData({ ...editData, address: e.target.value })}
                                 />
                             </div>
                         </div>
@@ -428,6 +463,70 @@ const ResiProfile = () => {
                     </div>
                 </div>
             )}
+
+            {/* MOBILE SEARCH OVERLAY */}
+            <div className={`md:hidden fixed inset-0 z-[700] bg-white transition-all duration-300 ease-in-out transform ${isMobileSearchOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}>
+                <div className="bg-[#F97316] pt-10 pb-8 px-6 rounded-b-[2.5rem] shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay"></div>
+                    <div className="relative flex items-center gap-4 mt-2">
+                        <button onClick={() => setIsMobileSearchOpen(false)} className="text-white hover:bg-white/20 p-2 rounded-full transition-all shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
+                        </button>
+                        <div className="relative flex-1">
+                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search your reports..."
+                                className="w-full pl-11 pr-4 py-3 bg-white rounded-full text-[#1a1208] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-white/30 font-medium shadow-inner transition-all"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="px-6 py-8 overflow-y-auto h-[calc(100vh-140px)]">
+                    <div className="mb-8">
+                        <div className="flex justify-between items-end mb-5">
+                            <h3 className="text-[#1a1208] font-black text-xl tracking-tight">Recent</h3>
+                            <button className="text-[#EF4444] text-xs font-bold uppercase tracking-wider hover:underline" onClick={() => setSearchQuery('')}>Clear all</button>
+                        </div>
+                        <div className="flex flex-wrap gap-2.5">
+                            {['Injured Dog', 'San Jose', 'Stray Cat', 'Rabies Risk', 'Highway'].map((item) => (
+                                <button key={item} onClick={() => handleMobileSearch(item)} className="px-5 py-2.5 bg-[#FAFAF9] border border-gray-100 hover:bg-orange-50 hover:border-orange-200 hover:text-[#F97316] text-[#4a3b28] text-sm font-semibold rounded-full transition-all shadow-sm">
+                                    {item}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="mb-8">
+                        <div className="flex justify-between items-end mb-5">
+                            <h3 className="text-[#1a1208] font-black text-xl tracking-tight">Suggestions</h3>
+                            <button className="text-[#F97316] text-xs font-bold uppercase tracking-wider hover:underline">See all</button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <button onClick={() => handleMobileSearch('Rescue')} className="flex items-center p-3.5 bg-white shadow-sm rounded-[1.25rem] border border-gray-50 text-left active:scale-95 transition-transform group hover:border-[#F97316]/30">
+                                <div className="w-12 h-12 bg-orange-50 rounded-[0.9rem] flex items-center justify-center text-[#F97316] mr-3 shrink-0 group-hover:scale-110 transition-transform">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p className="font-bold text-[#1a1208] text-[13px] leading-tight mb-0.5">Urgent Rescue</p>
+                                    <p className="text-[11px] text-gray-400 font-medium tracking-wide">High Priority</p>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };

@@ -2,15 +2,17 @@ import { Link, useLocation } from 'react-router-dom';
 
 interface ResiMobileNavProps {
     isNavbarMenuOpen: boolean;
+    isSearchOpen?: boolean;
     onAddReportClick?: () => void;
+    onSearchClick?: () => void;
 }
 
-const ResiMobileNav = ({ isNavbarMenuOpen, onAddReportClick }: ResiMobileNavProps) => {
+const ResiMobileNav = ({ isNavbarMenuOpen, isSearchOpen, onAddReportClick, onSearchClick }: ResiMobileNavProps) => {
     const location = useLocation();
     const userStr = localStorage.getItem('resident_user');
     const user = userStr ? JSON.parse(userStr) : null;
 
-    if (isNavbarMenuOpen) return null;
+    if (isNavbarMenuOpen || isSearchOpen) return null;
 
     return (
         <div className="sm:hidden fixed bottom-0 left-0 right-0 z-[500] bg-white/80 backdrop-blur-xl border-t border-gray-100 px-6 py-3 pb-6 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] flex items-center justify-between">
@@ -26,7 +28,7 @@ const ResiMobileNav = ({ isNavbarMenuOpen, onAddReportClick }: ResiMobileNavProp
             </Link>
 
             {/* Search */}
-            <button className="flex flex-col items-center gap-1 text-gray-400">
+            <button onClick={onSearchClick} className="flex flex-col items-center gap-1 text-gray-400">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
