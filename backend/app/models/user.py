@@ -1,6 +1,7 @@
+from typing import Optional
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, func, ForeignKey, Enum
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.database import Base
-from sqlalchemy.orm import relationship
 
 class Role(Base):
     __tablename__ = "roles"
@@ -29,21 +30,21 @@ class Subdivision(Base):
 
 class User(Base):
     __tablename__ = "users"
-    user_id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=False)
-    email = Column(String(100), unique=True, nullable=False)
-    password = Column(String(255), nullable=False)
-    phone = Column(String(20), nullable=True)
+    user_id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    password: Mapped[str] = mapped_column(String(255), nullable=False)
+    phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     
-    role_id = Column(Integer, ForeignKey("roles.role_id"), nullable=False)
-    position_id = Column(Integer, ForeignKey("positions.position_id"), nullable=True)
-    subdivision_id = Column(Integer, ForeignKey("subdivisions.subdivision_id"), nullable=True)
+    role_id: Mapped[int] = mapped_column(Integer, ForeignKey("roles.role_id"), nullable=False)
+    position_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("positions.position_id"), nullable=True)
+    subdivision_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("subdivisions.subdivision_id"), nullable=True)
     
-    address = Column(String(255), nullable=True)
-    profile_picture = Column(String(255), nullable=True)
+    address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    profile_picture: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     
-    status = Column(Enum('Active','Inactive','Suspended', name='user_status'), default='Active')
-    is_verified = Column(Boolean, default=False)
+    status: Mapped[Optional[str]] = mapped_column(Enum('Active','Inactive','Suspended', name='user_status'), nullable=True, default='Active')
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     last_login = Column(DateTime, nullable=True)
     
     created_at = Column(DateTime, server_default=func.now())

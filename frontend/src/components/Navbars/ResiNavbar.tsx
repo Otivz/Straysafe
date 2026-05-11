@@ -5,9 +5,13 @@ import Button from '../Button';
 
 interface ResiNavbarProps {
     onMenuToggle?: (isOpen: boolean) => void;
+    onSearch?: (query: string) => void;
+    searchValue?: string;
+    isMobileSearchOpen?: boolean;
+    onCloseSearch?: () => void;
 }
 
-const ResiNavbar = ({ onMenuToggle }: ResiNavbarProps) => {
+const ResiNavbar = ({ onMenuToggle, onSearch, searchValue, isMobileSearchOpen, onCloseSearch }: ResiNavbarProps) => {
     const navigate = useNavigate();
     const location = useLocation();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -45,6 +49,11 @@ const ResiNavbar = ({ onMenuToggle }: ResiNavbarProps) => {
         navigate('/login');
     };
 
+    const handleMobileSearch = (query: string) => {
+        if (onSearch) onSearch(query);
+        if (onCloseSearch) onCloseSearch();
+    };
+
 
 
     return (
@@ -65,6 +74,22 @@ const ResiNavbar = ({ onMenuToggle }: ResiNavbarProps) => {
 
                         {/* DESKTOP NAV REMOVED */}
                         <div className="hidden md:flex items-center gap-6">
+                            {/* Search Input */}
+                            <div className="relative group">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <svg className="h-4 w-4 text-gray-400 group-focus-within:text-[#F97316] transition-colors" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                                <input
+                                    type="text"
+                                    value={searchValue || ''}
+                                    onChange={(e) => onSearch && onSearch(e.target.value)}
+                                    placeholder="Search reports..."
+                                    className="block w-64 pl-10 pr-3 py-2 border border-gray-200 rounded-2xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#F97316]/20 focus:border-[#F97316] transition-all sm:text-sm font-medium text-[#1a1208]"
+                                />
+                            </div>
+
                             {/* Notification Bell */}
                             <button className="relative p-2 text-[#4a3b28] hover:bg-gray-50 rounded-xl transition-all group">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -210,6 +235,108 @@ const ResiNavbar = ({ onMenuToggle }: ResiNavbarProps) => {
                                     </div>
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* MOBILE SEARCH OVERLAY */}
+            <div className={`md:hidden fixed inset-0 z-[300] bg-white transition-all duration-300 ease-in-out transform ${isMobileSearchOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}>
+                {/* Curved Top Background */}
+                <div className="bg-[#F97316] pt-10 pb-8 px-6 rounded-b-[2.5rem] shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay"></div>
+                    <div className="relative flex items-center gap-4 mt-2">
+                        <button onClick={() => onCloseSearch && onCloseSearch()} className="text-white hover:bg-white/20 p-2 rounded-full transition-all shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
+                        </button>
+                        <div className="relative flex-1">
+                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <input
+                                type="text"
+                                value={searchValue || ''}
+                                onChange={(e) => onSearch && onSearch(e.target.value)}
+                                placeholder="Search reports..."
+                                className="w-full pl-11 pr-4 py-3 bg-white rounded-full text-[#1a1208] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-white/30 font-medium shadow-inner transition-all"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="px-6 py-8 overflow-y-auto h-[calc(100vh-140px)]">
+                    {/* Recent Searches */}
+                    <div className="mb-8">
+                        <div className="flex justify-between items-end mb-5">
+                            <h3 className="text-[#1a1208] font-black text-xl tracking-tight">Recent</h3>
+                            <button className="text-[#EF4444] text-xs font-bold uppercase tracking-wider hover:underline">Clear all</button>
+                        </div>
+                        <div className="flex flex-wrap gap-2.5">
+                            {['Injured Dog', 'San Jose', 'Stray Cat', 'Rabies Risk', 'Highway'].map((item) => (
+                                <button key={item} onClick={() => handleMobileSearch(item)} className="px-5 py-2.5 bg-[#FAFAF9] border border-gray-100 hover:bg-orange-50 hover:border-orange-200 hover:text-[#F97316] text-[#4a3b28] text-sm font-semibold rounded-full transition-all shadow-sm">
+                                    {item}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Suggestions */}
+                    <div className="mb-8">
+                        <div className="flex justify-between items-end mb-5">
+                            <h3 className="text-[#1a1208] font-black text-xl tracking-tight">Suggestions</h3>
+                            <button className="text-[#F97316] text-xs font-bold uppercase tracking-wider hover:underline">See all</button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <button onClick={() => handleMobileSearch('Rescue')} className="flex items-center p-3.5 bg-white shadow-sm rounded-[1.25rem] border border-gray-50 text-left active:scale-95 transition-transform group hover:border-[#F97316]/30">
+                                <div className="w-12 h-12 bg-orange-50 rounded-[0.9rem] flex items-center justify-center text-[#F97316] mr-3 shrink-0 group-hover:scale-110 transition-transform">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p className="font-bold text-[#1a1208] text-[13px] leading-tight mb-0.5">Urgent Rescue</p>
+                                    <p className="text-[11px] text-gray-400 font-medium tracking-wide">High Priority</p>
+                                </div>
+                            </button>
+                            <button onClick={() => handleMobileSearch('Medical')} className="flex items-center p-3.5 bg-white shadow-sm rounded-[1.25rem] border border-gray-50 text-left active:scale-95 transition-transform group hover:border-blue-200">
+                                <div className="w-12 h-12 bg-blue-50 rounded-[0.9rem] flex items-center justify-center text-blue-500 mr-3 shrink-0 group-hover:scale-110 transition-transform">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p className="font-bold text-[#1a1208] text-[13px] leading-tight mb-0.5">Medical Need</p>
+                                    <p className="text-[11px] text-gray-400 font-medium tracking-wide">Injuries/Sick</p>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Top Categories */}
+                    <div>
+                        <div className="flex justify-between items-end mb-5">
+                            <h3 className="text-[#1a1208] font-black text-xl tracking-tight">Top Categories</h3>
+                            <button className="text-[#F97316] text-xs font-bold uppercase tracking-wider hover:underline">See all</button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            {[
+                                { name: 'Aggressive', img: 'https://images.unsplash.com/photo-1541882352827-0b16f3d4e73f?q=80&w=300&auto=format&fit=crop', desc: 'Reports' },
+                                { name: 'Roaming Pack', img: 'https://images.unsplash.com/photo-1544568100-847a948585b9?q=80&w=300&auto=format&fit=crop', desc: 'Sightings' },
+                                { name: 'Puppies/Kittens', img: 'https://images.unsplash.com/photo-1543852786-1cf6624b9987?q=80&w=300&auto=format&fit=crop', desc: 'Vulnerable' }
+                            ].map((cat) => (
+                                <button key={cat.name} onClick={() => handleMobileSearch(cat.name)} className="relative flex flex-col items-start bg-[#FAFAF9] rounded-3xl overflow-hidden shadow-sm active:scale-95 transition-all text-left w-full h-40 group border border-gray-100 hover:border-orange-200">
+                                    <img src={cat.img} className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:scale-110 transition-transform duration-700 ease-out" alt={cat.name} />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
+                                    <div className="absolute bottom-0 left-0 p-4 w-full">
+                                        <p className="font-black text-white text-[15px] leading-tight drop-shadow-md">{cat.name}</p>
+                                        <p className="text-[11px] text-gray-200 font-medium mt-1 tracking-wide uppercase drop-shadow-md">{cat.desc}</p>
+                                    </div>
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </div>

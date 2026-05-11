@@ -96,7 +96,9 @@ const BrgyRescueRequests = () => {
         try {
             setLoading(true);
             const response = await axios.get('http://localhost:8000/rescue-requests/');
-            setRequests(response.data);
+            // Sort by rescue_id descending to show new requests at the top
+            const sortedData = (response.data || []).sort((a: any, b: any) => b.rescue_id - a.rescue_id);
+            setRequests(sortedData);
         } catch (error) {
             console.error('Error fetching rescue requests:', error);
         } finally {

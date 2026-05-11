@@ -9,9 +9,9 @@ import markerIconRetina from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 const DefaultIcon = L.icon({
-    iconUrl: markerIcon,
-    iconRetinaUrl: markerIconRetina,
-    shadowUrl: markerShadow,
+    iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
     iconSize: [25, 41],
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
@@ -27,6 +27,16 @@ interface MapComponentProps {
     center?: [number, number];
     zoom?: number;
     showHeatmap?: boolean;
+    heatmapPoints?: [number, number, number][];
+    markers?: { 
+        id: number, 
+        lat: number, 
+        lng: number, 
+        title: string, 
+        priority?: string, 
+        time?: string,
+        category?: string 
+    }[];
     onLocationChange?: (lat: number, lng: number) => void;
 }
 
@@ -39,22 +49,13 @@ const ChangeView = ({ center, zoom }: { center: [number, number], zoom: number }
     return null;
 };
 
-// Mock heatmap data for San Vicente, Santa Maria, Bulacan
-const mockHeatmapPoints: [number, number, number][] = [
-    [14.8093, 121.0028, 1.0], // Core hotspot
-    [14.8095, 121.0030, 0.8],
-    [14.8091, 121.0025, 0.7],
-    [14.8100, 121.0040, 0.5],
-    [14.8085, 121.0015, 0.6],
-    [14.8070, 121.0000, 0.4],
-    [14.8110, 121.0050, 0.3],
-];
-
 const MapComponent = ({ 
     height = "100%", 
     center = [14.6760, 121.0437], 
     zoom = 13,
     showHeatmap = true,
+    heatmapPoints = [],
+    markers = [],
     onLocationChange
 }: MapComponentProps) => {
     const eventHandlers = {
@@ -81,20 +82,46 @@ const MapComponent = ({
             
             {showHeatmap && (
                 <HeatmapLayer 
-                    points={mockHeatmapPoints} 
+                    points={heatmapPoints} 
                     options={{ radius: 35, blur: 15 }} 
                 />
             )}
 
-            <Marker 
-                position={center} 
-                draggable={!!onLocationChange}
-                eventHandlers={eventHandlers}
-            >
-                <Popup>
-                    Location: {center[0].toFixed(4)}, {center[1].toFixed(4)}
-                </Popup>
-            </Marker>
+            {markers.map((marker) => (
+                <Marker key={marker.id} position={[marker.lat, marker.lng]}>
+                    <Popup className="custom-popup">
+                        <div className="p-3 min-w-[180px]">
+                            <div className="flex justify-between items-start mb-2">
+                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${
+                                    marker.priority === 'High' ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-500'
+                                }`}>
+                                    {marker.priority || 'Regular'}
+                                </span>
+                                <span className="text-[8px] font-bold text-gray-400 uppercase">{marker.time}</span>
+                            </div>
+                            <h3 className="font-black text-xs uppercase text-[#1a1208] mb-1">{marker.category || 'Stray Animal'}</h3>
+                            <p className="text-[10px] text-gray-500 leading-tight mb-2 italic">"{marker.title}"</p>
+                            <div className="pt-2 border-t border-gray-50">
+                                <button className="w-full py-1.5 bg-orange-50 text-[#F97316] text-[9px] font-black uppercase rounded-lg hover:bg-orange-100 transition-colors">
+                                    View Report Details
+                                </button>
+                            </div>
+                        </div>
+                    </Popup>
+                </Marker>
+            ))}
+
+            {onLocationChange && (
+                <Marker 
+                    position={center} 
+                    draggable={true}
+                    eventHandlers={eventHandlers}
+                >
+                    <Popup>
+                        Location: {center[0].toFixed(4)}, {center[1].toFixed(4)}
+                    </Popup>
+                </Marker>
+            )}
         </MapContainer>
     );
 };

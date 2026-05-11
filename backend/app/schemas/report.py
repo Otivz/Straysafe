@@ -45,6 +45,7 @@ class CommentResponse(CommentBase):
     parent_comment_id: Optional[int] = None
     created_at: datetime
     user_name: Optional[str] = None
+    user_photo: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -76,6 +77,7 @@ class ReportResponse(ReportBase):
     report_id: int
     created_at: datetime
     reporter_name: Optional[str] = None
+    reporter_photo: Optional[str] = None
     media: Optional[list[ReportMediaResponse]] = []
     comments: Optional[list[CommentResponse]] = []
     history: Optional[list[StatusHistoryResponse]] = []

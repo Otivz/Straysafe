@@ -31,12 +31,14 @@ def get_reports(db: Session = Depends(get_db)):
         try:
             rep_data = ReportResponse.model_validate(rep)
             # Map current_status_id → status_id for frontend compatibility
-            rep_data.status_id = rep.current_status_id
+            rep_data.status_id = rep.current_status_id  # type: ignore[assignment]
             rep_data.reporter_name = rep.reporter.name if rep.reporter else "Unknown User"
+            rep_data.reporter_photo = rep.reporter.profile_picture if rep.reporter else None
             if rep.comments:
-                for i, comment in enumerate(rep.comments):
-                    if i < len(rep_data.comments):
+                for i, comment in enumerate(rep.comments):  # type: ignore[arg-type]
+                    if rep_data.comments and i < len(rep_data.comments):
                         rep_data.comments[i].user_name = comment.user.name if comment.user else "Unknown User"
+                        rep_data.comments[i].user_photo = comment.user.profile_picture if comment.user else None
             results.append(rep_data)
         except Exception as e:
             print(f"Error validating report {rep.report_id}: {e}")
@@ -62,8 +64,9 @@ def create_report(report_in: ReportCreate, db: Session = Depends(get_db)):
         db.refresh(db_report)
 
         rep_data = ReportResponse.model_validate(db_report)
-        rep_data.status_id = db_report.current_status_id
+        rep_data.status_id = db_report.current_status_id  # type: ignore[assignment]
         rep_data.reporter_name = db_report.reporter.name if db_report.reporter else "Unknown User"
+        rep_data.reporter_photo = db_report.reporter.profile_picture if db_report.reporter else None
         return rep_data
     except Exception as e:
         db.rollback()
@@ -100,7 +103,7 @@ def update_report(report_id: int, report_update: ReportUpdate, db: Session = Dep
     db.refresh(db_report)
 
     rep_data = ReportResponse.model_validate(db_report)
-    rep_data.status_id = db_report.current_status_id
+    rep_data.status_id = db_report.current_status_id  # type: ignore[assignment]
     rep_data.reporter_name = db_report.reporter.name if db_report.reporter else "Unknown User"
     return rep_data
 
@@ -115,12 +118,14 @@ async def upload_report_media(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    file_extension = os.path.splitext(file.filename)[1]
+    safe_filename = file.filename or ""
+    file_extension = os.path.splitext(safe_filename)[1]
     unique_filename = f"{uuid.uuid4()}{file_extension}"
 
     try:
         file_content = await file.read()
-        file_url = upload_to_cloudinary(file_content, unique_filename)
+        # Explicitly pass filename as a keyword argument to match the utility function signature
+        file_url = upload_to_cloudinary(file_content, filename=unique_filename)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Cloudinary upload failed: {str(e)}")
 
@@ -172,8 +177,9 @@ def update_report_status(report_id: int, status_update: ReportStatusUpdate, db: 
     db.refresh(report)
 
     rep_data = ReportResponse.model_validate(report)
-    rep_data.status_id = report.current_status_id
+    rep_data.status_id = report.current_status_id  # type: ignore[assignment]
     rep_data.reporter_name = report.reporter.name if report.reporter else "Unknown User"
+    rep_data.reporter_photo = report.reporter.profile_picture if report.reporter else None
     return rep_data
 
 
@@ -195,6 +201,7 @@ def add_comment(report_id: int, comment_in: CommentCreate, db: Session = Depends
 
     comment_data = CommentResponse.model_validate(db_comment)
     comment_data.user_name = db_comment.user.name if db_comment.user else "Unknown User"
+    comment_data.user_photo = db_comment.user.profile_picture if db_comment.user else None
     return comment_data
 
 

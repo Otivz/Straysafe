@@ -114,7 +114,9 @@ const SubdReports = () => {
         try {
             setLoading(true);
             const response = await axios.get(`${API_URL}/`);
-            setReports(response.data);
+            // Sort by report_id descending to show new reports at the top
+            const sortedData = (response.data || []).sort((a: any, b: any) => b.report_id - a.report_id);
+            setReports(sortedData);
         } catch (error) {
             console.error('Error fetching reports:', error);
         } finally {
@@ -599,6 +601,14 @@ const SubdReports = () => {
                                                     center={[viewReport.latitude, viewReport.longitude]}
                                                     zoom={17}
                                                     showHeatmap={false}
+                                                    markers={[{
+                                                        id: viewReport.report_id,
+                                                        lat: viewReport.latitude,
+                                                        lng: viewReport.longitude,
+                                                        title: viewReport.landmark || 'Incident Location',
+                                                        category: categoryMap[viewReport.category_id],
+                                                        priority: viewReport.priority_level
+                                                    }]}
                                                 />
                                             </div>
                                         </div>
@@ -815,9 +825,13 @@ const SubdReports = () => {
                                                                         <div className="flex gap-3 relative">
                                                                             {/* Parent Avatar & Vertical Line */}
                                                                             <div className="relative flex flex-col items-center shrink-0">
-                                                                                <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-[#F97316] font-black text-xs z-10 ring-4 ring-white border border-orange-100">
-                                                                                    {c.user_name?.charAt(0).toUpperCase() || 'U'}
-                                                                                </div>
+                                                                                {c.user_photo ? (
+                                                                                    <img src={c.user_photo} className="w-8 h-8 rounded-full object-cover z-10 ring-4 ring-white border border-gray-100 shadow-sm" alt={c.user_name} />
+                                                                                ) : (
+                                                                                    <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-[#F97316] font-black text-xs z-10 ring-4 ring-white border border-orange-100">
+                                                                                        {c.user_name?.charAt(0).toUpperCase() || 'U'}
+                                                                                    </div>
+                                                                                )}
                                                                                 {(replies.length > 0 || replyingTo[viewReport.report_id]?.commentId === c.comment_id) && (
                                                                                     <div className="absolute top-8 bottom-[-16px] left-1/2 -translate-x-1/2 w-[2px] bg-gray-100 z-0"></div>
                                                                                 )}
@@ -854,9 +868,13 @@ const SubdReports = () => {
                                                                                                 )}
 
                                                                                                 {/* Child Avatar */}
-                                                                                                <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 font-bold text-[10px] z-10 mt-1 ring-4 ring-white border border-gray-100 shrink-0">
-                                                                                                    {reply.user_name?.charAt(0).toUpperCase() || 'U'}
-                                                                                                </div>
+                                                                                                {reply.user_photo ? (
+                                                                                                    <img src={reply.user_photo} className="w-6 h-6 rounded-full object-cover z-10 mt-1 ring-4 ring-white border border-gray-100 shadow-sm shrink-0" alt={reply.user_name} />
+                                                                                                ) : (
+                                                                                                    <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 font-bold text-[10px] z-10 mt-1 ring-4 ring-white border border-gray-100 shrink-0">
+                                                                                                        {reply.user_name?.charAt(0).toUpperCase() || 'U'}
+                                                                                                    </div>
+                                                                                                )}
 
                                                                                                 <div className="flex-1">
                                                                                                     {/* Child Bubble */}

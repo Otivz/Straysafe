@@ -82,6 +82,8 @@ const ResiHomePage = () => {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [reports, setReports] = useState<any[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
     const userStr = localStorage.getItem('resident_user');
     const currentUser = userStr ? JSON.parse(userStr) : null;
@@ -348,9 +350,28 @@ const ResiHomePage = () => {
 
     const allMediaCount = (formData.existingMedia?.length || 0) + (formData.mediaFiles?.length || 0);
 
+    const filteredReports = reports.filter((r) => {
+        const q = searchQuery.toLowerCase();
+        const categoryMap: Record<number, string> = {
+            1: 'Injured Animal', 2: 'Aggressive Stray', 3: 'Possible Rabies Risk',
+            4: 'Roaming Pack', 5: 'Animal Rescue Needed'
+        };
+        const categoryName = categoryMap[r.category_id] || '';
+        return (r.description && r.description.toLowerCase().includes(q)) || 
+               (r.landmark && r.landmark.toLowerCase().includes(q)) ||
+               (r.animal_type && r.animal_type.toLowerCase().includes(q)) ||
+               (categoryName.toLowerCase().includes(q));
+    });
+
     return (
         <div className="min-h-screen bg-[#F7F7F7] font-sans pb-24">
-            <ResiNavbar onMenuToggle={(isOpen) => setIsNavbarMenuOpen(isOpen)} />
+            <ResiNavbar 
+                onMenuToggle={(isOpen) => setIsNavbarMenuOpen(isOpen)} 
+                onSearch={setSearchQuery}
+                searchValue={searchQuery}
+                isMobileSearchOpen={isMobileSearchOpen}
+                onCloseSearch={() => setIsMobileSearchOpen(false)}
+            />
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-24 sm:pb-8">
 
@@ -890,10 +911,12 @@ const ResiHomePage = () => {
                 )}
 
                 {/* Real Report Posts */}
-                {reports.length === 0 ? (
-                    <div className="text-center py-20 text-gray-400 font-medium">No reports found. Be the first to submit one!</div>
+                {filteredReports.length === 0 ? (
+                    <div className="text-center py-20 text-gray-400 font-medium">
+                        {reports.length === 0 ? "No reports found. Be the first to submit one!" : "No reports match your search."}
+                    </div>
                 ) : (
-                    reports.map((report) => {
+                    filteredReports.map((report) => {
                         const statusMap: Record<number, string> = {
                             1: 'Pending Verification', 2: 'Verified', 3: 'Rejected',
                             4: 'Forwarded to Barangay', 5: 'In Action', 6: 'Resolved',
@@ -911,13 +934,13 @@ const ResiHomePage = () => {
                         return (
                             <div key={report.report_id} className="max-w-3xl mx-auto">
                                 <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden mb-12 hover:shadow-2xl transition-all duration-300">
-                                    {/* Header: ID (Left) + Date/Menu (Right) */}
+                                    {/* Top Thin Bar: Date (Left) + ID (Right) */}
                                     <div className="px-4 sm:px-8 py-2.5 border-b border-gray-50 flex items-center justify-between bg-gray-50/20">
-                                        <span className="text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
-                                            ID: {report.report_id.toString().padStart(5, '0')}
-                                        </span>
+                                        <p className="text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-widest">{date}</p>
                                         <div className="flex items-center gap-4">
-                                            <p className="text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-widest">{date}</p>
+                                            <span className="text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                                                ID: {report.report_id.toString().padStart(5, '0')}
+                                            </span>
                                             {report.user_id === currentUserId && (
                                                 <div className="relative" ref={openMenuId === report.report_id ? menuRef : null}>
                                                     <button
@@ -960,23 +983,36 @@ const ResiHomePage = () => {
                                     </div>
 
                                     {/* Content Section */}
-                                    <div className="px-4 sm:px-8 pt-4 pb-8 sm:pb-10">
-                                        {/* Title & Status Badge - Horizontal Alignment */}
-                                        <div className="mb-6 flex items-center justify-between gap-4">
-                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                                                <h2 className="text-2xl sm:text-4xl font-black text-[#1a1208] uppercase tracking-tighter leading-none">{categoryName}</h2>
-                                                <div className="flex items-center gap-2 px-2.5 py-1 bg-[#FAFAF9] border border-gray-100 rounded-lg shadow-sm w-fit">
-                                                    {report.visibility === 'Private' ? (
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                                        </svg>
-                                                    ) : (
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                        </svg>
-                                                    )}
-                                                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{report.visibility}</span>
+                                    <div className="px-4 sm:px-8 pt-6 pb-8 sm:pb-10">
+                                        {/* Profile & Visibility Row */}
+                                        <div className="mb-6 flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                {report.reporter_photo ? (
+                                                    <img 
+                                                        src={report.reporter_photo} 
+                                                        className="w-11 h-11 rounded-full object-cover border-2 border-orange-50 shadow-sm" 
+                                                        alt={report.reporter_name}
+                                                    />
+                                                ) : (
+                                                    <div className="w-11 h-11 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-black text-sm border-2 border-white shadow-sm">
+                                                        {report.reporter_name?.charAt(0).toUpperCase() || 'U'}
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <p className="text-[13px] font-black text-[#1a1208] uppercase tracking-tight leading-none mb-1.5">{report.reporter_name}</p>
+                                                    <div className="flex items-center gap-2 px-2 py-0.5 bg-[#FAFAF9] border border-gray-100 rounded-md w-fit">
+                                                        {report.visibility === 'Private' ? (
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                            </svg>
+                                                        ) : (
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                            </svg>
+                                                        )}
+                                                        <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest leading-none">{report.visibility}</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <span className={`px-3 py-1 shrink-0 text-[9px] font-black uppercase tracking-widest rounded-full border shadow-sm ${report.status_id === 1 ? 'bg-orange-50 text-[#F97316] border-orange-100' :
@@ -997,7 +1033,7 @@ const ResiHomePage = () => {
                                         </div>
 
                                         {/* Rescue Progress Tracker (6 Stages) */}
-                                        <div className="mb-10 mt-4">
+                                        <div className="mb-14 mt-4">
                                             <div className="flex items-center justify-between relative px-2">
                                                 {/* Timeline Connector Line */}
                                                 <div className="absolute top-5 left-10 right-10 h-0.5 bg-gray-100 z-0">
@@ -1047,12 +1083,15 @@ const ResiHomePage = () => {
                                                                     <span className="text-xs font-black">{idx + 1}</span>
                                                                 )}
                                                             </button>
-                                                            <div className="absolute top-12 flex flex-col items-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap bg-gray-900 text-white px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest -translate-y-2 group-hover:translate-y-0 duration-300 shadow-xl">
+                                                            <span className={`mt-2 text-[8px] font-black uppercase tracking-widest ${isCurrent ? 'text-orange-600' : isCompleted ? 'text-gray-700' : 'text-gray-300'}`}>
+                                                                {stage.label}
+                                                            </span>
+                                                            <div className="absolute top-16 flex flex-col items-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap bg-gray-900 text-white px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest -translate-y-2 group-hover:translate-y-0 duration-300 shadow-xl z-20">
                                                                 {stage.label}
                                                                 <span className="text-gray-400 mt-0.5">{stage.sub}</span>
                                                             </div>
                                                             {isSelected && (
-                                                                <div className="absolute top-14 w-1.5 h-1.5 bg-orange-600 rounded-full animate-bounce mt-1"></div>
+                                                                <div className="absolute -top-3 w-2 h-2 bg-orange-600 rounded-full animate-bounce shadow-lg shadow-orange-200"></div>
                                                             )}
                                                         </div>
                                                     );
@@ -1217,15 +1256,15 @@ const ResiHomePage = () => {
                                         {/* Quick Info Grid - Always 3 Columns */}
                                         <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6 bg-[#FAFAF9] p-4 rounded-3xl border border-gray-50">
                                             <div className="flex flex-col gap-0.5">
-                                                <span className="text-[8px] sm:text-[9px] font-black text-gray-300 uppercase tracking-widest">Landmark</span>
+                                                <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest">{categoryName}</span>
                                                 <span className="text-[10px] sm:text-[11px] font-bold text-[#4a3b28] truncate">{report.landmark || 'Not specified'}</span>
                                             </div>
                                             <div className="flex flex-col gap-0.5 border-l border-gray-100 pl-3 sm:pl-4">
-                                                <span className="text-[8px] sm:text-[9px] font-black text-gray-300 uppercase tracking-widest">Animals</span>
+                                                <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest">Animals</span>
                                                 <span className="text-[10px] sm:text-[11px] font-bold text-[#4a3b28] truncate">{report.animal_count} sighted</span>
                                             </div>
                                             <div className="flex flex-col gap-0.5 border-l border-gray-100 pl-3 sm:pl-4">
-                                                <span className="text-[8px] sm:text-[9px] font-black text-gray-300 uppercase tracking-widest">Priority</span>
+                                                <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest">Priority</span>
                                                 <span className={`text-[10px] sm:text-[11px] font-black uppercase tracking-wider truncate ${report.priority_level === 'High' ? 'text-red-500' : 'text-[#F97316]'}`}>
                                                     {report.priority_level}
                                                 </span>
@@ -1283,9 +1322,13 @@ const ResiHomePage = () => {
                                                                     <div className="flex gap-3 relative">
                                                                         {/* Parent Avatar & Vertical Line */}
                                                                         <div className="relative flex flex-col items-center shrink-0">
-                                                                            <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-[#F97316] font-black text-xs z-10 ring-4 ring-white border border-orange-100">
-                                                                                {c.user_name.charAt(0).toUpperCase()}
-                                                                            </div>
+                                                                            {c.user_photo ? (
+                                                                                <img src={c.user_photo} className="w-8 h-8 rounded-full object-cover z-10 ring-4 ring-white border border-gray-100 shadow-sm" alt={c.user_name} />
+                                                                            ) : (
+                                                                                <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-[#F97316] font-black text-xs z-10 ring-4 ring-white border border-orange-100">
+                                                                                    {c.user_name.charAt(0).toUpperCase()}
+                                                                                </div>
+                                                                            )}
                                                                             {(replies.length > 0 || replyingTo[report.report_id]?.commentId === c.comment_id) && (
                                                                                 <div className="absolute top-8 bottom-[-16px] left-1/2 -translate-x-1/2 w-[2px] bg-gray-100 z-0"></div>
                                                                             )}
@@ -1322,9 +1365,13 @@ const ResiHomePage = () => {
                                                                                             )}
 
                                                                                             {/* Child Avatar */}
-                                                                                            <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 font-bold text-[10px] z-10 mt-1 ring-4 ring-white border border-gray-100 shrink-0">
-                                                                                                {reply.user_name.charAt(0).toUpperCase()}
-                                                                                            </div>
+                                                                                            {reply.user_photo ? (
+                                                                                                <img src={reply.user_photo} className="w-6 h-6 rounded-full object-cover z-10 mt-1 ring-4 ring-white border border-gray-100 shadow-sm shrink-0" alt={reply.user_name} />
+                                                                                            ) : (
+                                                                                                <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 font-bold text-[10px] z-10 mt-1 ring-4 ring-white border border-gray-100 shrink-0">
+                                                                                                    {reply.user_name.charAt(0).toUpperCase()}
+                                                                                                </div>
+                                                                                            )}
 
                                                                                             <div className="flex-1">
                                                                                                 {/* Child Bubble */}
@@ -1513,6 +1560,8 @@ const ResiHomePage = () => {
             )}
             <ResiMobileNav
                 isNavbarMenuOpen={isNavbarMenuOpen}
+                isSearchOpen={isMobileSearchOpen}
+                onSearchClick={() => setIsMobileSearchOpen(true)}
                 onAddReportClick={() => {
                     setEditingReportId(null);
                     setFormData({

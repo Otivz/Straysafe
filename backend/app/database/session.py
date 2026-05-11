@@ -13,8 +13,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL not found in environment variables")
 
-# For MySQL, we might need to ensure the connection string is correct
-# The .env has: mysql+pymysql://root:password@localhost/straysafe_db
+
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

@@ -25,6 +25,9 @@ const ResidentPet = () => {
         mediaFiles: [] as File[]
     });
 
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+
     const userStr = localStorage.getItem('resident_user');
     const currentUser = userStr ? JSON.parse(userStr) : null;
 
@@ -42,6 +45,15 @@ const ResidentPet = () => {
             console.error('Error fetching pets:', error);
         }
     };
+
+    const filteredPets = pets.filter(pet => {
+        const query = searchQuery.toLowerCase();
+        return (
+            pet.pet_name.toLowerCase().includes(query) ||
+            (pet.breed || '').toLowerCase().includes(query) ||
+            (pet.pet_type || '').toLowerCase().includes(query)
+        );
+    });
 
     const handleEditClick = (pet: any) => {
         setFormData({
@@ -82,7 +94,6 @@ const ResidentPet = () => {
 
         // Photo check: Required for new pets, optional for updates if already has one
         const hasPhoto = formData.mediaFiles.length > 0;
-        const existingPet = pets.find(p => p.pet_id === editingPetId);
         if (!editingPetId && !hasPhoto) {
             alert('Please upload a pet photo.');
             return;
@@ -142,8 +153,14 @@ const ResidentPet = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#FAFAF9] font-sans pb-24">
-            <ResiNavbar onMenuToggle={(isOpen) => setIsNavbarMenuOpen(isOpen)} />
+        <div className={`min-h-screen bg-[#FAFAF9] font-sans pb-24 ${isMobileSearchOpen ? 'overflow-hidden h-screen' : ''}`}>
+            <ResiNavbar 
+                onMenuToggle={(isOpen) => setIsNavbarMenuOpen(isOpen)} 
+                onSearch={setSearchQuery}
+                searchValue={searchQuery}
+                isMobileSearchOpen={isMobileSearchOpen}
+                onCloseSearch={() => setIsMobileSearchOpen(false)}
+            />
 
             <main className="max-w-6xl mx-auto p-4 sm:p-8 pt-24 sm:pt-32">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4">
@@ -179,18 +196,22 @@ const ResidentPet = () => {
 
                 {/* Pets Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {pets.length === 0 ? (
+                    {filteredPets.length === 0 ? (
                         <div className="col-span-full py-20 bg-white rounded-[3rem] border-2 border-dashed border-gray-100 flex flex-col items-center justify-center text-center">
                             <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center text-[#F97316] mb-6">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                                 </svg>
                             </div>
-                            <h3 className="text-xl font-black text-[#1a1208] uppercase">No Pets Registered Yet</h3>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-2">Add your pets to help the community keep them safe</p>
+                            <h3 className="text-xl font-black text-[#1a1208] uppercase">
+                                {pets.length === 0 ? "No Pets Registered Yet" : "No Pets Match Search"}
+                            </h3>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-2">
+                                {pets.length === 0 ? "Add your pets to help the community keep them safe" : "Try a different name or breed"}
+                            </p>
                         </div>
                     ) : (
-                        pets.map((pet) => (
+                        filteredPets.map((pet) => (
                             <div key={pet.pet_id} className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300 group">
                                 <div className="relative h-56 overflow-hidden bg-gray-50">
                                     {pet.photo_url ? (
@@ -401,6 +422,8 @@ const ResidentPet = () => {
             )}
             <ResiMobileNav 
                 isNavbarMenuOpen={isNavbarMenuOpen} 
+                isSearchOpen={isMobileSearchOpen}
+                onSearchClick={() => setIsMobileSearchOpen(true)}
                 onAddReportClick={() => navigate('/resident-home', { state: { openAddModal: true, from: '/resident/pets' } })}
             />
         </div>

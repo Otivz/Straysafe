@@ -1,11 +1,14 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 import sys
 import os
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
-# Add the parent directory to sys.path to allow importing siblings of 'app'
+# Add the 'backend' directory to sys.path so 'app' can be imported correctly
+# when running from the project root.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Local imports (now safe to import after path fix)
 from app.database import engine, Base
 from app.routes import auth, users, reports, rescue, pets
 
@@ -23,14 +26,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from fastapi.staticfiles import StaticFiles
-
 # Create uploads directory if it doesn't exist
 os.makedirs("uploads", exist_ok=True)
 
 # Mount the uploads directory to serve static files
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-
 
 # Include routes
 app.include_router(auth.router)
