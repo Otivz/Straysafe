@@ -16,6 +16,8 @@ interface AuditLog {
     newValues?: any;
 }
 
+import DataTable from '../../components/DataTable';
+
 const AdminLogs = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
@@ -78,6 +80,12 @@ const AdminLogs = () => {
         }
     ];
 
+    const filteredLogs = logs.filter(log => 
+        log.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        log.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        log.description.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     const getActionBadge = (type: string) => {
         switch (type) {
             case 'security': return 'bg-red-500/10 text-red-500 border-red-500/20';
@@ -127,65 +135,71 @@ const AdminLogs = () => {
 
                     {/* Logs Table Section */}
                     <div className="bg-white rounded-[2rem] shadow-[0_2px_14px_rgba(0,0,0,0.02)] border border-gray-100 overflow-hidden">
-                        <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
-                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Recent Activity Stream</span>
-                            <div className="flex gap-2">
-                                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
-                                <span className="text-[10px] font-black text-green-600 uppercase">Live Feed</span>
-                            </div>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="text-left bg-white border-b border-gray-50">
-                                        <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Timestamp</th>
-                                        <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">User / Actor</th>
-                                        <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Action</th>
-                                        <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Details</th>
-                                        <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Reference</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50">
-                                    {logs.map((log) => (
-                                        <tr key={log.id} className="hover:bg-gray-50/50 transition-all group">
-                                            <td className="px-8 py-5">
-                                                <div className="flex flex-col">
-                                                    <span className="text-xs font-bold text-gray-700">{log.timestamp.split(' ')[1]}</span>
-                                                    <span className="text-[10px] font-medium text-gray-400 uppercase">{log.timestamp.split(' ')[0]}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-lg bg-[#1B4340]/5 flex items-center justify-center text-[#1B4340] font-black text-[10px]">
-                                                        {log.user.charAt(0)}
-                                                    </div>
-                                                    <div className="flex flex-col">
-                                                        <span className="text-xs font-black text-gray-900">{log.user}</span>
-                                                        <span className="text-[9px] font-bold text-gray-400">{log.ip}</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <span className={`px-2.5 py-1 rounded-md text-[9px] font-black border uppercase ${getActionBadge(log.type)}`}>
-                                                    {log.action.replace('_', ' ')}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <p className="text-xs text-gray-600 font-medium max-w-md truncate">{log.description}</p>
-                                            </td>
-                                            <td className="px-8 py-5 text-right">
-                                                <button 
-                                                    onClick={() => setSelectedLog(log)}
-                                                    className="px-4 py-1.5 rounded-lg border border-gray-200 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:bg-[#1B4340] hover:border-[#1B4340] hover:text-white transition-all shadow-sm"
-                                                >
-                                                    View
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                        <DataTable
+                            loading={false}
+                            data={filteredLogs}
+                            onRowClick={(log) => setSelectedLog(log)}
+                            emptyMessage="No audit logs found."
+                            columns={[
+                                {
+                                    header: "Timestamp",
+                                    key: "timestamp",
+                                    render: (log) => (
+                                        <div className="flex flex-col">
+                                            <span className="text-xs font-bold text-gray-700">{log.timestamp.split(' ')[1]}</span>
+                                            <span className="text-[10px] font-medium text-gray-400 uppercase">{log.timestamp.split(' ')[0]}</span>
+                                        </div>
+                                    )
+                                },
+                                {
+                                    header: "User / Actor",
+                                    key: "user",
+                                    render: (log) => (
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-[#1B4340]/5 flex items-center justify-center text-[#1B4340] font-black text-[10px]">
+                                                {log.user.charAt(0)}
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-black text-gray-900">{log.user}</span>
+                                                <span className="text-[9px] font-bold text-gray-400">{log.ip}</span>
+                                            </div>
+                                        </div>
+                                    )
+                                },
+                                {
+                                    header: "Action",
+                                    key: "action",
+                                    render: (log) => (
+                                        <span className={`px-2.5 py-1 rounded-md text-[9px] font-black border uppercase ${getActionBadge(log.type)}`}>
+                                            {log.action.replace('_', ' ')}
+                                        </span>
+                                    )
+                                },
+                                {
+                                    header: "Details",
+                                    key: "details",
+                                    render: (log) => (
+                                        <p className="text-xs text-gray-600 font-medium max-w-md truncate">{log.description}</p>
+                                    )
+                                },
+                                {
+                                    header: "Reference",
+                                    key: "reference",
+                                    className: "text-right",
+                                    render: (log) => (
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedLog(log);
+                                            }}
+                                            className="px-4 py-1.5 rounded-lg border border-gray-200 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:bg-[#1B4340] hover:border-[#1B4340] hover:text-white transition-all shadow-sm"
+                                        >
+                                            View
+                                        </button>
+                                    )
+                                }
+                            ]}
+                        />
                     </div>
 
                     {/* Inspection Modal (Diff Viewer) */}

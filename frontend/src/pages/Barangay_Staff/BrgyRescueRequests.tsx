@@ -5,6 +5,7 @@ import BrgySidebar from '../../components/BrgySidebar';
 import BrgyNavbar from '../../components/Navbars/BrgyNavbar';
 import Button from '../../components/Button';
 import MapComponent from '../../components/MapComponent';
+import DataTable from '../../components/DataTable';
 
 interface RescueRequest {
     rescue_id: number;
@@ -73,6 +74,10 @@ const BrgyRescueRequests = () => {
     const [loading, setLoading] = useState(true);
     const [viewingRequest, setViewingRequest] = useState<RescueRequest | null>(null);
     const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+    const [isNavigating, setIsNavigating] = useState(false);
+    const [navSource, setNavSource] = useState<'brgy' | 'current'>('brgy');
+    const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+    const BRGY_OFFICE: [number, number] = [14.8069, 121.0039]; // R243+QH Santa Maria, Bulacan
     const [statusToUpdate, setStatusToUpdate] = useState<{ requestId: number, reportId: number, statusId: number } | null>(null);
     const [statusMediaFiles, setStatusMediaFiles] = useState<File[]>([]);
     const [isUpdating, setIsUpdating] = useState(false);
@@ -91,6 +96,22 @@ const BrgyRescueRequests = () => {
             navigate('/staff/login');
         }
     }, [navigate, userStr, currentUser]);
+
+    useEffect(() => {
+        if (isNavigating && navSource === 'current') {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        setUserLocation([position.coords.latitude, position.coords.longitude]);
+                    },
+                    (error) => {
+                        console.error("Error getting location:", error);
+                        setNavSource('brgy');
+                    }
+                );
+            }
+        }
+    }, [isNavigating, navSource]);
 
     const fetchRequests = async () => {
         try {
@@ -127,7 +148,7 @@ const BrgyRescueRequests = () => {
 
     const handleUpdateStatus = async () => {
         if (!statusToUpdate || !currentUser) return;
-        
+
         // Validation: Must select personnel for status 5 (Dispatched)
         if (statusToUpdate.statusId === 5 && !selectedPersonnelId) {
             alert('Please select a personnel to handle this rescue.');
@@ -193,7 +214,7 @@ const BrgyRescueRequests = () => {
     const openStatusUpdate = (requestId: number, reportId: number, statusId: number) => {
         setStatusToUpdate({ requestId, reportId, statusId });
         setIsStatusModalOpen(true);
-        
+
         // Pre-fill animal condition from citizen report
         if (viewingRequest?.report?.condition) {
             setStatusUpdateCondition(viewingRequest.report.condition);
@@ -227,104 +248,115 @@ const BrgyRescueRequests = () => {
                             </Button>
                         </div>
 
-                        <div className="bg-white rounded-3xl shadow-[0_2px_14px_rgba(0,0,0,0.02)] border border-gray-100 overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left">
-                                    <thead>
-                                        <tr className="bg-gray-50/50">
-                                            <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Request ID</th>
-                                            <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Title</th>
-                                            <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Escalated By</th>
-                                            <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Assigned</th>
-                                            <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Date</th>
-                                            <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status</th>
-                                            <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-50">
-                                        {loading ? (
-                                            <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-400">Loading requests...</td></tr>
-                                        ) : requests.length === 0 ? (
-                                            <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-400">No pending rescue requests.</td></tr>
-                                        ) : requests.map((req, index) => (
-                                            <tr key={req.rescue_id || index} className="hover:bg-gray-50/30 transition-colors">
-                                                <td className="px-6 py-4 text-xs font-mono text-gray-400">#REQ-{(req.rescue_id || 0).toString().padStart(4, '0')}</td>
-                                                <td className="px-6 py-4">
-                                                    <p className="text-sm font-bold text-gray-900">{req.title}</p>
-                                                    <p className="text-[10px] text-gray-400 truncate max-w-[200px]">{req.description}</p>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-[10px] font-bold text-orange-600">
-                                                            {req.leader_name?.charAt(0) || 'L'}
-                                                        </div>
-                                                        <span className="text-xs text-gray-700">{req.leader_name || 'Subd Leader'}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    {req.assigned_staff_name ? (
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-[8px] font-bold text-blue-600 border border-blue-200">
-                                                                {req.assigned_staff_name.charAt(0)}
-                                                            </div>
-                                                            <span className="text-[10px] font-bold text-gray-900">{req.assigned_staff_name}</span>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-[10px] font-medium text-gray-400 italic">Not Assigned</span>
-                                                    )}
-                                                </td>
-                                                <td className="px-6 py-4 text-xs text-gray-500">
-                                                    {new Date(req.created_at || req.report?.created_at || Date.now()).toLocaleDateString()}
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    {(() => {
-                                                        const reportStatus = req.report?.status_id;
-                                                        
-                                                        // If it's already approved (status_id 2), show the actual report status
-                                                        if (req.status_id === 2 && reportStatus) {
-                                                            const label = reportStatusMap[reportStatus] || "Approved";
-                                                            let colorClass = "bg-blue-50 text-blue-600 border border-blue-100"; // Default for active rescue
-                                                            
-                                                            if (reportStatus === 6) colorClass = "bg-green-50 text-green-600 border border-green-100";
-                                                            if (reportStatus === 3) colorClass = "bg-red-50 text-red-600 border border-red-100";
-                                                            
-                                                            return (
-                                                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${colorClass}`}>
-                                                                    {label}
-                                                                </span>
-                                                            );
-                                                        }
-
-                                                        // Otherwise show the base rescue request status (Pending/Rejected)
-                                                        let label = statusMap[req.status_id] || "Pending";
-                                                        let colorClass = "bg-orange-50 text-orange-600 border border-orange-100";
-                                                        
-                                                        if (req.status_id === 3) {
-                                                            label = "Rejected";
-                                                            colorClass = "bg-red-50 text-red-600 border border-red-100";
-                                                        }
-
-                                                        return (
-                                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${colorClass}`}>
-                                                                {label}
-                                                            </span>
-                                                        );
-                                                    })()}
-                                                </td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <button
-                                                        onClick={() => openRequestModal(req)}
-                                                        className="text-[10px] font-bold text-[#F97316] hover:underline"
-                                                    >
-                                                        {req.status_id === 1 ? 'Review Request' : 'Update Status'}
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+                        {/* Data Table Section */}
+                        <DataTable
+                            loading={loading}
+                            data={requests}
+                            onRowClick={openRequestModal}
+                            emptyMessage="No pending rescue requests."
+                            loadingMessage="Syncing rescue operations..."
+                            columns={[
+                                {
+                                    header: "Request ID",
+                                    key: "rescue_id",
+                                    render: (req) => (
+                                        <span className="text-xs font-mono text-gray-400">#REQ-{(req.rescue_id || 0).toString().padStart(4, '0')}</span>
+                                    )
+                                },
+                                {
+                                    header: "Title",
+                                    key: "title",
+                                    render: (req) => (
+                                        <div>
+                                            <p className="text-sm font-bold text-gray-900">{req.title}</p>
+                                            <p className="text-[10px] text-gray-400 truncate max-w-[200px]">{req.description}</p>
+                                        </div>
+                                    )
+                                },
+                                {
+                                    header: "Escalated By",
+                                    key: "leader",
+                                    render: (req) => (
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-[10px] font-bold text-orange-600">
+                                                {req.leader_name?.charAt(0) || 'L'}
+                                            </div>
+                                            <span className="text-xs text-gray-700">{req.leader_name || 'Subd Leader'}</span>
+                                        </div>
+                                    )
+                                },
+                                {
+                                    header: "Assigned",
+                                    key: "assigned",
+                                    render: (req) => (
+                                        req.assigned_staff_name ? (
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-[8px] font-bold text-blue-600 border border-blue-200">
+                                                    {req.assigned_staff_name.charAt(0)}
+                                                </div>
+                                                <span className="text-[10px] font-bold text-gray-900">{req.assigned_staff_name}</span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-[10px] font-medium text-gray-400 italic">Not Assigned</span>
+                                        )
+                                    )
+                                },
+                                {
+                                    header: "Date",
+                                    key: "date",
+                                    render: (req) => (
+                                        <span className="text-xs text-gray-500">
+                                            {new Date(req.created_at || req.report?.created_at || Date.now()).toLocaleDateString()}
+                                        </span>
+                                    )
+                                },
+                                {
+                                    header: "Status",
+                                    key: "status",
+                                    render: (req) => {
+                                        const reportStatus = req.report?.status_id;
+                                        if (req.status_id === 2 && reportStatus) {
+                                            const label = reportStatusMap[reportStatus] || "Approved";
+                                            let colorClass = "bg-blue-50 text-blue-600 border border-blue-100";
+                                            if (reportStatus === 6) colorClass = "bg-green-50 text-green-600 border border-green-100";
+                                            if (reportStatus === 3) colorClass = "bg-red-50 text-red-600 border border-red-100";
+                                            return (
+                                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${colorClass}`}>
+                                                    {label}
+                                                </span>
+                                            );
+                                        }
+                                        let label = statusMap[req.status_id] || "Pending";
+                                        let colorClass = "bg-orange-50 text-orange-600 border border-orange-100";
+                                        if (req.status_id === 3) {
+                                            label = "Rejected";
+                                            colorClass = "bg-red-50 text-red-600 border border-red-100";
+                                        }
+                                        return (
+                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${colorClass}`}>
+                                                {label}
+                                            </span>
+                                        );
+                                    }
+                                },
+                                {
+                                    header: "Action",
+                                    key: "action",
+                                    className: "text-right",
+                                    render: (req) => (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                openRequestModal(req);
+                                            }}
+                                            className="text-[10px] font-bold text-[#F97316] hover:underline"
+                                        >
+                                            {req.status_id === 1 ? 'Review Request' : 'Update Status'}
+                                        </button>
+                                    )
+                                }
+                            ]}
+                        />
                     </div>
                 </div>
             </main>
@@ -373,15 +405,15 @@ const BrgyRescueRequests = () => {
                                         const stages = [1, 4, 5, 7, 9, 6];
                                         const currentIndex = stages.indexOf(displayStatusId);
                                         const optIndex = stages.indexOf(stage.id);
-                                        
+
                                         const isCompleted = currentIndex > optIndex;
                                         const isCurrent = displayStatusId === stage.id;
 
                                         return (
                                             <div key={stage.id} className="relative z-10 flex flex-col items-center">
                                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${isCurrent ? 'bg-orange-500 text-white shadow-md ring-4 ring-orange-50' :
-                                                        isCompleted ? 'bg-orange-100 text-orange-600 border border-orange-200' :
-                                                            'bg-white text-gray-200 border border-gray-100'
+                                                    isCompleted ? 'bg-orange-100 text-orange-600 border border-orange-200' :
+                                                        'bg-white text-gray-200 border border-gray-100'
                                                     }`}>
                                                     {isCompleted ? (
                                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
@@ -413,7 +445,7 @@ const BrgyRescueRequests = () => {
                                         </div>
                                     </div>
                                     {viewingRequest.report?.media?.some(m => m.media_type === 'Document' || m.file_url.toLowerCase().endsWith('.pdf') || m.file_url.toLowerCase().endsWith('.docx')) && (
-                                        <button 
+                                        <button
                                             onClick={() => {
                                                 const letter = viewingRequest.report?.media?.find(m => m.media_type === 'Document' || m.file_url.toLowerCase().endsWith('.pdf') || m.file_url.toLowerCase().endsWith('.docx'));
                                                 if (letter) setActiveGallery({ media: [letter], index: 0 });
@@ -471,10 +503,49 @@ const BrgyRescueRequests = () => {
                                                 <p className="text-[9px] text-gray-400 uppercase tracking-widest font-medium">Pinpoint Accuracy Verified</p>
                                             </div>
                                         </div>
-                                        <div className="w-full h-[200px] rounded-[2rem] overflow-hidden border border-gray-100">
+                                        <div className="w-full h-[300px] rounded-[2rem] overflow-hidden border border-gray-100 relative">
                                             <MapComponent
-                                                center={[viewingRequest.report?.latitude || 14.8, viewingRequest.report?.longitude || 121.0]}
-                                                zoom={17}
+                                                center={[viewingRequest.report?.latitude || BRGY_OFFICE[0], viewingRequest.report?.longitude || BRGY_OFFICE[1]]}
+                                                zoom={16}
+                                                markers={[
+                                                    {
+                                                        id: viewingRequest.report_id,
+                                                        lat: viewingRequest.report?.latitude || BRGY_OFFICE[0],
+                                                        lng: viewingRequest.report?.longitude || BRGY_OFFICE[1],
+                                                        title: viewingRequest.report?.landmark || 'Rescue Site',
+                                                        category: categoryMap[viewingRequest.report?.category_id || 0] || 'Rescue',
+                                                        priority: viewingRequest.report?.priority_level,
+                                                        time: 'Now'
+                                                    },
+                                                    {
+                                                        id: -1,
+                                                        lat: BRGY_OFFICE[0],
+                                                        lng: BRGY_OFFICE[1],
+                                                        title: "Barangay Hall",
+                                                        category: "Barangay Office"
+                                                    },
+                                                    ...(userLocation ? [{
+                                                        id: -2,
+                                                        lat: userLocation[0],
+                                                        lng: userLocation[1],
+                                                        title: "Your Location",
+                                                        category: "User Location"
+                                                    }] : [])
+                                                ]}
+                                                routing={isNavigating ? {
+                                                    start: navSource === 'brgy' ? BRGY_OFFICE : (userLocation || BRGY_OFFICE),
+                                                    end: [viewingRequest.report?.latitude || BRGY_OFFICE[0], viewingRequest.report?.longitude || BRGY_OFFICE[1]],
+                                                    waypointNames: [navSource === 'brgy' ? "Barangay Office" : "Your Location", viewingRequest.report?.landmark]
+                                                } : undefined}
+                                                onMarkerClick={(m) => {
+                                                    if (m.source) {
+                                                        setNavSource(m.source);
+                                                        setIsNavigating(true);
+                                                    } else {
+                                                        setIsNavigating(true);
+                                                        setNavSource('brgy');
+                                                    }
+                                                }}
                                             />
                                         </div>
                                     </div>
@@ -497,6 +568,15 @@ const BrgyRescueRequests = () => {
                                     </div>
                                     <div className="flex gap-3">
                                         <button
+                                            onClick={() => navigate('/brgy/map-direction', { state: { rescue: viewingRequest } })}
+                                            className="flex-1 py-4 bg-white border border-orange-500 text-orange-600 rounded-2xl flex items-center justify-center gap-3 hover:bg-orange-50 transition-all shadow-sm"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                            <span className="text-[11px] font-black uppercase tracking-[0.2em]">Navigate to Rescue Site</span>
+                                        </button>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button
                                             onClick={() => openStatusUpdate(viewingRequest.rescue_id, viewingRequest.report_id, 3)}
                                             className="flex-1 py-3 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] hover:text-red-500 transition-colors"
                                         >
@@ -516,13 +596,13 @@ const BrgyRescueRequests = () => {
                                     ].map((opt) => {
                                         // Define the strict order of stages for the progress bar
                                         const stages = [1, 4, 5, 7, 9, 6];
-                                        
+
                                         // Use the status being updated to if the modal is open, otherwise use current status
                                         const displayStatusId = statusToUpdate?.statusId || viewingRequest.report?.status_id || 1;
-                                        
+
                                         const currentIndex = stages.indexOf(displayStatusId);
                                         const optIndex = stages.indexOf(opt.id);
-                                        
+
                                         // A stage is "Completed" if it's BEFORE the display status
                                         const isCompleted = currentIndex > optIndex;
                                         // A stage is "Current" if it matches the display status
@@ -533,8 +613,8 @@ const BrgyRescueRequests = () => {
                                                 key={opt.id}
                                                 onClick={() => openStatusUpdate(viewingRequest.rescue_id, viewingRequest.report_id, opt.id)}
                                                 className={`p-4 rounded-2xl border transition-all group text-left relative overflow-hidden ${isCurrent ? 'bg-orange-50 border-orange-500 shadow-md ring-2 ring-orange-100' :
-                                                        isCompleted ? 'bg-green-50/30 border-green-200' :
-                                                            'bg-white border-gray-100 hover:border-orange-500 hover:shadow-lg'
+                                                    isCompleted ? 'bg-green-50/30 border-green-200' :
+                                                        'bg-white border-gray-100 hover:border-orange-500 hover:shadow-lg'
                                                     }`}
                                             >
                                                 {(isCompleted || isCurrent) && (
@@ -584,8 +664,8 @@ const BrgyRescueRequests = () => {
                                             </div>
                                             <label className="text-[11px] font-black text-gray-900 uppercase tracking-widest">Assign Personnel</label>
                                         </div>
-                                        
-                                        <select 
+
+                                        <select
                                             value={selectedPersonnelId || ''}
                                             onChange={(e) => setSelectedPersonnelId(Number(e.target.value))}
                                             className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-orange-500 outline-none shadow-sm"
@@ -630,8 +710,8 @@ const BrgyRescueRequests = () => {
                                                 key={cond}
                                                 onClick={() => setStatusUpdateCondition(cond)}
                                                 className={`py-2.5 px-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border ${statusUpdateCondition === cond
-                                                        ? 'bg-orange-500 text-white border-orange-500 shadow-md shadow-orange-100'
-                                                        : 'bg-white text-gray-400 border-gray-100 hover:border-orange-200'
+                                                    ? 'bg-orange-500 text-white border-orange-500 shadow-md shadow-orange-100'
+                                                    : 'bg-white text-gray-400 border-gray-100 hover:border-orange-200'
                                                     }`}
                                             >
                                                 {cond}
@@ -710,7 +790,7 @@ const BrgyRescueRequests = () => {
                         const currentMedia = activeGallery.media[activeGallery.index];
                         const isVideo = currentMedia.media_type === 'Video' || currentMedia.file_url.toLowerCase().match(/\.(mp4|webm|ogg)$/);
                         const isDoc = currentMedia.media_type === 'Document' || currentMedia.file_url.toLowerCase().match(/\.(pdf|doc|docx)$/);
-                        
+
                         if (isVideo) {
                             return <video src={currentMedia.file_url} controls autoPlay className="max-w-full max-h-full rounded-2xl shadow-2xl ring-1 ring-white/10" onClick={e => e.stopPropagation()} />;
                         }
@@ -718,10 +798,10 @@ const BrgyRescueRequests = () => {
                             return (
                                 <div className="w-full h-full flex flex-col items-center justify-center gap-6" onClick={e => e.stopPropagation()}>
                                     <div className="w-full max-w-5xl h-[85vh] bg-white rounded-[2.5rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)] border border-white/20">
-                                        <iframe 
-                                            src={currentMedia.file_url} 
-                                            className="w-full h-full border-none" 
-                                            title="Document Viewer" 
+                                        <iframe
+                                            src={currentMedia.file_url}
+                                            className="w-full h-full border-none"
+                                            title="Document Viewer"
                                         />
                                     </div>
                                     <div className="flex gap-4">
