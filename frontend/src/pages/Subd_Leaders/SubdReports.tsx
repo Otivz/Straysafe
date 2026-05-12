@@ -7,6 +7,7 @@ import Button from '../../components/Button';
 import SuccessModal from '../../components/Modals/SuccessModal';
 import Select from '../../components/Dropdown';
 import MapComponent from '../../components/MapComponent';
+import DataTable from '../../components/DataTable';
 
 interface Report {
     report_id: number;
@@ -60,6 +61,11 @@ const SubdReports = () => {
     const [activeGallery, setActiveGallery] = useState<{ media: any[], index: number } | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
+    const [isNavigating, setIsNavigating] = useState(false);
+    const [navSource, setNavSource] = useState<'brgy' | 'current'>('brgy');
+    const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+    const BRGY_OFFICE: [number, number] = [14.8069, 121.0039]; // R243+QH Santa Maria, Bulacan
+
     const userStr = localStorage.getItem('staff_user') || sessionStorage.getItem('staff_user');
     const currentUser = userStr ? JSON.parse(userStr) : null;
     const currentUserId = currentUser ? currentUser.user_id : 1;
@@ -81,6 +87,22 @@ const SubdReports = () => {
             }
         }
     }, [navigate, userStr, currentUser]);
+
+    useEffect(() => {
+        if (isNavigating && navSource === 'current') {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        setUserLocation([position.coords.latitude, position.coords.longitude]);
+                    },
+                    (error) => {
+                        console.error("Error getting location:", error);
+                        setNavSource('brgy');
+                    }
+                );
+            }
+        }
+    }, [isNavigating, navSource]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -176,9 +198,9 @@ const SubdReports = () => {
             });
 
             // 2. Update status to Escalated (4)
-            await axios.patch(`${API_URL}/${escalatingReportId}/status`, { 
+            await axios.patch(`${API_URL}/${escalatingReportId}/status`, {
                 status_id: 4,
-                user_id: currentUserId 
+                user_id: currentUserId
             });
 
             // 3. Create official Rescue Request record
@@ -387,136 +409,158 @@ const SubdReports = () => {
                         </div>
 
                         {/* Table */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-gray-50 border-b border-gray-100">
-                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest rounded-tl-2xl">ID</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Category</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Priority</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Location</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Rescue Status</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Submitted By</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right rounded-tr-2xl">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50 text-gray-700">
-                                    {loading ? (
-                                        <tr><td colSpan={8} className="px-6 py-10 text-center text-gray-500">Loading reports...</td></tr>
-                                    ) : filteredReports.length === 0 ? (
-                                        <tr><td colSpan={8} className="px-6 py-10 text-center text-gray-500">No incident reports found.</td></tr>
-                                    ) : filteredReports.map((rep) => (
-                                        <tr key={rep.report_id} className="hover:bg-gray-50/50 transition-colors">
-                                            <td className="px-6 py-4 text-xs font-mono text-gray-400">
-                                                #{rep.report_id.toString().padStart(4, '0')}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center space-x-2">
-                                                    <span className="w-2 h-2 rounded-full bg-[#F97316]"></span>
-                                                    <span className="text-sm font-bold text-gray-900">{categoryMap[rep.category_id] || 'Other'}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${getPriorityColor(rep.priority_level)}`}>
-                                                    {rep.priority_level}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center space-x-1.5 text-gray-500">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                    </svg>
-                                                    <span className="text-xs truncate max-w-[150px]">{rep.landmark || 'No landmark'}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center space-x-2">
-                                                    {rep.status_id >= 5 ? (
-                                                        <>
-                                                            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                                                            <span className="text-xs font-bold text-blue-700">{statusMap[rep.status_id]}</span>
-                                                        </>
-                                                    ) : (
-                                                        <span className="text-xs text-gray-400 italic">Not started</span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${getStatusColor(statusMap[rep.status_id] || 'Pending')}`}>
-                                                    {statusMap[rep.status_id] || 'Pending'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center space-x-2">
-                                                    <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] text-gray-500 font-bold border border-gray-200">
-                                                        {(rep.reporter_name || 'U').charAt(0).toUpperCase()}
-                                                    </div>
-                                                    <span className="text-xs font-semibold text-gray-700">{rep.reporter_name || `User ${rep.user_id}`}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="relative inline-block text-left" ref={openMenuId === rep.report_id ? menuRef : null}>
-                                                    <button
-                                                        onClick={() => setOpenMenuId(openMenuId === rep.report_id ? null : rep.report_id)}
-                                                        className="p-2 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                            <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
-                                                        </svg>
-                                                    </button>
+                        {/* Data Table Section */}
+                        <DataTable
+                            loading={loading}
+                            data={filteredReports}
+                            emptyMessage="No incident reports found."
+                            loadingMessage="Synchronizing reports..."
+                            columns={[
+                                {
+                                    header: "ID",
+                                    key: "report_id",
+                                    render: (rep) => (
+                                        <span className="text-xs font-mono text-gray-400">#{rep.report_id.toString().padStart(4, '0')}</span>
+                                    )
+                                },
+                                {
+                                    header: "Category",
+                                    key: "category",
+                                    render: (rep) => (
+                                        <div className="flex items-center space-x-2">
+                                            <span className="w-2 h-2 rounded-full bg-[#F97316]"></span>
+                                            <span className="text-sm font-bold text-gray-900">{categoryMap[rep.category_id] || 'Other'}</span>
+                                        </div>
+                                    )
+                                },
+                                {
+                                    header: "Priority",
+                                    key: "priority",
+                                    render: (rep) => (
+                                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${getPriorityColor(rep.priority_level)}`}>
+                                            {rep.priority_level}
+                                        </span>
+                                    )
+                                },
+                                {
+                                    header: "Location",
+                                    key: "location",
+                                    render: (rep) => (
+                                        <div className="flex items-center space-x-1.5 text-gray-500">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                            <span className="text-xs truncate max-w-[150px]">{rep.landmark || 'No landmark'}</span>
+                                        </div>
+                                    )
+                                },
+                                {
+                                    header: "Rescue Status",
+                                    key: "rescue_status",
+                                    render: (rep) => (
+                                        <div className="flex items-center space-x-2">
+                                            {rep.status_id >= 5 ? (
+                                                <>
+                                                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                                                    <span className="text-xs font-bold text-blue-700">{statusMap[rep.status_id]}</span>
+                                                </>
+                                            ) : (
+                                                <span className="text-xs text-gray-400 italic">Not started</span>
+                                            )}
+                                        </div>
+                                    )
+                                },
+                                {
+                                    header: "Status",
+                                    key: "status",
+                                    render: (rep) => (
+                                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${getStatusColor(statusMap[rep.status_id] || 'Pending')}`}>
+                                            {statusMap[rep.status_id] || 'Pending'}
+                                        </span>
+                                    )
+                                },
+                                {
+                                    header: "Submitted By",
+                                    key: "reporter",
+                                    render: (rep) => (
+                                        <div className="flex items-center space-x-2">
+                                            <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] text-gray-500 font-bold border border-gray-200">
+                                                {(rep.reporter_name || 'U').charAt(0).toUpperCase()}
+                                            </div>
+                                            <span className="text-xs font-semibold text-gray-700">{rep.reporter_name || `User ${rep.user_id}`}</span>
+                                        </div>
+                                    )
+                                },
+                                {
+                                    header: "Action",
+                                    key: "action",
+                                    className: "text-right",
+                                    render: (rep) => (
+                                        <div className="relative inline-block text-left" ref={openMenuId === rep.report_id ? menuRef : null}>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setOpenMenuId(openMenuId === rep.report_id ? null : rep.report_id);
+                                                }}
+                                                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
+                                                </svg>
+                                            </button>
 
-                                                    {openMenuId === rep.report_id && (
-                                                        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
-                                                            <button
-                                                                onClick={() => {
-                                                                    setViewingReportId(rep.report_id);
-                                                                    setOpenMenuId(null);
-                                                                }}
-                                                                className="w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors"
-                                                            >
-                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                                </svg>
-                                                                View Report
-                                                            </button>
-                                                            {rep.status_id !== 6 && (
-                                                                <button
-                                                                    onClick={() => {
-                                                                        handleUpdateStatus(rep.report_id, 6);
-                                                                        setOpenMenuId(null);
-                                                                    }}
-                                                                    className="w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-green-600 hover:bg-green-50 transition-colors"
-                                                                >
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                                    </svg>
-                                                                    Mark Resolved
-                                                                </button>
-                                                            )}
-                                                            <button
-                                                                onClick={() => {
-                                                                    handleDelete(rep.report_id);
-                                                                    setOpenMenuId(null);
-                                                                }}
-                                                                className="w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
-                                                            >
-                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                                </svg>
-                                                                Delete Report
-                                                            </button>
-                                                        </div>
+                                            {openMenuId === rep.report_id && (
+                                                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setViewingReportId(rep.report_id);
+                                                            setOpenMenuId(null);
+                                                        }}
+                                                        className="w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                        </svg>
+                                                        View Report
+                                                    </button>
+                                                    {rep.status_id !== 6 && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleUpdateStatus(rep.report_id, 6);
+                                                                setOpenMenuId(null);
+                                                            }}
+                                                            className="w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-green-600 hover:bg-green-50 transition-colors"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                            Mark Resolved
+                                                        </button>
                                                     )}
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDelete(rep.report_id);
+                                                            setOpenMenuId(null);
+                                                        }}
+                                                        className="w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                        Delete Report
+                                                    </button>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                            )}
+                                        </div>
+                                    )
+                                }
+                            ]}
+                        />
                     </div>
                 </main>
             </div>
@@ -601,14 +645,44 @@ const SubdReports = () => {
                                                     center={[viewReport.latitude, viewReport.longitude]}
                                                     zoom={17}
                                                     showHeatmap={false}
-                                                    markers={[{
-                                                        id: viewReport.report_id,
-                                                        lat: viewReport.latitude,
-                                                        lng: viewReport.longitude,
-                                                        title: viewReport.landmark || 'Incident Location',
-                                                        category: categoryMap[viewReport.category_id],
-                                                        priority: viewReport.priority_level
-                                                    }]}
+                                                    markers={[
+                                                        {
+                                                            id: viewReport.report_id,
+                                                            lat: viewReport.latitude,
+                                                            lng: viewReport.longitude,
+                                                            title: viewReport.landmark || 'Incident Location',
+                                                            category: categoryMap[viewReport.category_id],
+                                                            priority: viewReport.priority_level
+                                                        },
+                                                        {
+                                                            id: -1,
+                                                            lat: BRGY_OFFICE[0],
+                                                            lng: BRGY_OFFICE[1],
+                                                            title: "Barangay Hall",
+                                                            category: "Barangay Office"
+                                                        },
+                                                        ...(userLocation ? [{
+                                                            id: -2,
+                                                            lat: userLocation[0],
+                                                            lng: userLocation[1],
+                                                            title: "Your Location",
+                                                            category: "User Location"
+                                                        }] : [])
+                                                    ]}
+                                                    routing={isNavigating ? {
+                                                        start: navSource === 'brgy' ? BRGY_OFFICE : (userLocation || BRGY_OFFICE),
+                                                        end: [viewReport.latitude, viewReport.longitude],
+                                                        waypointNames: [navSource === 'brgy' ? "Barangay Office" : "Your Location", viewReport.landmark]
+                                                    } : undefined}
+                                                    onMarkerClick={(m) => {
+                                                        if (m.source) {
+                                                            setNavSource(m.source);
+                                                            setIsNavigating(true);
+                                                        } else {
+                                                            setIsNavigating(true);
+                                                            setNavSource('brgy');
+                                                        }
+                                                    }}
                                                 />
                                             </div>
                                         </div>
@@ -689,15 +763,15 @@ const SubdReports = () => {
                                                             !url.endsWith('.docx') &&
                                                             !url.endsWith('.txt');
                                                     }).length === 1 ? 'grid-cols-1' :
-                                                            viewReport.media.filter(m => {
-                                                                const url = m.file_url.toLowerCase();
-                                                                return m.media_type !== 'Document' &&
-                                                                    !url.endsWith('.pdf') &&
-                                                                    !url.endsWith('.doc') &&
-                                                                    !url.endsWith('.docx') &&
-                                                                    !url.endsWith('.txt');
-                                                            }).length === 2 ? 'grid-cols-2' :
-                                                                'grid-cols-2 sm:grid-cols-3'
+                                                        viewReport.media.filter(m => {
+                                                            const url = m.file_url.toLowerCase();
+                                                            return m.media_type !== 'Document' &&
+                                                                !url.endsWith('.pdf') &&
+                                                                !url.endsWith('.doc') &&
+                                                                !url.endsWith('.docx') &&
+                                                                !url.endsWith('.txt');
+                                                        }).length === 2 ? 'grid-cols-2' :
+                                                            'grid-cols-2 sm:grid-cols-3'
                                                         }`}>
                                                         {viewReport.media.filter(m => {
                                                             const url = m.file_url.toLowerCase();
@@ -1059,8 +1133,8 @@ const SubdReports = () => {
                                                     type="button"
                                                     onClick={() => setFormData({ ...formData, animal_type: type })}
                                                     className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${formData.animal_type === type
-                                                            ? 'bg-white text-[#F97316] shadow-sm'
-                                                            : 'text-gray-400 hover:text-gray-600'
+                                                        ? 'bg-white text-[#F97316] shadow-sm'
+                                                        : 'text-gray-400 hover:text-gray-600'
                                                         }`}
                                                 >
                                                     {type}
@@ -1118,8 +1192,8 @@ const SubdReports = () => {
                                                     type="button"
                                                     onClick={() => setFormData({ ...formData, condition: cond })}
                                                     className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${formData.condition === cond
-                                                            ? 'bg-orange-50 border-orange-200 text-[#F97316]'
-                                                            : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200 hover:text-gray-600'
+                                                        ? 'bg-orange-50 border-orange-200 text-[#F97316]'
+                                                        : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200 hover:text-gray-600'
                                                         }`}
                                                 >
                                                     {cond}
@@ -1136,8 +1210,8 @@ const SubdReports = () => {
                                                     type="button"
                                                     onClick={() => setFormData({ ...formData, animal_count: parseInt(count) || 4 })}
                                                     className={`flex-1 py-3 rounded-xl text-xs font-black transition-all border ${(count === '4+' ? formData.animal_count >= 4 : formData.animal_count === parseInt(count))
-                                                            ? 'bg-orange-50 border-orange-200 text-[#F97316]'
-                                                            : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200 hover:text-gray-600'
+                                                        ? 'bg-orange-50 border-orange-200 text-[#F97316]'
+                                                        : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200 hover:text-gray-600'
                                                         }`}
                                                 >
                                                     {count}
@@ -1169,8 +1243,8 @@ const SubdReports = () => {
                                                 type="button"
                                                 onClick={() => toggleBehaviorTag(tag)}
                                                 className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${formData.behavior_tags.includes(tag)
-                                                        ? 'bg-[#1a1208] border-[#1a1208] text-white shadow-lg shadow-gray-200 scale-105'
-                                                        : 'bg-white border-gray-100 text-gray-400 hover:border-gray-300 hover:text-gray-600'
+                                                    ? 'bg-[#1a1208] border-[#1a1208] text-white shadow-lg shadow-gray-200 scale-105'
+                                                    : 'bg-white border-gray-100 text-gray-400 hover:border-gray-300 hover:text-gray-600'
                                                     }`}
                                             >
                                                 {tag}
@@ -1308,8 +1382,8 @@ const SubdReports = () => {
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, visibility: opt.id })}
                                                 className={`p-6 rounded-[2rem] border-2 text-left transition-all flex gap-4 ${formData.visibility === opt.id
-                                                        ? 'bg-orange-50 border-[#F97316] ring-4 ring-orange-50'
-                                                        : 'bg-white border-gray-100 hover:border-gray-200'
+                                                    ? 'bg-orange-50 border-[#F97316] ring-4 ring-orange-50'
+                                                    : 'bg-white border-gray-100 hover:border-gray-200'
                                                     }`}
                                             >
                                                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${formData.visibility === opt.id ? 'bg-[#F97316] text-white shadow-lg' : 'bg-gray-50 text-gray-400'

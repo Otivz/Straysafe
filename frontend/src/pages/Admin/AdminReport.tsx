@@ -60,6 +60,8 @@ interface Report {
     comments?: any[];
 }
 
+import DataTable from '../../components/DataTable';
+
 const statusMap: Record<number, string> = {
     1: 'Pending', 2: 'Verified', 3: 'Rejected',
     4: 'Escalated to Barangay', 5: 'Rescue In Progress', 6: 'Resolved',
@@ -389,136 +391,158 @@ const AdminReport = () => {
                         </div>
 
                         {/* Table */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-gray-50 border-b border-gray-100">
-                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest rounded-tl-2xl">ID</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Category</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Priority</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Location</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Rescue Status</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Submitted By</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right rounded-tr-2xl">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50 text-gray-700">
-                                    {loading ? (
-                                        <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-500">Loading reports...</td></tr>
-                                    ) : filteredReports.length === 0 ? (
-                                        <tr><td colSpan={8} className="px-6 py-10 text-center text-gray-500">No incident reports found.</td></tr>
-                                    ) : filteredReports.map((rep) => (
-                                        <tr key={rep.report_id} className="hover:bg-gray-50/50 transition-colors">
-                                            <td className="px-6 py-4 text-xs font-mono text-gray-400">
-                                                #{rep.report_id.toString().padStart(4, '0')}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center space-x-2">
-                                                    <span className="w-2 h-2 rounded-full bg-orange-400"></span>
-                                                    <span className="text-sm font-bold text-gray-900">{categoryMap[rep.category_id] || 'Other'}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${getPriorityColor(rep.priority_level)}`}>
-                                                    {rep.priority_level}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center space-x-1.5 text-gray-500">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                    </svg>
-                                                    <span className="text-xs truncate max-w-[150px]">{rep.landmark || 'No landmark'}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center space-x-2">
-                                                    {rep.status_id >= 5 ? (
-                                                        <>
-                                                            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                                                            <span className="text-xs font-bold text-blue-700">{statusMap[rep.status_id]}</span>
-                                                        </>
-                                                    ) : (
-                                                        <span className="text-xs text-gray-400 italic">Not started</span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${getStatusColor(statusMap[rep.status_id] || 'Pending')}`}>
-                                                    {statusMap[rep.status_id] || 'Pending'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center space-x-2">
-                                                    <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] text-gray-500 font-bold border border-gray-200">
-                                                        {(rep.reporter_name || 'U').charAt(0).toUpperCase()}
-                                                    </div>
-                                                    <span className="text-xs font-semibold text-gray-700">{rep.reporter_name || `User ${rep.user_id}`}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="relative inline-block text-left" ref={openMenuId === rep.report_id ? menuRef : null}>
-                                                    <button
-                                                        onClick={() => setOpenMenuId(openMenuId === rep.report_id ? null : rep.report_id)}
-                                                        className="p-2 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                            <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
-                                                        </svg>
-                                                    </button>
+                        {/* Data Table Section */}
+                        <DataTable
+                            loading={loading}
+                            data={filteredReports}
+                            emptyMessage="No incident reports found."
+                            loadingMessage="Synchronizing reports..."
+                            columns={[
+                                {
+                                    header: "ID",
+                                    key: "report_id",
+                                    render: (rep) => (
+                                        <span className="text-xs font-mono text-gray-400">#{rep.report_id.toString().padStart(4, '0')}</span>
+                                    )
+                                },
+                                {
+                                    header: "Category",
+                                    key: "category",
+                                    render: (rep) => (
+                                        <div className="flex items-center space-x-2">
+                                            <span className="w-2 h-2 rounded-full bg-orange-400"></span>
+                                            <span className="text-sm font-bold text-gray-900">{categoryMap[rep.category_id] || 'Other'}</span>
+                                        </div>
+                                    )
+                                },
+                                {
+                                    header: "Priority",
+                                    key: "priority",
+                                    render: (rep) => (
+                                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${getPriorityColor(rep.priority_level)}`}>
+                                            {rep.priority_level}
+                                        </span>
+                                    )
+                                },
+                                {
+                                    header: "Location",
+                                    key: "location",
+                                    render: (rep) => (
+                                        <div className="flex items-center space-x-1.5 text-gray-500">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                            <span className="text-xs truncate max-w-[150px]">{rep.landmark || 'No landmark'}</span>
+                                        </div>
+                                    )
+                                },
+                                {
+                                    header: "Rescue Status",
+                                    key: "rescue_status",
+                                    render: (rep) => (
+                                        <div className="flex items-center space-x-2">
+                                            {rep.status_id >= 5 ? (
+                                                <>
+                                                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                                                    <span className="text-xs font-bold text-blue-700">{statusMap[rep.status_id]}</span>
+                                                </>
+                                            ) : (
+                                                <span className="text-xs text-gray-400 italic">Not started</span>
+                                            )}
+                                        </div>
+                                    )
+                                },
+                                {
+                                    header: "Status",
+                                    key: "status",
+                                    render: (rep) => (
+                                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${getStatusColor(statusMap[rep.status_id] || 'Pending')}`}>
+                                            {statusMap[rep.status_id] || 'Pending'}
+                                        </span>
+                                    )
+                                },
+                                {
+                                    header: "Submitted By",
+                                    key: "reporter",
+                                    render: (rep) => (
+                                        <div className="flex items-center space-x-2">
+                                            <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] text-gray-500 font-bold border border-gray-200">
+                                                {(rep.reporter_name || 'U').charAt(0).toUpperCase()}
+                                            </div>
+                                            <span className="text-xs font-semibold text-gray-700">{rep.reporter_name || `User ${rep.user_id}`}</span>
+                                        </div>
+                                    )
+                                },
+                                {
+                                    header: "Action",
+                                    key: "action",
+                                    className: "text-right",
+                                    render: (rep) => (
+                                        <div className="relative inline-block text-left" ref={openMenuId === rep.report_id ? menuRef : null}>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setOpenMenuId(openMenuId === rep.report_id ? null : rep.report_id);
+                                                }}
+                                                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
+                                                </svg>
+                                            </button>
 
-                                                    {openMenuId === rep.report_id && (
-                                                        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
-                                                            <button
-                                                                onClick={() => {
-                                                                    setViewingReportId(rep.report_id);
-                                                                    setOpenMenuId(null);
-                                                                }}
-                                                                className="w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors"
-                                                            >
-                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                                </svg>
-                                                                View Report
-                                                            </button>
-                                                            {rep.status_id !== 6 && (
-                                                                <button
-                                                                    onClick={() => {
-                                                                        handleUpdateStatus(rep.report_id, 6);
-                                                                        setOpenMenuId(null);
-                                                                    }}
-                                                                    className="w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-green-600 hover:bg-green-50 transition-colors"
-                                                                >
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                                    </svg>
-                                                                    Mark Resolved
-                                                                </button>
-                                                            )}
-                                                            <button
-                                                                onClick={() => {
-                                                                    handleDelete(rep.report_id);
-                                                                    setOpenMenuId(null);
-                                                                }}
-                                                                className="w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
-                                                            >
-                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                                </svg>
-                                                                Delete Report
-                                                            </button>
-                                                        </div>
+                                            {openMenuId === rep.report_id && (
+                                                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setViewingReportId(rep.report_id);
+                                                            setOpenMenuId(null);
+                                                        }}
+                                                        className="w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                        </svg>
+                                                        View Report
+                                                    </button>
+                                                    {rep.status_id !== 6 && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleUpdateStatus(rep.report_id, 6);
+                                                                setOpenMenuId(null);
+                                                            }}
+                                                            className="w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-green-600 hover:bg-green-50 transition-colors"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                            Mark Resolved
+                                                        </button>
                                                     )}
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDelete(rep.report_id);
+                                                            setOpenMenuId(null);
+                                                        }}
+                                                        className="w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                        Delete Report
+                                                    </button>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                            )}
+                                        </div>
+                                    )
+                                }
+                            ]}
+                        />
                     </div>
                 </main>
             </div>

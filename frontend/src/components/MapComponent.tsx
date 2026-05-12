@@ -4,10 +4,6 @@ import { useEffect } from 'react';
 import L from 'leaflet';
 
 // Fix for default marker icon issue in React Leaflet
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerIconRetina from 'leaflet/dist/images/marker-icon-2x.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-
 const DefaultIcon = L.icon({
     iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
     iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
@@ -18,9 +14,62 @@ const DefaultIcon = L.icon({
     shadowSize: [41, 41]
 });
 
-L.Marker.prototype.options.icon = DefaultIcon;
+const BrgyIcon = L.divIcon({
+    html: `
+        <div style="
+            background: #F97316;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            animation: bounce 2s infinite;
+        ">
+            🏠
+        </div>
+    `,
+    className: '',
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
+    popupAnchor: [0, -40]
+});
+
+const MeIcon = L.divIcon({
+    html: `
+        <div style="position: relative;">
+            <div style="
+                background: #3B82F6;
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                border: 3px solid white;
+                box-shadow: 0 0 10px rgba(59,130,246,0.5);
+            "></div>
+            <div style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 20px;
+                height: 20px;
+                background: #3B82F6;
+                border-radius: 50%;
+                opacity: 0.4;
+                animation: pulse 2s infinite;
+            "></div>
+        </div>
+    `,
+    className: '',
+    iconSize: [20, 20],
+    iconAnchor: [10, 10]
+});
 
 import HeatmapLayer from './HeatmapLayer';
+import RoutingControl from './RoutingControl';
 
 interface MapComponentProps {
     height?: string;
@@ -38,6 +87,13 @@ interface MapComponentProps {
         category?: string 
     }[];
     onLocationChange?: (lat: number, lng: number) => void;
+    routing?: {
+        start: [number, number];
+        end: [number, number];
+        waypointNames?: [string, string];
+        onRoutingUpdate?: (data: { distance: string; time: string }) => void;
+    };
+    onMarkerClick?: (marker: any) => void;
 }
 
 // Internal component to handle view changes
@@ -56,7 +112,9 @@ const MapComponent = ({
     showHeatmap = true,
     heatmapPoints = [],
     markers = [],
-    onLocationChange
+    onLocationChange,
+    routing,
+    onMarkerClick
 }: MapComponentProps) => {
     const eventHandlers = {
         dragend(e: any) {
@@ -88,7 +146,17 @@ const MapComponent = ({
             )}
 
             {markers.map((marker) => (
-                <Marker key={marker.id} position={[marker.lat, marker.lng]}>
+                <Marker 
+                    key={marker.id} 
+                    position={[marker.lat, marker.lng]}
+                    icon={
+                        marker.category === 'Barangay Office' ? BrgyIcon : 
+                        marker.category === 'User Location' ? MeIcon : DefaultIcon
+                    }
+                    eventHandlers={{
+                        popupopen: () => onMarkerClick && onMarkerClick(marker)
+                    }}
+                >
                     <Popup className="custom-popup">
                         <div className="p-3 min-w-[180px]">
                             <div className="flex justify-between items-start mb-2">
@@ -101,15 +169,48 @@ const MapComponent = ({
                             </div>
                             <h3 className="font-black text-xs uppercase text-[#1a1208] mb-1">{marker.category || 'Stray Animal'}</h3>
                             <p className="text-[10px] text-gray-500 leading-tight mb-2 italic">"{marker.title}"</p>
-                            <div className="pt-2 border-t border-gray-50">
-                                <button className="w-full py-1.5 bg-orange-50 text-[#F97316] text-[9px] font-black uppercase rounded-lg hover:bg-orange-100 transition-colors">
-                                    View Report Details
+                            <div className="pt-2 border-t border-gray-100 flex flex-col gap-2">
+                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest text-center mt-1">Get Directions</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button 
+                                        onClick={(e) => {
+                                            console.log("From Office clicked");
+                                            e.stopPropagation();
+                                            if (onMarkerClick) onMarkerClick({ ...marker, source: 'brgy' });
+                                        }}
+                                        className="py-2 bg-orange-600 text-white text-[9px] font-black uppercase rounded-lg hover:bg-orange-700 transition-colors shadow-sm"
+                                    >
+                                        From Office
+                                    </button>
+                                    <button 
+                                        onClick={(e) => {
+                                            console.log("From Me clicked");
+                                            e.stopPropagation();
+                                            if (onMarkerClick) onMarkerClick({ ...marker, source: 'current' });
+                                        }}
+                                        className="py-2 bg-gray-900 text-white text-[9px] font-black uppercase rounded-lg hover:bg-black transition-colors shadow-sm"
+                                    >
+                                        From Me
+                                    </button>
+                                </div>
+                                <button className="w-full py-2 bg-gray-50 text-gray-400 text-[8px] font-black uppercase rounded-lg hover:bg-gray-100 transition-colors mt-1">
+                                    View Full Details
                                 </button>
                             </div>
                         </div>
                     </Popup>
                 </Marker>
             ))}
+
+            {routing && (
+                <RoutingControl 
+                    key={`${routing.start[0]}-${routing.start[1]}-${routing.end[0]}-${routing.end[1]}`}
+                    start={routing.start} 
+                    end={routing.end} 
+                    waypointNames={routing.waypointNames}
+                    onRoutingUpdate={routing.onRoutingUpdate}
+                />
+            )}
 
             {onLocationChange && (
                 <Marker 
