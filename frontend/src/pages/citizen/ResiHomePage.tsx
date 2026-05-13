@@ -5,7 +5,7 @@ import Button from '../../components/Button';
 import CustomRadio, { RadioCircle } from '../../components/CustomRadio';
 import ResiNavbar from '../../components/Navbars/ResiNavbar';
 import ResiMobileNav from '../../components/Navbars/ResiMobileNav';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, Polygon } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -25,6 +25,37 @@ const DefaultIcon = L.icon({
 });
 
 L.Marker.prototype.options.icon = DefaultIcon;
+
+const SELERA_POLYGON = [
+    { lat: 14.801496, lng: 121.005174 },
+    { lat: 14.799577, lng: 121.003911 },
+    { lat: 14.800634, lng: 121.002228 },
+    { lat: 14.802461, lng: 121.003280 }
+];
+
+const isInsideSeleraHomes = (lat: number, lng: number) => {
+    let n = SELERA_POLYGON.length;
+    let inside = false;
+    let p1 = SELERA_POLYGON[0];
+    for (let i = 0; i <= n; i++) {
+        let p2 = SELERA_POLYGON[i % n];
+        if (lat > Math.min(p1.lat, p2.lat)) {
+            if (lat <= Math.max(p1.lat, p2.lat)) {
+                if (lng <= Math.max(p1.lng, p2.lng)) {
+                    let xints = 0;
+                    if (p1.lat !== p2.lat) {
+                        xints = (lat - p1.lat) * (p2.lng - p1.lng) / (p2.lat - p1.lat) + p1.lng;
+                    }
+                    if (p1.lng === p2.lng || lng <= xints) {
+                        inside = !inside;
+                    }
+                }
+            }
+        }
+        p1 = p2;
+    }
+    return inside;
+};
 
 // Custom component to handle map clicks and move marker
 const LocationPicker = ({ onLocationSelect, position, disabled }: { onLocationSelect: (lat: number, lng: number) => void, position: [number, number], disabled?: boolean }) => {
@@ -239,6 +270,13 @@ const ResiHomePage = () => {
 
     const handleSubmit = async () => {
         if (isSubmitting) return;
+
+        // Geofence validation
+        if (!isInsideSeleraHomes(formData.latitude, formData.longitude)) {
+            alert('Location outside Selera Homes. Reports are only accepted within the subdivision boundary (e.g., inside the residential streets).');
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             // Get user_id from localStorage if available, otherwise default to 1
@@ -357,16 +395,16 @@ const ResiHomePage = () => {
             4: 'Roaming Pack', 5: 'Animal Rescue Needed'
         };
         const categoryName = categoryMap[r.category_id] || '';
-        return (r.description && r.description.toLowerCase().includes(q)) || 
-               (r.landmark && r.landmark.toLowerCase().includes(q)) ||
-               (r.animal_type && r.animal_type.toLowerCase().includes(q)) ||
-               (categoryName.toLowerCase().includes(q));
+        return (r.description && r.description.toLowerCase().includes(q)) ||
+            (r.landmark && r.landmark.toLowerCase().includes(q)) ||
+            (r.animal_type && r.animal_type.toLowerCase().includes(q)) ||
+            (categoryName.toLowerCase().includes(q));
     });
 
     return (
         <div className="min-h-screen bg-[#F7F7F7] font-sans pb-24">
-            <ResiNavbar 
-                onMenuToggle={(isOpen) => setIsNavbarMenuOpen(isOpen)} 
+            <ResiNavbar
+                onMenuToggle={(isOpen) => setIsNavbarMenuOpen(isOpen)}
                 onSearch={setSearchQuery}
                 searchValue={searchQuery}
                 isMobileSearchOpen={isMobileSearchOpen}
@@ -758,6 +796,16 @@ const ResiHomePage = () => {
                                                 onLocationSelect={(lat, lng) => setFormData({ ...formData, latitude: lat, longitude: lng })}
                                                 disabled={isViewMode}
                                             />
+                                            <Polygon
+                                                positions={SELERA_POLYGON.map(p => [p.lat, p.lng] as [number, number])}
+                                                pathOptions={{
+                                                    color: '#F97316',
+                                                    fillColor: '#F97316',
+                                                    fillOpacity: 0.1,
+                                                    weight: 2,
+                                                    dashArray: '5, 10'
+                                                }}
+                                            />
                                         </MapContainer>
                                         <div className="absolute top-4 right-4 z-[20] bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl border border-gray-100 shadow-sm pointer-events-none">
                                             <p className="text-[9px] font-black text-[#F97316] uppercase tracking-widest">{isViewMode ? 'Sighting Location' : 'Click map to move pin'}</p>
@@ -988,9 +1036,9 @@ const ResiHomePage = () => {
                                         <div className="mb-6 flex items-center justify-between">
                                             <div className="flex items-center gap-3">
                                                 {report.reporter_photo ? (
-                                                    <img 
-                                                        src={report.reporter_photo} 
-                                                        className="w-11 h-11 rounded-full object-cover border-2 border-orange-50 shadow-sm" 
+                                                    <img
+                                                        src={report.reporter_photo}
+                                                        className="w-11 h-11 rounded-full object-cover border-2 border-orange-50 shadow-sm"
                                                         alt={report.reporter_name}
                                                     />
                                                 ) : (

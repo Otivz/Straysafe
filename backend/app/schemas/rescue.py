@@ -19,6 +19,7 @@ class RescueStatusResponse(RescueStatusBase):
 class RescueAssignmentResponse(BaseModel):
     assignment_id: int
     staff_id: int
+    staff_name: Optional[str] = None
     assigned_by: int
     assigned_at: datetime
     assignment_status: str

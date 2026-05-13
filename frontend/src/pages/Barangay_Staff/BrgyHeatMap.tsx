@@ -52,6 +52,16 @@ const BrgyHeatMap = () => {
 
     useEffect(() => {
         fetchReports();
+        
+        // Auto-fetch location on mount for "You are here" marker
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    setUserLocation([position.coords.latitude, position.coords.longitude]);
+                },
+                (error) => console.error("Initial location fetch failed:", error)
+            );
+        }
     }, []);
 
     useEffect(() => {
@@ -76,7 +86,7 @@ const BrgyHeatMap = () => {
 
     useEffect(() => {
         processReports();
-    }, [reports, timeFilter, categoryFilter]);
+    }, [reports, timeFilter, categoryFilter, userLocation]);
 
     const processReports = () => {
         if (!reports.length) {

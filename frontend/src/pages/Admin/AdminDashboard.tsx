@@ -246,6 +246,14 @@ const AdminDashboard = () => {
                                     <MapComponent
                                         center={[14.8093, 121.0028]}
                                         zoom={16}
+                                        markers={[{
+                                            id: -1,
+                                            lat: 14.806906,
+                                            lng: 121.0039297,
+                                            title: "Command Center HQ",
+                                            category: "HQ",
+                                            time: "Base"
+                                        }]}
                                     />
 
                                     {/* Peak Hotspot Box */}

@@ -62,14 +62,32 @@ const BrgyMapDirection = () => {
                     <MapComponent 
                         center={[rescueData?.report?.latitude || 14.8093, rescueData?.report?.longitude || 121.0028]} 
                         zoom={17}
-                        markers={rescueData ? [{
-                            id: rescueData.report_id,
-                            lat: rescueData.report.latitude,
-                            lng: rescueData.report.longitude,
-                            title: rescueData.report.landmark,
-                            priority: rescueData.report.priority_level,
-                            category: "Rescue Site"
-                        }] : []}
+                        markers={[
+                            ...(rescueData ? [{
+                                id: rescueData.report_id,
+                                lat: rescueData.report.latitude,
+                                lng: rescueData.report.longitude,
+                                title: rescueData.report.landmark,
+                                priority: rescueData.report.priority_level,
+                                category: "Rescue Site"
+                            }] : []),
+                            {
+                                id: -1,
+                                lat: BRGY_OFFICE[0],
+                                lng: BRGY_OFFICE[1],
+                                title: "Barangay Hall HQ",
+                                category: "Barangay Office",
+                                time: "Base"
+                            },
+                            ...(userLocation ? [{
+                                id: -2,
+                                lat: userLocation[0],
+                                lng: userLocation[1],
+                                title: "Your Location",
+                                category: "User Location",
+                                time: "Live"
+                            }] : [])
+                        ]}
                         routing={isNavigating ? {
                             start: navSource === 'brgy' ? BRGY_OFFICE : (userLocation || BRGY_OFFICE),
                             end: [rescueData?.report?.latitude || 14.8093, rescueData?.report?.longitude || 121.0028],

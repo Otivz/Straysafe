@@ -189,9 +189,31 @@ const AdminUserManagement = () => {
         const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             u.email.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesRole = roleFilter === 'all' || u.role_id === roleFilter;
-        const matchesStatus = statusFilter === 'all' || u.status === statusFilter;
+        let matchesStatus = statusFilter === 'all' || u.status === statusFilter;
+        
+        // Custom filter for Pending Verification
+        if (statusFilter === 'Pending') {
+            return matchesSearch && matchesRole && !u.is_verified;
+        }
+
         return matchesSearch && matchesRole && matchesStatus;
     });
+
+    const handleVerifyUser = async (user: User) => {
+        try {
+            await axios.put(`${API_URL}/${user.user_id}`, {
+                ...user,
+                is_verified: true,
+                status: 'Active'
+            });
+            setSuccessMessage(`Personnel ${user.name} has been verified and activated!`);
+            setShowSuccess(true);
+            fetchUsers();
+        } catch (error) {
+            console.error('Error verifying user:', error);
+            alert('Failed to verify user.');
+        }
+    };
 
     return (
         <div className="flex h-screen bg-[#F8FAFC]">
@@ -250,11 +272,12 @@ const AdminUserManagement = () => {
                                     onChange={(e) => setStatusFilter(e.target.value)}
                                     options={[
                                         { value: 'all', label: 'All Status' },
+                                        { value: 'Pending', label: 'Pending Approval' },
                                         { value: 'Active', label: 'Active' },
                                         { value: 'Inactive', label: 'Inactive' },
                                         { value: 'Deactivated', label: 'Deactivated' }
                                     ]}
-                                    className="w-[140px]"
+                                    className="w-[180px]"
                                 />
                             </div>
                         </div>
@@ -281,6 +304,11 @@ const AdminUserManagement = () => {
                                                     {user.position && user.role_id !== 1 && (
                                                         <span className="text-[9px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded uppercase font-black tracking-tighter border border-gray-200">
                                                             {user.position}
+                                                        </span>
+                                                    )}
+                                                    {!user.is_verified && (
+                                                        <span className="text-[8px] px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded uppercase font-black tracking-widest border border-orange-200 animate-pulse">
+                                                            Pending Approval
                                                         </span>
                                                     )}
                                                 </div>
@@ -358,6 +386,21 @@ const AdminUserManagement = () => {
                                                         </svg>
                                                         Edit User
                                                     </button>
+                                                    {!user.is_verified && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleVerifyUser(user);
+                                                                setOpenMenuId(null);
+                                                            }}
+                                                            className="w-full flex items-center gap-3 px-4 py-2 text-sm font-bold text-orange-600 hover:bg-orange-50 transition-colors"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                            </svg>
+                                                            Verify & Activate
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();

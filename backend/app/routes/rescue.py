@@ -35,13 +35,13 @@ def create_rescue_request(request_in: RescueRequestCreate, db: Session = Depends
 
 @router.get("/", response_model=List[RescueRequestResponse])
 def get_rescue_requests(db: Session = Depends(get_db)):
-    rescues = db.query(Rescue).options(
+    rescues = db.query(Rescue).join(Rescue.report).filter(Report.subdivision_id == 1).options(
         joinedload(Rescue.report).joinedload(Report.media),
         joinedload(Rescue.report).joinedload(Report.reporter),
         joinedload(Rescue.report).joinedload(Report.history).joinedload(StatusHistory.updater),
         joinedload(Rescue.staff),
         joinedload(Rescue.leader).joinedload(User.position),
-        joinedload(Rescue.assignments)
+        joinedload(Rescue.assignments).joinedload(RescueAssignment.staff)
     ).all()
 
     for rescue in rescues:
@@ -90,6 +90,12 @@ def get_rescue_requests(db: Session = Depends(get_db)):
             assigned_staff = db.query(User).filter(User.user_id == latest.staff_id).first()
             rescue.assigned_staff_name = str(assigned_staff.name) if assigned_staff else None
             
+        # Populate staff_name for each assignment
+        if rescue.assignments:
+            for asgn in rescue.assignments:
+                if asgn.staff:
+                    asgn.staff_name = asgn.staff.name  # type: ignore[attr-defined]
+
         # Populate request_id for frontend compatibility
         rescue.request_id = rescue.rescue_id  # type: ignore[assignment]
 

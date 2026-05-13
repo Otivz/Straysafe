@@ -208,7 +208,18 @@ const BrgyDashboard = () => {
                                     </div>
                                 </div>
                                 <div className="w-full h-[400px] rounded-2xl overflow-hidden relative border border-gray-100">
-                                    <MapComponent center={[14.8093, 121.0028]} zoom={15} />
+                                    <MapComponent 
+                                        center={[14.8093, 121.0028]} 
+                                        zoom={15} 
+                                        markers={[{
+                                            id: -1,
+                                            lat: 14.8069,
+                                            lng: 121.0039,
+                                            title: "Barangay Hall HQ",
+                                            category: "Barangay Office",
+                                            time: "Base"
+                                        }]}
+                                    />
                                 </div>
                             </div>
                         </div>

@@ -1,150 +1,132 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import BrgySidebar from '../../components/BrgySidebar';
 import BrgyNavbar from '../../components/Navbars/BrgyNavbar';
 import DataTable from '../../components/DataTable';
 import Button from '../../components/Button';
 
-interface Personnel {
-    id: number;
-    name: string;
-    position: string;
-    contact: string;
-    email: string;
-    barangay: string;
-    currentAssignment: string;
-    assignedRescueId: string;
-    assignmentStatus: 'Available' | 'Assigned' | 'In Transit' | 'On Site' | 'Completed' | 'Off Duty';
-    completedRescues: number;
-    availabilityStatus: string;
-    profilePicture: string | null;
-    successRate: string;
-    responseTime: string;
-    highRiskCases: number;
+interface RescueRequest {
+    rescue_id: number;
+    report_id: number;
+    title: string;
+    description: string;
+    status_id: number;
+    created_at: string;
+    assigned_staff_name?: string;
+    deployment_id?: string;
+    report?: {
+        status_id: number;
+    };
 }
 
 const BrgyStaff = () => {
-    const [personnelList, setPersonnelList] = useState<Personnel[]>([]);
+    const navigate = useNavigate();
+    const [personnelList, setPersonnelList] = useState<any[]>([]);
+    const [activeDeployments, setActiveDeployments] = useState<RescueRequest[]>([]);
+    const [completedToday, setCompletedToday] = useState(0);
     const [loading, setLoading] = useState(true);
-    const [selectedPersonnel, setSelectedPersonnel] = useState<Personnel | null>(null);
+    const [selectedPersonnel, setSelectedPersonnel] = useState<any | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Form State for Add Personnel
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        password: 'Password123!',
+        phone: '',
+        position_id: 1, // Default to Rescue Lead or similar
+        role_id: 3 // Barangay Staff/Personnel
+    });
+
+    const fetchPersonnel = async () => {
+        try {
+            setLoading(true);
+            const response = await axios.get('http://localhost:8000/users/?role_id=3');
+            setPersonnelList(response.data);
+            
+            // Also fetch rescues to calculate stats
+            const rescueRes = await axios.get('http://localhost:8000/rescue-requests/');
+            const allRescues = rescueRes.data || [];
+            
+            // Filter active ones for the side panel (Status 2 = In Progress, Report Status 5 = Rescue Dispatched)
+            const activeRescues = allRescues.filter((r: any) => r.status_id === 2 && r.report?.status_id === 5);
+            
+            const deployments: any[] = [];
+            activeRescues.forEach((res: any) => {
+                if (res.assignments && res.assignments.length > 0) {
+                    res.assignments.forEach((asgn: any) => {
+                        deployments.push({
+                            ...res,
+                            assigned_staff_name: asgn.staff_name || 'Assigned Officer',
+                            deployment_id: `${res.rescue_id}-${asgn.staff_id}`
+                        });
+                    });
+                } else if (res.assigned_staff_name) {
+                    deployments.push({
+                        ...res,
+                        deployment_id: `${res.rescue_id}-primary`
+                    });
+                }
+            });
+            setActiveDeployments(deployments);
+
+            // Calculate completed today
+            const today = new Date().toISOString().split('T')[0];
+            const completed = allRescues.filter((r: any) => {
+                const reportStatus = r.report?.status_id;
+                const isResolved = reportStatus === 6;
+                const resDate = (r.created_at || '').split('T')[0];
+                return isResolved && resDate === today;
+            }).length;
+            setCompletedToday(completed);
+        } catch (error) {
+            console.error('Error fetching personnel:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        // Mock Data for Personnel
-        const mockPersonnel: Personnel[] = [
-            {
-                id: 1,
-                name: 'Ricardo Reyes',
-                position: 'Rescue Lead',
-                contact: '09123456789',
-                email: 'ricardo.reyes@stray.gov',
-                barangay: 'San Vicente',
-                currentAssignment: 'Stray Dog Rescue - Zone 4',
-                assignedRescueId: 'REQ-2024-001',
-                assignmentStatus: 'On Site',
-                completedRescues: 45,
-                availabilityStatus: 'Active',
-                profilePicture: null,
-                successRate: '98%',
-                responseTime: '12m',
-                highRiskCases: 12
-            },
-            {
-                id: 2,
-                name: 'Juan Dela Cruz',
-                position: 'Rescue Officer',
-                contact: '09987654321',
-                email: 'juan.delacruz@stray.gov',
-                barangay: 'San Vicente',
-                currentAssignment: 'Injured Cat Report - Phase 2',
-                assignedRescueId: 'REQ-2024-015',
-                assignmentStatus: 'In Transit',
-                completedRescues: 32,
-                availabilityStatus: 'Active',
-                profilePicture: null,
-                successRate: '95%',
-                responseTime: '15m',
-                highRiskCases: 8
-            },
-            {
-                id: 3,
-                name: 'Maria Santos',
-                position: 'Medical Assistant',
-                contact: '09112233445',
-                email: 'maria.santos@stray.gov',
-                barangay: 'San Vicente',
-                currentAssignment: 'Post-Rescue Checkup',
-                assignedRescueId: 'REQ-2024-009',
-                assignmentStatus: 'Completed',
-                completedRescues: 60,
-                availabilityStatus: 'Available',
-                profilePicture: null,
-                successRate: '99%',
-                responseTime: '10m',
-                highRiskCases: 5
-            },
-            {
-                id: 4,
-                name: 'Antonio Luna',
-                position: 'Rescue Officer',
-                contact: '09554433221',
-                email: 'antonio.luna@stray.gov',
-                barangay: 'San Vicente',
-                currentAssignment: 'Unassigned',
-                assignedRescueId: 'N/A',
-                assignmentStatus: 'Available',
-                completedRescues: 28,
-                availabilityStatus: 'Available',
-                profilePicture: null,
-                successRate: '92%',
-                responseTime: '18m',
-                highRiskCases: 3
-            },
-            {
-                id: 5,
-                name: 'Gregorio del Pilar',
-                position: 'Trainee',
-                contact: '09778899001',
-                email: 'gregorio.pilar@stray.gov',
-                barangay: 'San Vicente',
-                currentAssignment: 'Equipment Maintenance',
-                assignedRescueId: 'N/A',
-                assignmentStatus: 'Off Duty',
-                completedRescues: 5,
-                availabilityStatus: 'Off Duty',
-                profilePicture: null,
-                successRate: '85%',
-                responseTime: '25m',
-                highRiskCases: 0
-            },
-            {
-                id: 6,
-                name: 'Melchora Aquino',
-                position: 'Rescue Lead',
-                contact: '09223344556',
-                email: 'melchora.aquino@stray.gov',
-                barangay: 'San Vicente',
-                currentAssignment: 'Emergency Dispatch',
-                assignedRescueId: 'REQ-2024-022',
-                assignmentStatus: 'Assigned',
-                completedRescues: 120,
-                availabilityStatus: 'Active',
-                profilePicture: null,
-                successRate: '99%',
-                responseTime: '10m',
-                highRiskCases: 35
-            }
-        ];
-        setPersonnelList(mockPersonnel);
-        setLoading(false);
+        fetchPersonnel();
     }, []);
+
+    const handleAddPersonnel = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        try {
+            // New personnel starts as unverified (pending admin approval)
+            await axios.post('http://localhost:8000/users/', {
+                ...formData,
+                is_verified: false,
+                status: 'Inactive'
+            });
+            alert('Request sent to Admin. Personnel will appear once approved.');
+            setIsAddModalOpen(false);
+            setFormData({
+                name: '',
+                email: '',
+                password: 'Password123!',
+                phone: '',
+                position_id: 1,
+                role_id: 3
+            });
+            fetchPersonnel();
+        } catch (error) {
+            console.error('Error adding personnel:', error);
+            alert('Failed to send request. Check email uniqueness.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'Available': return 'bg-green-50 text-green-600 border-green-100';
-            case 'Assigned': return 'bg-blue-50 text-blue-600 border-blue-100';
-            case 'In Transit': return 'bg-orange-50 text-orange-600 border-orange-100';
-            case 'On Site': return 'bg-purple-50 text-purple-600 border-purple-100';
-            case 'Off Duty': return 'bg-gray-100 text-gray-500 border-gray-200';
+            case 'Active': return 'bg-green-50 text-green-600 border-green-100';
+            case 'Inactive': return 'bg-gray-100 text-gray-500 border-gray-200';
+            case 'Suspended': return 'bg-red-50 text-red-600 border-red-100';
             default: return 'bg-gray-50 text-gray-400 border-gray-100';
         }
     };
@@ -170,11 +152,19 @@ const BrgyStaff = () => {
                                 </p>
                             </div>
                             <div className="flex items-center gap-4">
-                                <Button variant="light" className="px-6 py-3 text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center gap-2">
+                                <Button 
+                                    variant="light" 
+                                    onClick={() => setIsAddModalOpen(true)}
+                                    className="px-6 py-3 text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center gap-2"
+                                >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
                                     Add Personnel
                                 </Button>
-                                <Button variant="light" className="px-6 py-3 text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center gap-2">
+                                <Button 
+                                    variant="light" 
+                                    onClick={() => navigate('/brgy/rescue-requests')}
+                                    className="px-6 py-3 text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center gap-2"
+                                >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
                                     Assign Rescue
                                 </Button>
@@ -191,10 +181,17 @@ const BrgyStaff = () => {
                                 {/* Analytics Cards */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 shrink-0">
                                     {[
-                                        { label: 'Total Personnel', value: '24', sub: 'Active Force', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>, color: 'text-blue-600', bg: 'bg-blue-50' },
-                                        { label: 'Available', value: '14', sub: 'Ready for Dispatch', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, color: 'text-green-600', bg: 'bg-green-50' },
-                                        { label: 'Active Deployments', value: '8', sub: 'Ongoing Ops', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>, color: 'text-orange-600', bg: 'bg-orange-50' },
-                                        { label: 'Completed Today', value: '12', sub: 'Successfully Closed', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>, color: 'text-teal-600', bg: 'bg-teal-50' },
+                                        { label: 'Total Personnel', value: personnelList.length.toString(), sub: 'Active Force', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>, color: 'text-blue-600', bg: 'bg-blue-50' },
+                                        { 
+                                            label: 'Available', 
+                                            value: personnelList.filter(p => p.status === 'Active' && p.is_verified && !activeDeployments.some(d => d.assigned_staff_name === p.name)).length.toString(), 
+                                            sub: 'Ready for Dispatch', 
+                                            icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, 
+                                            color: 'text-green-600', 
+                                            bg: 'bg-green-50' 
+                                        },
+                                        { label: 'Active Deployments', value: activeDeployments.length.toString(), sub: 'Ongoing Ops', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>, color: 'text-orange-600', bg: 'bg-orange-50' },
+                                        { label: 'Completed Today', value: completedToday.toString(), sub: 'Successfully Closed', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>, color: 'text-teal-600', bg: 'bg-teal-50' },
                                     ].map((stat, i) => (
                                         <div key={i} className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition-all duration-300 h-32">
                                             <div className="flex justify-between items-start">
@@ -224,48 +221,39 @@ const BrgyStaff = () => {
                                                     render: (p) => (
                                                         <div className="flex items-center gap-3">
                                                             <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold border-2 border-white shadow-sm overflow-hidden">
-                                                                {p.profilePicture ? <img src={p.profilePicture} alt={p.name} className="w-full h-full object-cover" /> : p.name.charAt(0)}
+                                                                {p.profile_picture ? <img src={p.profile_picture} alt={p.name} className="w-full h-full object-cover" /> : p.name.charAt(0)}
                                                             </div>
                                                             <div>
                                                                 <p className="text-sm font-black text-gray-900 leading-none">{p.name}</p>
-                                                                <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">{p.position}</p>
+                                                                <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">{p.position?.position_name || 'Rescue Officer'}</p>
                                                             </div>
                                                         </div>
                                                     )
                                                 },
                                                 {
-                                                    header: "Current Task",
-                                                    key: "assignment",
+                                                    header: "Contact Info",
+                                                    key: "contact",
                                                     render: (p) => (
                                                         <div>
-                                                            <p className="text-xs font-bold text-gray-700 leading-none">{p.currentAssignment}</p>
-                                                            <span className="text-[9px] font-mono text-gray-400 uppercase">{p.assignedRescueId}</span>
+                                                            <p className="text-xs font-bold text-gray-700 leading-none">{p.phone || 'No Phone'}</p>
+                                                            <span className="text-[9px] font-mono text-gray-400 uppercase">{p.email}</span>
                                                         </div>
                                                     )
                                                 },
                                                 {
-                                                    header: "Stats",
-                                                    key: "stats",
-                                                    render: (p) => (
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="text-center">
-                                                                <p className="text-[10px] font-black text-gray-900 leading-none">{p.completedRescues}</p>
-                                                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter mt-0.5">Resolved</p>
-                                                            </div>
-                                                            <div className="text-center">
-                                                                <p className="text-[10px] font-black text-[#F97316] leading-none">{p.successRate}</p>
-                                                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter mt-0.5">Success</p>
-                                                            </div>
-                                                        </div>
-                                                    )
-                                                },
-                                                {
-                                                    header: "Operational Status",
+                                                    header: "Current Status",
                                                     key: "status",
                                                     render: (p) => (
-                                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusColor(p.assignmentStatus)}`}>
-                                                            {p.assignmentStatus}
-                                                        </span>
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border text-center ${getStatusColor(p.status)}`}>
+                                                                {p.status}
+                                                            </span>
+                                                            {!p.is_verified && (
+                                                                <span className="text-[8px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md uppercase text-center border border-orange-100 animate-pulse">
+                                                                    Pending Admin
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     )
                                                 },
                                                 {
@@ -307,36 +295,33 @@ const BrgyStaff = () => {
                                     </div>
 
                                     <div className="space-y-4 overflow-y-auto flex-1 pr-2 custom-scrollbar">
-                                        {[1, 2, 3, 4, 5, 6].map((_, i) => (
-                                            <div key={i} className="bg-gray-50/50 border border-gray-100 rounded-3xl p-5 space-y-4 hover:border-orange-200 hover:bg-white transition-all cursor-pointer group shadow-sm hover:shadow-md">
+                                        {activeDeployments.length > 0 ? activeDeployments.map((res) => (
+                                            <div key={res.deployment_id} className="bg-gray-50/50 border border-gray-100 rounded-3xl p-5 space-y-4 hover:border-orange-200 hover:bg-white transition-all cursor-pointer group shadow-sm hover:shadow-md" onClick={() => navigate('/brgy/rescue-requests')}>
                                                 <div className="flex justify-between items-start">
                                                     <div className="flex items-center gap-2">
                                                         <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[10px] font-black text-[#1B4340] border border-gray-100 shadow-sm">
-                                                            {i % 2 === 0 ? 'J' : 'M'}
+                                                            {res.assigned_staff_name?.charAt(0) || 'R'}
                                                         </div>
                                                         <div>
-                                                            <p className="text-[11px] font-black text-gray-900 leading-none">{i % 2 === 0 ? 'Juan Dela Cruz' : 'Maria Santos'}</p>
-                                                            <p className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-tighter">Officer Level {3-(i%2)}</p>
+                                                            <p className="text-[11px] font-black text-gray-900 leading-none">{res.assigned_staff_name || 'Assigned Officer'}</p>
+                                                            <p className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-tighter">Mission: {res.title}</p>
                                                         </div>
                                                     </div>
-                                                    <span className="text-[8px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md uppercase">On Site</span>
+                                                    <span className="text-[8px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md uppercase animate-pulse">In Field</span>
                                                 </div>
 
                                                 <div className="bg-white/80 rounded-2xl p-3 border border-gray-100/50 space-y-2">
                                                     <div className="flex justify-between items-center">
                                                         <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Rescue ID</span>
-                                                        <span className="text-[9px] font-mono font-bold text-gray-900">#REQ-00{42+i}</span>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex items-center justify-between pt-2 border-t border-gray-100 border-dashed">
-                                                    <div className="flex items-center gap-1 text-gray-400">
-                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                        <span className="text-[9px] font-black uppercase">42m 15s</span>
+                                                        <span className="text-[9px] font-mono font-bold text-gray-900">#REQ-{res.rescue_id.toString().padStart(4, '0')}</span>
                                                     </div>
                                                 </div>
                                             </div>
-                                        ))}
+                                        )) : (
+                                            <div className="flex flex-col items-center justify-center h-40 opacity-30">
+                                                <p className="text-[10px] font-black uppercase tracking-widest">No Active Missions</p>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <Button variant="light" className="w-full mt-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl bg-[#F97316] text-white hover:bg-[#EA580C] shadow-lg shadow-[#F97316]/20 shrink-0">
@@ -509,6 +494,85 @@ const BrgyStaff = () => {
                             <Button variant="primary" className="flex-[2] py-4 text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl bg-[#F97316] text-white shadow-lg shadow-[#F97316]/20 hover:bg-[#EA580C]">
                                 Download Performance PDF
                             </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Add Personnel Modal */}
+            {isAddModalOpen && (
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="p-10">
+                            <div className="flex justify-between items-center mb-8">
+                                <div>
+                                    <h3 className="text-2xl font-black text-gray-900 tracking-tight">Register Personnel</h3>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Create new rescue officer account</p>
+                                </div>
+                                <button onClick={() => setIsAddModalOpen(false)} className="p-2 text-gray-400 hover:text-red-500 transition-colors">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleAddPersonnel} className="space-y-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Legal Name</label>
+                                    <input 
+                                        type="text" 
+                                        required
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                        className="w-full bg-gray-50 border-none rounded-2xl p-4 text-xs font-bold text-gray-900 focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
+                                        placeholder="e.g. Ricardo Reyes"
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
+                                        <input 
+                                            type="email" 
+                                            required
+                                            value={formData.email}
+                                            onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                            className="w-full bg-gray-50 border-none rounded-2xl p-4 text-xs font-bold text-gray-900 focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
+                                            placeholder="ricardo@stray.gov"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Contact No.</label>
+                                        <input 
+                                            type="text" 
+                                            value={formData.phone}
+                                            onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                                            className="w-full bg-gray-50 border-none rounded-2xl p-4 text-xs font-bold text-gray-900 focus:ring-2 focus:ring-[#F97316] outline-none transition-all"
+                                            placeholder="0917-XXX-XXXX"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Operational Role</label>
+                                    <select 
+                                        value={formData.position_id}
+                                        onChange={(e) => setFormData({...formData, position_id: Number(e.target.value)})}
+                                        className="w-full bg-gray-50 border-none rounded-2xl p-4 text-xs font-bold text-gray-900 focus:ring-2 focus:ring-[#F97316] outline-none transition-all appearance-none"
+                                    >
+                                        <option value={1}>Rescue Lead</option>
+                                        <option value={2}>Field Officer</option>
+                                        <option value={3}>Medical Assistant</option>
+                                        <option value={4}>Trainee</option>
+                                    </select>
+                                </div>
+
+                                <div className="pt-4">
+                                    <Button 
+                                        type="submit" 
+                                        variant="primary" 
+                                        className="w-full py-4 bg-[#F97316] text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-lg shadow-[#F97316]/20 hover:bg-[#EA580C] disabled:opacity-50"
+                                        disabled={isSubmitting}
+                                    >
+                                        {isSubmitting ? 'Registering...' : 'Confirm Registration'}
+                                    </Button>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 </div>

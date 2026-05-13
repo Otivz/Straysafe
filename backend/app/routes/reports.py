@@ -17,7 +17,7 @@ router = APIRouter(
 
 @router.get("/", response_model=List[ReportResponse])
 def get_reports(db: Session = Depends(get_db)):
-    reports = db.query(Report).options(
+    reports = db.query(Report).filter(Report.subdivision_id == 1).options(
         joinedload(Report.reporter),
         joinedload(Report.category),
         joinedload(Report.status),
@@ -46,9 +46,43 @@ def get_reports(db: Session = Depends(get_db)):
     return results
 
 
+# Define the Selera Homes boundary polygon for geofencing
+# North, East, South, West corners approximated from coordinates
+SELERA_POLYGON = [
+    (14.801496, 121.005174),
+    (14.799577, 121.003911),
+    (14.800634, 121.002228),
+    (14.802461, 121.003280)
+]
+
+def is_inside_selera_homes(lat: float, lng: float) -> bool:
+    """Ray-casting algorithm to check if a point is inside a polygon."""
+    n = len(SELERA_POLYGON)
+    inside = False
+    p1x, p1y = SELERA_POLYGON[0]
+    for i in range(n + 1):
+        p2x, p2y = SELERA_POLYGON[i % n]
+        if lat > min(p1x, p2x):
+            if lat <= max(p1x, p2x):
+                if lng <= max(p1y, p2y):
+                    xints = 0.0
+                    if p1x != p2x:
+                        xints = (lat - p1x) * (p2y - p1y) / (p2x - p1x) + p1y
+                    if p1y == p2y or lng <= xints:
+                        inside = not inside
+        p1x, p1y = p2x, p2y
+    return inside
+
 @router.post("/", response_model=ReportResponse)
 def create_report(report_in: ReportCreate, db: Session = Depends(get_db)):
     try:
+        # Geofence validation
+        if not is_inside_selera_homes(report_in.latitude, report_in.longitude):
+            raise HTTPException(
+                status_code=400, 
+                detail="Location outside Selera Homes. Reports are only accepted within the subdivision boundary."
+            )
+
         report_data = report_in.model_dump()
 
         # Map frontend "status_id" → DB "current_status_id"

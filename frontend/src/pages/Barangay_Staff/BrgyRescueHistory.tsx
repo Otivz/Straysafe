@@ -104,10 +104,9 @@ const BrgyRescueHistory = () => {
                     <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 mb-10">
                         <div>
                             <div className="flex items-center gap-3 mb-2">
-                                <div className="w-1 h-8 bg-[#F97316] rounded-full"></div>
-                                <h1 className="text-3xl font-extrabold text-[#1B4340] tracking-tight">Rescue History</h1>
+                                <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Rescue History</h1>
                             </div>
-                            <p className="text-gray-400 font-bold uppercase tracking-[0.3em] text-[11px] ml-4">
+                            <p className="text-gray-500 text-sm">
                                 Strategic Archive of Resolved Field Operations & Emergency Responses
                             </p>
                         </div>
