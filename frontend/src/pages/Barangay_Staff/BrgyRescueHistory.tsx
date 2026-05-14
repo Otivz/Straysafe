@@ -65,8 +65,10 @@ const BrgyRescueHistory = () => {
     const fetchHistory = async () => {
         try {
             setLoading(true);
-            const response = await axios.get('http://localhost:8000/rescues/');
-            setHistory(response.data);
+            const response = await axios.get('http://localhost:8000/rescue-requests/');
+            // ONLY show reports that ARE resolved (status 6)
+            const resolvedReports = (response.data || []).filter((req: any) => req.report?.status_id === 6);
+            setHistory(resolvedReports);
         } catch (error) {
             console.error('Error fetching history:', error);
         } finally {
@@ -127,9 +129,9 @@ const BrgyRescueHistory = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6 mb-10">
                         <StatCard
                             title="Resolved Rescues"
-                            value="1,284"
+                            value={history.length.toLocaleString()}
                             subtitle="Total Archived Ops"
-                            trend="+12%"
+                            trend={`+${history.length}`}
                             icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
                         />
                         <StatCard

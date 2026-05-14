@@ -343,8 +343,9 @@ const ResiHomePage = () => {
                             await axios.post(`${API_URL}/${actualReportId}/media`, mediaData, {
                                 headers: { 'Content-Type': 'multipart/form-data' }
                             });
-                        } catch (err) {
-                            console.error('Failed to upload media:', err);
+                        } catch (err: any) {
+                            const errorMsg = err.response?.data?.detail || err.message;
+                            console.error('Failed to upload media:', errorMsg);
                             failCount++;
                         }
                     }
@@ -768,6 +769,14 @@ const ResiHomePage = () => {
                                             multiple
                                             onChange={(e) => {
                                                 const files = Array.from(e.target.files || []);
+                                                const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+                                                const oversized = files.filter(f => f.size > MAX_SIZE);
+                                                
+                                                if (oversized.length > 0) {
+                                                    alert(`File(s) too large: ${oversized.map(f => f.name).join(', ')}. Max size is 10MB.`);
+                                                    return;
+                                                }
+                                                
                                                 setFormData(prev => ({
                                                     ...prev,
                                                     mediaFiles: [...prev.mediaFiles, ...files]

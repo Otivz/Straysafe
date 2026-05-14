@@ -282,8 +282,8 @@ const BrgyHeatMap = () => {
                         )}
                     </div>
 
-                    {/* Left Overlay: Map Mode Toggle */}
-                    <div className="absolute top-6 left-6 z-[500] flex bg-slate-900/90 backdrop-blur-xl p-1.5 rounded-2xl border border-slate-800 shadow-2xl">
+                    {/* Bottom Right Overlay: Map Mode Toggle */}
+                    <div className="absolute bottom-6 right-6 z-[500] flex bg-slate-900/90 backdrop-blur-xl p-1.5 rounded-2xl border border-slate-800 shadow-2xl">
                         <button 
                             onClick={() => setMapMode('heatmap')}
                             className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mapMode === 'heatmap' ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/20' : 'text-slate-500 hover:text-slate-300'}`}

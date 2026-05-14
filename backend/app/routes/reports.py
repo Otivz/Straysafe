@@ -156,31 +156,52 @@ async def upload_report_media(
     file_extension = os.path.splitext(safe_filename)[1]
     unique_filename = f"{uuid.uuid4()}{file_extension}"
 
+    # Check file size before reading (10MB limit for Cloudinary free tier)
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    
+    # We can check the size by seeking to the end or checking the spooled file
+    # But for FastAPI UploadFile, we can check file.size in newer versions, 
+    # or just read and check length. Since we are already reading it:
     try:
         file_content = await file.read()
+        if len(file_content) > MAX_FILE_SIZE:
+             raise HTTPException(
+                status_code=413, 
+                detail=f"File too large ({len(file_content)} bytes). Maximum allowed is 10MB."
+            )
+        
         # Explicitly pass filename as a keyword argument to match the utility function signature
         file_url = upload_to_cloudinary(file_content, filename=unique_filename)
+        
+        if not file_url:
+            raise Exception("Cloudinary returned an empty URL")
+
+        # Determine media_type from extension
+        ext = file_extension.lower()
+        if ext in ['.mp4', '.mov', '.avi', '.webm']:
+            media_type = 'Video'
+        elif ext in ['.pdf', '.docx', '.doc']:
+            media_type = 'Document'
+        else:
+            media_type = 'Image'
+
+        db_media = ReportMedia(
+            report_id=report_id,
+            file_url=file_url,
+            media_type=media_type
+        )
+        db.add(db_media)
+        db.commit()
+        db.refresh(db_media)
+        return db_media
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Cloudinary upload failed: {str(e)}")
-
-    # Determine media_type from extension
-    ext = file_extension.lower()
-    if ext in ['.mp4', '.mov', '.avi', '.webm']:
-        media_type = 'Video'
-    elif ext in ['.pdf', '.docx', '.doc']:
-        media_type = 'Document'
-    else:
-        media_type = 'Image'
-
-    db_media = ReportMedia(
-        report_id=report_id,
-        file_url=file_url,
-        media_type=media_type
-    )
-    db.add(db_media)
-    db.commit()
-    db.refresh(db_media)
-    return db_media
+        db.rollback()
+        print(f"Error in upload_report_media: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Media upload failed: {str(e)}")
 
 
 @router.patch("/{report_id}/status", response_model=ReportResponse)

@@ -22,7 +22,7 @@ const CommunityStaffLogin = () => {
             try {
                 const user = JSON.parse(rawUser);
                 if (user && user.role_id === 2) {
-                    navigate('/staff/dashboard');
+                    navigate('/subd/dashboard');
                 } else if (user && user.role_id === 3) {
                     navigate('/brgy/dashboard');
                 } else {
@@ -66,7 +66,7 @@ const CommunityStaffLogin = () => {
             storage.setItem('staff_user', JSON.stringify(data));
 
             if (data.role_id === 2) {
-                navigate('/staff/dashboard');
+                navigate('/subd/dashboard');
             } else if (data.role_id === 3) {
                 navigate('/brgy/dashboard');
             }

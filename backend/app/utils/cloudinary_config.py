@@ -52,4 +52,4 @@ def upload_to_cloudinary(file_content, folder="straysafe", resource_type="auto",
         print(f"!!! CLOUDINARY UPLOAD ERROR: {str(e)}")
         import traceback
         traceback.print_exc()
-        return None
+        raise e

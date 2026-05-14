@@ -12,6 +12,9 @@ import ProtectedRoute from '../components/ProtectedRoute';
 import CommunityStaffLogin from '../pages/Subd_Leaders/CommunityStaffLogin';
 import SubdDashboard from '../pages/Subd_Leaders/SubdDashboard';
 import SubdReports from '../pages/Subd_Leaders/SubdReports';
+import EscelatedMissions from '../pages/Subd_Leaders/EscelatedMissions';
+import SubdHeatMap from '../pages/Subd_Leaders/SubdHeatMap';
+import EndorsementArch from '../pages/Subd_Leaders/EndorsementArch';
 
 import LandingPage from '../pages/citizen/LandingPage';
 import ResidentsLogin from '../pages/citizen/ResidentsLogin';
@@ -23,6 +26,7 @@ import BrgyRescueRequests from '../pages/Barangay_Staff/BrgyRescueRequests';
 import BrgyMapDirection from '../pages/Barangay_Staff/BrgyMapDirection';
 import BrgyHeatMap from '../pages/Barangay_Staff/BrgyHeatMap';
 import BrgyRescueHistory from '../pages/Barangay_Staff/BrgyRescueHistory';
+import BrgyMonitoring from '../pages/Barangay_Staff/BrgyMonitoring';
 import BrgyStaff from '../pages/Barangay_Staff/BrgyStaff';
 
 
@@ -95,14 +99,18 @@ const AppRoutes = () => {
 
             {/* Protected Barangay/Subdivision Routes */}
             <Route path="/staff/login" element={<CommunityStaffLogin />} />
-            <Route path="/staff/dashboard" element={<SubdDashboard />} />
-            <Route path="/staff/incidents" element={<SubdReports />} />
+            <Route path="/subd/dashboard" element={<SubdDashboard />} />
+            <Route path="/subd/reports" element={<SubdReports />} />
+            <Route path="/subd/escalated" element={<EscelatedMissions />} />
+            <Route path="/subd/heatmap" element={<SubdHeatMap />} />
+            <Route path="/subd/endorsements" element={<EndorsementArch />} />
 
             {/* Barangay Staff Routes */}
             <Route path="/brgy/dashboard" element={<BrgyDashboard />} />
             <Route path="/brgy/rescue-requests" element={<BrgyRescueRequests />} />
             <Route path="/brgy/map-direction" element={<BrgyMapDirection />} />
             <Route path="/brgy/heatmap" element={<BrgyHeatMap />} />
+            <Route path="/brgy/monitoring" element={<BrgyMonitoring />} />
             <Route path="/brgy/history" element={<BrgyRescueHistory />} />
             <Route path="/brgy/teams" element={<BrgyStaff />} />
 
