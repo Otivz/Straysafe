@@ -72,13 +72,17 @@ class ReportMedia(Base):
 
     media_id = Column(Integer, primary_key=True, index=True)
     report_id = Column(Integer, ForeignKey("reports.report_id", ondelete="CASCADE"), nullable=False)
+    history_id = Column(Integer, ForeignKey("status_history.history_id", ondelete="SET NULL"), nullable=True)
+    status_id = Column(Integer, ForeignKey("report_status.status_id", ondelete="SET NULL"), nullable=True)
     file_url = Column(String(255), nullable=False)
     # DB ENUM: 'Image','Video','Document'
     media_type = Column(Enum('Image', 'Video', 'Document'), nullable=False)
+    is_evidence = Column(Boolean, default=False)
     uploaded_at = Column(DateTime, server_default=func.now())
 
     # Relationships
     report = relationship("Report", back_populates="media")
+    history = relationship("StatusHistory", back_populates="media")
 
 
 class Comment(Base):
@@ -148,6 +152,7 @@ class ReportVerification(Base):
 
 class StatusHistory(Base):
     __tablename__ = "status_history"
+    __allow_unmapped__ = True
 
     history_id = Column(Integer, primary_key=True, index=True)
     # DB has both report_id and rescue_id (both nullable)
@@ -162,6 +167,10 @@ class StatusHistory(Base):
 
     report = relationship("Report", back_populates="history")
     updater = relationship("User")
+    media = relationship("ReportMedia", back_populates="history")
+
+    # Transient fields
+    updater_name: Optional[str] = None
 
 
 class RescueAssignment(Base):

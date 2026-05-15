@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 import os
 import uuid
 from sqlalchemy.orm import Session, joinedload, selectinload
@@ -24,7 +24,8 @@ def get_reports(db: Session = Depends(get_db)):
         joinedload(Report.subdivision),
         selectinload(Report.media),
         selectinload(Report.comments).joinedload(Comment.user),
-        selectinload(Report.history)
+        selectinload(Report.history).joinedload(StatusHistory.updater),
+        selectinload(Report.history).selectinload(StatusHistory.media)
     ).all()
     results = []
     for rep in reports:
@@ -34,6 +35,13 @@ def get_reports(db: Session = Depends(get_db)):
             rep_data.status_id = rep.current_status_id  # type: ignore[assignment]
             rep_data.reporter_name = rep.reporter.name if rep.reporter else "Unknown User"
             rep_data.reporter_photo = rep.reporter.profile_picture if rep.reporter else None
+            
+            # Populate history updater names
+            if rep.history:
+                for i, hist in enumerate(rep.history):
+                    if rep_data.history and i < len(rep_data.history):
+                        rep_data.history[i].updater_name = hist.updater.name if hist.updater else "System"
+
             if rep.comments:
                 for i, comment in enumerate(rep.comments):  # type: ignore[arg-type]
                     if rep_data.comments and i < len(rep_data.comments):
@@ -94,6 +102,17 @@ def create_report(report_in: ReportCreate, db: Session = Depends(get_db)):
 
         db_report = Report(**report_data)
         db.add(db_report)
+        db.flush()  # Get report_id before committing
+
+        # Create initial history entry for status 1 (Reported)
+        initial_history = StatusHistory(
+            report_id=db_report.report_id,
+            report_status_id=db_report.current_status_id,
+            updated_by=db_report.reporter_id,
+            remarks="Initial report submitted by resident."
+        )
+        db.add(initial_history)
+        
         db.commit()
         db.refresh(db_report)
 
@@ -146,6 +165,9 @@ def update_report(report_id: int, report_update: ReportUpdate, db: Session = Dep
 async def upload_report_media(
     report_id: int,
     file: UploadFile = File(...),
+    history_id: Optional[int] = Form(None),
+    status_id: Optional[int] = Form(None),
+    is_evidence: Optional[bool] = Form(False),
     db: Session = Depends(get_db)
 ):
     report = db.query(Report).filter(Report.report_id == report_id).first()
@@ -156,12 +178,8 @@ async def upload_report_media(
     file_extension = os.path.splitext(safe_filename)[1]
     unique_filename = f"{uuid.uuid4()}{file_extension}"
 
-    # Check file size before reading (10MB limit for Cloudinary free tier)
     MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
     
-    # We can check the size by seeking to the end or checking the spooled file
-    # But for FastAPI UploadFile, we can check file.size in newer versions, 
-    # or just read and check length. Since we are already reading it:
     try:
         file_content = await file.read()
         if len(file_content) > MAX_FILE_SIZE:
@@ -170,13 +188,11 @@ async def upload_report_media(
                 detail=f"File too large ({len(file_content)} bytes). Maximum allowed is 10MB."
             )
         
-        # Explicitly pass filename as a keyword argument to match the utility function signature
         file_url = upload_to_cloudinary(file_content, filename=unique_filename)
         
         if not file_url:
             raise Exception("Cloudinary returned an empty URL")
 
-        # Determine media_type from extension
         ext = file_extension.lower()
         if ext in ['.mp4', '.mov', '.avi', '.webm']:
             media_type = 'Video'
@@ -187,6 +203,9 @@ async def upload_report_media(
 
         db_media = ReportMedia(
             report_id=report_id,
+            history_id=history_id,
+            status_id=status_id,
+            is_evidence=is_evidence,
             file_url=file_url,
             media_type=media_type
         )
@@ -199,8 +218,6 @@ async def upload_report_media(
     except Exception as e:
         db.rollback()
         print(f"Error in upload_report_media: {str(e)}")
-        import traceback
-        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Media upload failed: {str(e)}")
 
 
