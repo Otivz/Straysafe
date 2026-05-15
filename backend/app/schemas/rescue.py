@@ -70,6 +70,7 @@ class RescueRequestUpdate(BaseModel):
     user_id: Optional[int] = None
     assigned_personnel_id: Optional[int] = None
     remarks: Optional[str] = None
+    animal_condition: Optional[str] = None
 
 
 class RescueRequestResponse(RescueBase):

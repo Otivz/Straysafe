@@ -10,7 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Local imports (now safe to import after path fix)
 from app.database import engine, Base
-from app.routes import auth, users, reports, rescue, pets
+from app.routes import auth, users, reports, rescue, pets, notifications
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -38,6 +38,7 @@ app.include_router(users.router)
 app.include_router(reports.router)
 app.include_router(rescue.router)
 app.include_router(pets.router)
+app.include_router(notifications.router)
 
 @app.get("/")
 def read_root():

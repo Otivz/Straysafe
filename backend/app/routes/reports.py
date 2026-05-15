@@ -6,6 +6,7 @@ from typing import List, Optional
 from app.database import get_db
 from app.models.report import Report, ReportMedia, Comment, StatusHistory
 from app.models.user import User, Subdivision
+from app.models.notification import Notification
 from app.schemas.report import ReportCreate, ReportResponse, ReportStatusUpdate, ReportUpdate, ReportMediaResponse, CommentCreate, CommentResponse
 from app.utils.cloudinary_config import upload_to_cloudinary
 
@@ -113,6 +114,16 @@ def create_report(report_in: ReportCreate, db: Session = Depends(get_db)):
             remarks="Initial report submitted by resident."
         )
         db.add(initial_history)
+        
+        # Create Notification for Resident
+        new_notif = Notification(
+            user_id=db_report.user_id,
+            title="Report Submitted Successfully",
+            message=f"Your report #{db_report.report_id} has been submitted and is pending verification.",
+            type="status_update",
+            related_id=db_report.report_id
+        )
+        db.add(new_notif)
         
         db.commit()
         db.refresh(db_report)
@@ -279,6 +290,19 @@ def add_comment(report_id: int, comment_in: CommentCreate, db: Session = Depends
     db.add(db_comment)
     db.commit()
     db.refresh(db_comment)
+
+    # Create notification for report owner if commenter is different
+    if report.user_id != comment_in.user_id:
+        commenter_name = db_comment.user.name if db_comment.user else "Someone"
+        new_notif = Notification(
+            user_id=report.user_id,
+            title="New Comment on Your Report",
+            message=f"{commenter_name} commented on your report #{report.report_id}: \"{db_comment.comment[:50]}{'...' if len(db_comment.comment) > 50 else ''}\"",
+            type="comment",
+            related_id=report.report_id
+        )
+        db.add(new_notif)
+        db.commit()
 
     comment_data = CommentResponse.model_validate(db_comment)
     comment_data.user_name = db_comment.user.name if db_comment.user else "Unknown User"
