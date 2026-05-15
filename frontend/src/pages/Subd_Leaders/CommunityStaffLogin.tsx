@@ -61,6 +61,10 @@ const CommunityStaffLogin = () => {
                 return;
             }
 
+            // Clear any existing staff sessions to prevent conflicts between localStorage and sessionStorage
+            localStorage.removeItem('staff_user');
+            sessionStorage.removeItem('staff_user');
+
             // Store session info
             const storage = keepSignedIn ? localStorage : sessionStorage;
             storage.setItem('staff_user', JSON.stringify(data));

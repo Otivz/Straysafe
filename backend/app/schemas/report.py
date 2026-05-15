@@ -71,6 +71,7 @@ class StatusHistoryResponse(BaseModel):
     remarks: Optional[str] = None
     created_at: datetime
     updater_name: Optional[str] = None
+    updater_photo: Optional[str] = None
     media: Optional[list[ReportMediaResponse]] = []
 
     class Config:

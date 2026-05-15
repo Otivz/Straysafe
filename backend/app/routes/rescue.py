@@ -99,6 +99,11 @@ def get_rescue_requests(db: Session = Depends(get_db)):
         # Populate request_id for frontend compatibility
         rescue.request_id = rescue.rescue_id  # type: ignore[assignment]
 
+        # Populate updater names for report history entries
+        if rescue.report and rescue.report.history:
+            for hist in rescue.report.history:
+                hist.updater_name = hist.updater.name if hist.updater else "System"
+
     return rescues
 
 
@@ -116,7 +121,8 @@ def update_rescue_request(rescue_id: int, request_in: RescueRequestUpdate, db: S
     try:
         db_rescue = db.query(Rescue).options(
             joinedload(Rescue.report).joinedload(Report.media),
-            joinedload(Rescue.report).joinedload(Report.reporter)
+            joinedload(Rescue.report).joinedload(Report.reporter),
+            joinedload(Rescue.report).joinedload(Report.history).joinedload(StatusHistory.updater)
         ).filter(Rescue.rescue_id == rescue_id).first()
 
         if not db_rescue:
@@ -127,7 +133,8 @@ def update_rescue_request(rescue_id: int, request_in: RescueRequestUpdate, db: S
         # Handle assignment if personnel ID is provided
         assigned_id = update_data.pop("assigned_personnel_id", None)
         remarks = update_data.pop("remarks", None)
-        staff_id_for_assignment = update_data.get("barangay_staff_id") # Person who is doing the assigning
+        # Accept both barangay_staff_id and user_id for flexibility
+        staff_id_for_history = update_data.pop("user_id", None) or update_data.get("barangay_staff_id")
 
         # Map barangay_staff_id → staff_id (DB column name) if it exists in update_data
         if "barangay_staff_id" in update_data:
@@ -141,16 +148,67 @@ def update_rescue_request(rescue_id: int, request_in: RescueRequestUpdate, db: S
             new_assignment = RescueAssignment(
                 rescue_id=rescue_id,
                 staff_id=assigned_id,
-                assigned_by=staff_id_for_assignment or (db_rescue.staff_id if db_rescue.staff_id else assigned_id),
+                assigned_by=staff_id_for_history or (db_rescue.staff_id if db_rescue.staff_id else assigned_id),
                 remarks=remarks
             )
             db.add(new_assignment)
 
+        # Update rescue fields
         for key, value in update_data.items():
-            setattr(db_rescue, key, value)
+            if key != "status_id" and hasattr(db_rescue, key):
+                setattr(db_rescue, key, value)
+
+        # Record Status History and Synchronize
+        if "status_id" in update_data:
+            report_status_id = update_data["status_id"]
+            
+            # Map Report Status ID → Rescue Status ID
+            # Report: 1:Reported, 2:Verified, 3:Rejected, 4:Forwarded, 5:In Action, 7:Picked Up, 6:Resolved
+            # Rescue: 1:Pending, 2:Approved, 3:Rejected, 4:Started, 5:Dispatched, 6:Resolved
+            report_to_rescue_map = {
+                1: 1, # Reported -> Pending
+                2: 2, # Verified/Approved -> Approved
+                3: 3, # Rejected -> Rejected
+                4: 4, # Forwarded -> Started
+                5: 5, # Dispatched -> Dispatched
+                7: 5, # Picked Up -> Still Dispatched
+                9: 5, # Impounded -> Still Dispatched
+                6: 6  # Resolved -> Resolved
+            }
+            
+            rescue_status_id = report_to_rescue_map.get(report_status_id)
+            
+            # Update Rescue status if mapping exists
+            if rescue_status_id:
+                db_rescue.status_id = rescue_status_id
+
+            # Record history for both the rescue and the report
+            history_remarks = remarks or f"Status updated to {report_status_id}"
+            db_history = StatusHistory(
+                rescue_id=rescue_id,
+                report_id=db_rescue.report_id,
+                report_status_id=report_status_id,
+                rescue_status_id=rescue_status_id,
+                updated_by=staff_id_for_history,
+                remarks=history_remarks
+            )
+            db.add(db_history)
+
+            # Update the associated Report's current status
+            if db_rescue.report_id:
+                report_obj = db.query(Report).filter(Report.report_id == db_rescue.report_id).first()
+                if report_obj:
+                    report_obj.current_status_id = report_status_id
 
         db.commit()
         db.refresh(db_rescue)
+        
+        # Populate updater names and photos for history entries in the response
+        if db_rescue.report and db_rescue.report.history:
+            for hist in db_rescue.report.history:
+                hist.updater_name = hist.updater.name if hist.updater else "System"
+                hist.updater_photo = hist.updater.profile_picture if hist.updater else None
+                
         return db_rescue
     except Exception as e:
         db.rollback()

@@ -38,9 +38,10 @@ def get_reports(db: Session = Depends(get_db)):
             
             # Populate history updater names
             if rep.history:
-                for i, hist in enumerate(rep.history):
+                for i, hist in enumerate(rep.history):  # type: ignore[arg-type]
                     if rep_data.history and i < len(rep_data.history):
                         rep_data.history[i].updater_name = hist.updater.name if hist.updater else "System"
+                        rep_data.history[i].updater_photo = hist.updater.profile_picture if hist.updater else None
 
             if rep.comments:
                 for i, comment in enumerate(rep.comments):  # type: ignore[arg-type]
@@ -108,7 +109,7 @@ def create_report(report_in: ReportCreate, db: Session = Depends(get_db)):
         initial_history = StatusHistory(
             report_id=db_report.report_id,
             report_status_id=db_report.current_status_id,
-            updated_by=db_report.reporter_id,
+            updated_by=db_report.user_id,
             remarks="Initial report submitted by resident."
         )
         db.add(initial_history)
@@ -252,6 +253,14 @@ def update_report_status(report_id: int, status_update: ReportStatusUpdate, db: 
     rep_data.status_id = report.current_status_id  # type: ignore[assignment]
     rep_data.reporter_name = report.reporter.name if report.reporter else "Unknown User"
     rep_data.reporter_photo = report.reporter.profile_picture if report.reporter else None
+    
+    # Populate updater names for history entries in the response
+    if report.history:
+        for i, hist in enumerate(report.history):  # type: ignore[arg-type]
+            if rep_data.history and i < len(rep_data.history):
+                rep_data.history[i].updater_name = hist.updater.name if hist.updater else "System"
+                rep_data.history[i].updater_photo = hist.updater.profile_picture if hist.updater else None
+                
     return rep_data
 
 

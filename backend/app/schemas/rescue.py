@@ -67,6 +67,7 @@ class RescueRequestCreate(RescueBase):
 class RescueRequestUpdate(BaseModel):
     status_id: Optional[int] = None
     barangay_staff_id: Optional[int] = None
+    user_id: Optional[int] = None
     assigned_personnel_id: Optional[int] = None
     remarks: Optional[str] = None
 
