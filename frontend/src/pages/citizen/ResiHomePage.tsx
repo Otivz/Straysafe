@@ -13,6 +13,7 @@ import L from 'leaflet';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIconRetina from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import RescueTimeline from '../../components/RescueTimeline';
 
 const DefaultIcon = L.icon({
     iconUrl: markerIcon,
@@ -57,6 +58,27 @@ const isInsideSeleraHomes = (lat: number, lng: number) => {
     return inside;
 };
 
+const reportStatusMap: Record<number, string> = {
+    1: 'Pending Verification',
+    2: 'Verified',
+    3: 'Rejected',
+    4: 'Forwarded to Barangay',
+    5: 'Team Dispatched',
+    6: 'Resolved',
+    7: 'Picked Up',
+    8: 'Under Observation',
+    9: 'Impounded',
+    10: 'Released'
+};
+
+const categoryMap: Record<number, string> = {
+    1: 'Injured Animal',
+    2: 'Aggressive Stray',
+    3: 'Possible Rabies Risk',
+    4: 'Roaming Pack',
+    5: 'Animal Rescue Needed'
+};
+
 // Custom component to handle map clicks and move marker
 const LocationPicker = ({ onLocationSelect, position, disabled }: { onLocationSelect: (lat: number, lng: number) => void, position: [number, number], disabled?: boolean }) => {
     useMapEvents({
@@ -78,6 +100,7 @@ const ResiHomePage = () => {
     const [originalData, setOriginalData] = useState<any>(null);
     const [isNavbarMenuOpen, setIsNavbarMenuOpen] = useState(false);
     const [returnUrl, setReturnUrl] = useState<string | null>(null);
+    const [viewingDetailedReport, setViewingDetailedReport] = useState<any | null>(null);
 
     useEffect(() => {
         if (location.state?.from) {
@@ -335,9 +358,17 @@ const ResiHomePage = () => {
                 // Upload media if present
                 if (formData.mediaFiles && formData.mediaFiles.length > 0) {
                     let failCount = 0;
+                    // Link media to the initial 'Reported' history entry
+                    const initialHistoryId = resultData.history?.find((h: any) => h.report_status_id === 1)?.history_id;
+
                     for (const file of formData.mediaFiles) {
                         const mediaData = new FormData();
                         mediaData.append("file", file);
+                        if (initialHistoryId) {
+                            mediaData.append("history_id", initialHistoryId.toString());
+                        }
+                        mediaData.append("status_id", "1"); // Status 1 = Reported
+                        mediaData.append("is_evidence", "false"); // Initial photos are not evidence
 
                         try {
                             await axios.post(`${API_URL}/${actualReportId}/media`, mediaData, {
@@ -1310,25 +1341,35 @@ const ResiHomePage = () => {
                                             </div>
                                         )}
 
-                                        {/* Quick Info Grid - Always 3 Columns */}
-                                        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6 bg-[#FAFAF9] p-4 rounded-3xl border border-gray-50">
-                                            <div className="flex flex-col gap-0.5">
-                                                <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest">{categoryName}</span>
-                                                <span className="text-[10px] sm:text-[11px] font-bold text-[#4a3b28] truncate">{report.landmark || 'Not specified'}</span>
-                                            </div>
-                                            <div className="flex flex-col gap-0.5 border-l border-gray-100 pl-3 sm:pl-4">
-                                                <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest">Animals</span>
-                                                <span className="text-[10px] sm:text-[11px] font-bold text-[#4a3b28] truncate">{report.animal_count} sighted</span>
-                                            </div>
-                                            <div className="flex flex-col gap-0.5 border-l border-gray-100 pl-3 sm:pl-4">
-                                                <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest">Priority</span>
-                                                <span className={`text-[10px] sm:text-[11px] font-black uppercase tracking-wider truncate ${report.priority_level === 'High' ? 'text-red-500' : 'text-[#F97316]'}`}>
-                                                    {report.priority_level}
-                                                </span>
-                                            </div>
-                                        </div>
+                                                                {/* Quick Info Grid - Always 3 Columns */}
+                                                                <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6 bg-[#FAFAF9] p-4 rounded-3xl border border-gray-50">
+                                                                    <div className="flex flex-col gap-0.5">
+                                                                        <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest">{categoryName}</span>
+                                                                        <span className="text-[10px] sm:text-[11px] font-bold text-[#4a3b28] truncate">{report.landmark || 'Not specified'}</span>
+                                                                    </div>
+                                                                    <div className="flex flex-col gap-0.5 border-l border-gray-100 pl-3 sm:pl-4">
+                                                                        <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest">Animals</span>
+                                                                        <span className="text-[10px] sm:text-[11px] font-bold text-[#4a3b28] truncate">{report.animal_count} sighted</span>
+                                                                    </div>
+                                                                    <div className="flex flex-col gap-0.5 border-l border-gray-100 pl-3 sm:pl-4">
+                                                                        <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest">Priority</span>
+                                                                        <span className={`text-[10px] sm:text-[11px] font-black uppercase tracking-wider truncate ${report.priority_level === 'High' ? 'text-red-500' : 'text-[#F97316]'}`}>
+                                                                            {report.priority_level}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
 
-                                        {/* Mini Map: The Context */}
+                                                                {/* View More Button - PROMINENT PLACEMENT */}
+                                                                <div className="mb-8">
+                                                                    <button 
+                                                                        onClick={() => setViewingDetailedReport(report)}
+                                                                        className="w-full py-4 bg-gray-900 text-white rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-gray-200 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+                                                                    >
+                                                                        View Rescue Timeline & Full Intelligence
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                                                    </button>
+                                                                </div>
+
                                         <div className="rounded-2xl sm:rounded-[2rem] overflow-hidden border border-gray-100 h-40 sm:h-52 relative shadow-inner">
                                             <MapContainer
                                                 center={[report.latitude, report.longitude]}
@@ -1392,7 +1433,7 @@ const ResiHomePage = () => {
                                                                         </div>
 
                                                                         <div className="flex-1 pb-1">
-                                                                            {/* Parent Bubble */}
+                                                                            {/* Meta Info */}
                                                                             <div className="bg-[#FAFAF9] rounded-[1.5rem] p-3.5 px-4 border border-gray-50 shadow-sm inline-block">
                                                                                 <span className="block text-[11px] font-black text-[#1a1208] mb-0.5">{c.user_name}</span>
                                                                                 <p className="text-xs font-semibold text-gray-700 leading-relaxed pr-6">{c.comment}</p>
@@ -1611,6 +1652,146 @@ const ResiHomePage = () => {
                             <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.4em]">
                                 Media {activeGallery.index + 1} of {activeGallery.media.length} • StraySafe Surveillance
                             </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Detailed Report View Modal */}
+            {viewingDetailedReport && (
+                <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 sm:p-6 md:p-10">
+                    {/* Backdrop */}
+                    <div 
+                        className="absolute inset-0 bg-[#1a1208]/80 backdrop-blur-xl animate-in fade-in duration-500"
+                        onClick={() => setViewingDetailedReport(null)}
+                    />
+
+                    {/* Modal Content */}
+                    <div className="relative w-full max-w-5xl bg-[#FBFBFB] rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-20 duration-700 flex flex-col max-h-[90vh]">
+                        {/* Header */}
+                        <div className="px-10 py-8 bg-white border-b border-gray-100 flex justify-between items-center shrink-0">
+                            <div className="flex items-center gap-6">
+                                <div className="w-16 h-16 rounded-[2rem] bg-orange-50 flex items-center justify-center text-orange-600 shadow-sm border border-orange-100">
+                                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Rescue Case Intelligence</h2>
+                                    <div className="flex items-center gap-3 mt-1">
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Report ID: #STR-{(viewingDetailedReport.report_id || 0).toString().padStart(4, '0')}</span>
+                                        <div className="w-1 h-1 rounded-full bg-gray-200" />
+                                        <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">{categoryMap[viewingDetailedReport.category_id]}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setViewingDetailedReport(null)}
+                                className="p-4 bg-gray-50 text-gray-400 hover:text-gray-900 rounded-2xl transition-all"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+
+                        {/* Scrollable Body */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-10">
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                                {/* Left Side: Report Details */}
+                                <div className="lg:col-span-5 space-y-10">
+                                    {/* Main Image */}
+                                    <div className="aspect-[4/3] rounded-[2.5rem] overflow-hidden border-4 border-white shadow-xl">
+                                        {(() => {
+                                            const originalMedia = viewingDetailedReport.media?.filter((m: any) => !m.is_evidence) || [];
+                                            return (
+                                                <img 
+                                                    src={originalMedia[0]?.file_url || 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?q=80&w=2069&auto=format&fit=crop'} 
+                                                    className="w-full h-full object-cover" 
+                                                    alt="Animal sighting" 
+                                                />
+                                            );
+                                        })()}
+                                    </div>
+
+                                    {/* Stats Grid */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="bg-white p-6 rounded-3xl border border-gray-100">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Status</p>
+                                            <p className="text-sm font-black text-orange-600 uppercase">{reportStatusMap[viewingDetailedReport.status_id]}</p>
+                                        </div>
+                                        <div className="bg-white p-6 rounded-3xl border border-gray-100">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Date Reported</p>
+                                            <p className="text-sm font-black text-gray-900 uppercase">{new Date(viewingDetailedReport.created_at).toLocaleDateString()}</p>
+                                        </div>
+                                        <div className="bg-white p-6 rounded-3xl border border-gray-100">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Animal Type</p>
+                                            <p className="text-sm font-black text-gray-900 uppercase">{viewingDetailedReport.animal_type}</p>
+                                        </div>
+                                        <div className="bg-white p-6 rounded-3xl border border-gray-100">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Priority</p>
+                                            <p className="text-sm font-black text-red-600 uppercase">{viewingDetailedReport.priority_level}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Description */}
+                                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
+                                        <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em] mb-4">Case Description</h4>
+                                        <p className="text-sm text-gray-600 font-medium leading-relaxed italic">
+                                            "{viewingDetailedReport.description}"
+                                        </p>
+                                    </div>
+
+                                    {/* Location Card */}
+                                    <div className="bg-gray-900 text-white p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-700" />
+                                        <div className="relative z-10">
+                                            <h4 className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em] mb-4">Location Intelligence</h4>
+                                            <div className="flex items-start gap-4 mb-6">
+                                                <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-orange-400">
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-black tracking-tight">{viewingDetailedReport.landmark || 'No landmark specified'}</p>
+                                                    <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest mt-1">Santa Maria, Bulacan • Selera Homes</p>
+                                                </div>
+                                            </div>
+                                            <div className="w-full h-40 rounded-2xl overflow-hidden border border-white/10 grayscale-[0.5] hover:grayscale-0 transition-all duration-500">
+                                                <MapContainer center={[viewingDetailedReport.latitude, viewingDetailedReport.longitude]} zoom={16} className="h-full w-full">
+                                                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                                    <Marker position={[viewingDetailedReport.latitude, viewingDetailedReport.longitude]} />
+                                                </MapContainer>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Right Side: Timeline */}
+                                <div className="lg:col-span-7 space-y-8">
+                                    <div className="flex items-end justify-between px-2">
+                                        <div>
+                                            <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Rescue Timeline</h3>
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Live updates from our barangay responders</p>
+                                        </div>
+                                        <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-full border border-green-100">
+                                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                            <span className="text-[9px] font-black text-green-600 uppercase tracking-widest">Live Syncing</span>
+                                        </div>
+                                    </div>
+
+                                    {/* The Timeline Component */}
+                                    <RescueTimeline 
+                                        history={viewingDetailedReport.history || []} 
+                                        currentStatusId={viewingDetailedReport.status_id}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-10 py-6 bg-white border-t border-gray-100 flex justify-between items-center shrink-0">
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.2em]">© 2026 STRAYSAFE MISSION CONTROL</p>
+                            <button 
+                                onClick={() => setViewingDetailedReport(null)}
+                                className="px-8 py-3 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
+                            >
+                                Close Intelligence View
+                            </button>
                         </div>
                     </div>
                 </div>

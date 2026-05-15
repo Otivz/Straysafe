@@ -6,6 +6,7 @@ import BrgyNavbar from '../../components/Navbars/BrgyNavbar';
 import Button from '../../components/Button';
 import MapComponent from '../../components/MapComponent';
 import DataTable from '../../components/DataTable';
+import RescueTimeline from '../../components/RescueTimeline';
 
 interface RescueRequest {
     rescue_id: number;
@@ -31,6 +32,7 @@ interface RescueRequest {
         status_id: number;
         created_at: string;
         media?: { media_id: number; file_url: string; media_type: string }[];
+        history?: any[];
     };
     leader_name?: string;
     leader_position?: string;
@@ -178,7 +180,13 @@ const BrgyRescueRequests = () => {
 
             // 3. Upload Media if any
             if (statusMediaFiles.length > 0) {
-                const newHistoryId = statusResponse.data.history?.slice(-1)[0]?.history_id;
+                // Find the history entry we just created by filtering for the correct status_id
+                const newHistoryEntry = statusResponse.data.history
+                    ?.filter((h: any) => h.report_status_id === statusToUpdate.statusId)
+                    .sort((a: any, b: any) => b.history_id - a.history_id)[0];
+                
+                const newHistoryId = newHistoryEntry?.history_id;
+
                 for (const file of statusMediaFiles) {
                     const formData = new FormData();
                     formData.append('file', file);
@@ -186,6 +194,9 @@ const BrgyRescueRequests = () => {
                     if (newHistoryId) {
                         formData.append('history_id', newHistoryId.toString());
                     }
+                    // Also send status_id for additional indexing
+                    formData.append('status_id', statusToUpdate.statusId.toString());
+
                     try {
                         await axios.post(`http://localhost:8000/reports/${statusToUpdate.reportId}/media`, formData, {
                             headers: { 'Content-Type': 'multipart/form-data' }
@@ -551,6 +562,20 @@ const BrgyRescueRequests = () => {
                                             />
                                         </div>
                                     </div>
+                                </div>
+
+                                <div className="px-8 pb-10">
+                                    <div className="flex items-center justify-between mb-8">
+                                        <div>
+                                            <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest">Rescue Operation Timeline</h4>
+                                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">Full audit trail of status changes and evidence</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <RescueTimeline 
+                                        history={viewingRequest.report?.history || []} 
+                                        currentStatusId={viewingRequest.report?.status_id || 1}
+                                    />
                                 </div>
                             </div>
                         </div>

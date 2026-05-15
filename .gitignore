@@ -16,7 +16,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-setup.txt
+
 
 # Editor directories and files
 .vscode/*
@@ -29,7 +29,7 @@ setup.txt
 *.sln
 *.sw?
 
-setup.md
+
 
 
 # Environments

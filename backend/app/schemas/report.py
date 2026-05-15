@@ -55,7 +55,9 @@ class ReportMediaResponse(BaseModel):
     media_id: int
     file_url: str
     media_type: str
-    # DB has no is_evidence or history_id
+    history_id: Optional[int] = None
+    status_id: Optional[int] = None
+    is_evidence: Optional[bool] = False
     uploaded_at: datetime
 
     class Config:
@@ -68,6 +70,8 @@ class StatusHistoryResponse(BaseModel):
     rescue_status_id: Optional[int] = None
     remarks: Optional[str] = None
     created_at: datetime
+    updater_name: Optional[str] = None
+    media: Optional[list[ReportMediaResponse]] = []
 
     class Config:
         from_attributes = True
