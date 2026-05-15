@@ -138,7 +138,11 @@ const SubdReports = () => {
             const response = await axios.get(`${API_URL}/`);
             // Sort by report_id descending to show new reports at the top
             const sortedData = (response.data || []).sort((a: any, b: any) => b.report_id - a.report_id);
-            setReports(sortedData);
+            // Ensure unique reports by ID to prevent doubling
+            const uniqueReports = sortedData.filter((report: any, index: number, self: any[]) =>
+                index === self.findIndex((t: any) => t.report_id === report.report_id)
+            );
+            setReports(uniqueReports);
         } catch (error) {
             console.error('Error fetching reports:', error);
         } finally {
@@ -173,7 +177,11 @@ const SubdReports = () => {
 
     const handleUpdateStatus = async (id: number, newStatusId: number) => {
         try {
-            await axios.patch(`${API_URL}/${id}/status`, { status_id: newStatusId });
+            await axios.patch(`${API_URL}/${id}/status`, {
+                status_id: newStatusId,
+                user_id: currentUserId,
+                remarks: newStatusId === 2 ? "Incident report has been officially verified by the Subdivision Leader." : undefined
+            });
             fetchReports();
         } catch (error) {
             console.error('Error updating status:', error);
@@ -197,10 +205,11 @@ const SubdReports = () => {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            // 2. Update status to Escalated (4)
+            // 2. Update status to Forwarded (11)
             await axios.patch(`${API_URL}/${escalatingReportId}/status`, {
-                status_id: 4,
-                user_id: currentUserId
+                status_id: 11,
+                user_id: currentUserId,
+                remarks: "Report forwarded to Barangay Operations for official review and approval."
             });
 
             // 3. Create official Rescue Request record
@@ -1051,7 +1060,24 @@ const SubdReports = () => {
                                         {/* ACTION PANEL */}
                                         <div className="mt-8 pt-8 border-t border-gray-100">
                                             <div className="flex flex-col gap-3">
-                                                {viewReport.status_id < 4 && (
+                                                {/* STEP 1: VERIFY (Only for Pending reports) */}
+                                                {viewReport.status_id === 1 && (
+                                                    <button
+                                                        onClick={() => {
+                                                            handleUpdateStatus(viewReport.report_id, 2);
+                                                            setViewingReportId(null);
+                                                        }}
+                                                        className="w-full py-4 bg-blue-600 text-white rounded-2xl text-xs font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-2"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        VERIFY INCIDENT REPORT
+                                                    </button>
+                                                )}
+
+                                                {/* STEP 2: ESCALATE (Only after verification) */}
+                                                {viewReport.status_id === 2 && (
                                                     <button
                                                         onClick={() => {
                                                             setEscalatingReportId(viewReport.report_id);
@@ -1060,7 +1086,7 @@ const SubdReports = () => {
                                                         }}
                                                         className="w-full py-4 bg-orange-600 text-white rounded-2xl text-xs font-bold shadow-lg shadow-orange-100 hover:bg-orange-700 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-2"
                                                     >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                                                         </svg>
                                                         ESCALATE TO BARANGAY FOR RESCUE

@@ -161,30 +161,23 @@ const BrgyRescueRequests = () => {
 
         setIsUpdating(true);
         try {
-            // 1. Update Rescue Status (Internal Dashboard Status)
+            // 1. Update Rescue & Report Status in ONE call
             const rescuePayload = {
-                status_id: statusToUpdate.statusId === 3 ? 3 : 2, // 2 = Approved/Active, 3 = Rejected
+                status_id: statusToUpdate.statusId, // Use the ACTUAL status (4, 5, 7, etc.)
                 barangay_staff_id: currentUser.user_id,
                 assigned_personnel_id: selectedPersonnelId,
-                remarks: assignmentRemarks
-            };
-            await axios.patch(`http://localhost:8000/rescue-requests/${statusToUpdate.requestId}`, rescuePayload);
-
-            // 2. Update the actual Report Status (The circles)
-            const statusResponse = await axios.patch(`http://localhost:8000/reports/${statusToUpdate.reportId}/status`, {
-                status_id: statusToUpdate.statusId,
-                user_id: currentUser.user_id, // Pass user_id for history tracking
-                status_remarks: statusUpdateMessage || `Status updated to ${statusMap[statusToUpdate.statusId] || reportStatusMap[statusToUpdate.statusId]}`,
+                remarks: statusUpdateMessage || `Status updated to ${statusMap[statusToUpdate.statusId] || reportStatusMap[statusToUpdate.statusId]}`,
                 animal_condition: statusUpdateCondition
-            });
+            };
+            const rescueResponse = await axios.patch(`http://localhost:8000/rescue-requests/${statusToUpdate.requestId}`, rescuePayload);
 
             // 3. Upload Media if any
             if (statusMediaFiles.length > 0) {
-                // Find the history entry we just created by filtering for the correct status_id
-                const newHistoryEntry = statusResponse.data.history
+                // Find the history entry we just created in the response
+                const newHistoryEntry = rescueResponse.data.report?.history
                     ?.filter((h: any) => h.report_status_id === statusToUpdate.statusId)
-                    .sort((a: any, b: any) => b.history_id - a.history_id)[0];
-                
+                    .sort((a: any, b: any) => (b.history_id || 0) - (a.history_id || 0))[0];
+
                 const newHistoryId = newHistoryEntry?.history_id;
 
                 for (const file of statusMediaFiles) {
@@ -398,7 +391,7 @@ const BrgyRescueRequests = () => {
                                             className="h-full bg-orange-500 transition-all duration-700"
                                             style={{
                                                 width: `${(() => {
-                                                    const stages = [1, 4, 5, 7, 9, 6];
+                                                    const stages = [1, 2, 4, 5, 7, 9, 6];
                                                     const currentIndex = stages.indexOf(viewingRequest.report?.status_id);
                                                     return currentIndex === -1 ? 0 : (currentIndex / (stages.length - 1)) * 100;
                                                 })()}%`
@@ -408,14 +401,15 @@ const BrgyRescueRequests = () => {
 
                                     {[
                                         { id: 1, label: 'Reported' },
-                                        { id: 4, label: 'Verified' },
+                                        { id: 2, label: 'Verified' },
+                                        { id: 4, label: 'Approved' },
                                         { id: 5, label: 'Dispatched' },
                                         { id: 7, label: 'Picked Up' },
                                         { id: 9, label: 'Impounded' },
                                         { id: 6, label: 'Resolved' }
                                     ].map((stage, idx) => {
                                         const displayStatusId = statusToUpdate?.statusId || viewingRequest.report?.status_id || 1;
-                                        const stages = [1, 4, 5, 7, 9, 6];
+                                        const stages = [1, 2, 4, 5, 7, 9, 6];
                                         const currentIndex = stages.indexOf(displayStatusId);
                                         const optIndex = stages.indexOf(stage.id);
 
@@ -571,9 +565,9 @@ const BrgyRescueRequests = () => {
                                             <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">Full audit trail of status changes and evidence</p>
                                         </div>
                                     </div>
-                                    
-                                    <RescueTimeline 
-                                        history={viewingRequest.report?.history || []} 
+
+                                    <RescueTimeline
+                                        history={viewingRequest.report?.history || []}
                                         currentStatusId={viewingRequest.report?.status_id || 1}
                                     />
                                 </div>
@@ -587,10 +581,10 @@ const BrgyRescueRequests = () => {
                                         <Button
                                             variant="primary"
                                             className="flex-1 !bg-orange-600 hover:!bg-orange-700 !rounded-2xl py-4 flex flex-col items-center gap-1 shadow-lg shadow-orange-100"
-                                            onClick={() => openStatusUpdate(viewingRequest.rescue_id, viewingRequest.report_id, 5)}
+                                            onClick={() => openStatusUpdate(viewingRequest.rescue_id, viewingRequest.report_id, 4)}
                                         >
-                                            <span className="text-[11px] font-black uppercase tracking-widest">Approve & Dispatch Rescue Team</span>
-                                            <span className="text-[9px] opacity-70 font-medium">Status will change to 'Team Dispatched'</span>
+                                            <span className="text-[11px] font-black uppercase tracking-widest">Approve Report Request</span>
+                                            <span className="text-[9px] opacity-70 font-medium">Status will change to 'Approved'</span>
                                         </Button>
                                     </div>
                                     <div className="flex gap-3">
@@ -615,14 +609,15 @@ const BrgyRescueRequests = () => {
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                     {[
                                         { id: 1, label: 'Reported', sub: 'Citizen Post' },
-                                        { id: 4, label: 'Verified', sub: 'Forwarded' },
+                                        { id: 2, label: 'Verified', sub: 'Leader Vetted' },
+                                        { id: 4, label: 'Approved', sub: 'Accepted by Barangay' },
                                         { id: 5, label: 'Dispatched', sub: 'On the way' },
                                         { id: 7, label: 'Picked Up', sub: 'Animal secured' },
                                         { id: 9, label: 'Impounded', sub: 'At shelter' },
                                         { id: 6, label: 'Resolved', sub: 'Operation complete' }
                                     ].map((opt) => {
                                         // Define the strict order of stages for the progress bar
-                                        const stages = [1, 4, 5, 7, 9, 6];
+                                        const stages = [1, 2, 4, 5, 7, 9, 6];
 
                                         // Use the status being updated to if the modal is open, otherwise use current status
                                         const displayStatusId = statusToUpdate?.statusId || viewingRequest.report?.status_id || 1;

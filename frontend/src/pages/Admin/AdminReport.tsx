@@ -89,14 +89,16 @@ interface Report {
     behavior_tags?: string | string[];
     media?: any[];
     comments?: any[];
+    history?: any[];
 }
 
 import DataTable from '../../components/DataTable';
+import RescueTimeline from '../../components/RescueTimeline';
 
 const statusMap: Record<number, string> = {
     1: 'Pending', 2: 'Verified', 3: 'Rejected',
-    4: 'Escalated to Barangay', 5: 'Rescue In Progress', 6: 'Resolved',
-    7: 'Picked Up', 8: 'Under Observation', 9: 'Impounded'
+    4: 'Approved by Barangay', 5: 'Rescue Dispatched', 6: 'Resolved',
+    7: 'Picked Up', 8: 'Under Observation', 9: 'Impounded', 10: 'Released'
 };
 const categoryMap: Record<number, string> = {
     1: 'Injured Animal', 2: 'Aggressive Stray', 3: 'Possible Rabies Risk',
@@ -638,8 +640,8 @@ const AdminReport = () => {
                                                     return (
                                                         <div key={stage.id} className="relative z-10 flex flex-col items-center">
                                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${isCurrent ? 'bg-orange-500 text-white shadow-md ring-4 ring-orange-50' :
-                                                                    isCompleted ? 'bg-orange-100 text-orange-600 border border-orange-200' :
-                                                                        'bg-white text-gray-200 border border-gray-100'
+                                                                isCompleted ? 'bg-orange-100 text-orange-600 border border-orange-200' :
+                                                                    'bg-white text-gray-200 border border-gray-100'
                                                                 }`}>
                                                                 {isCompleted ? (
                                                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
@@ -791,6 +793,14 @@ const AdminReport = () => {
                                                                             !url.endsWith('.docx') &&
                                                                             !url.endsWith('.txt');
                                                                     }).length === 1 ? 'h-64 sm:h-96' :
+                                                                        viewReport.media.filter((m: any) => {
+                                                                            const url = m.file_url.toLowerCase();
+                                                                            return m.media_type !== 'Document' &&
+                                                                                !url.endsWith('.pdf') &&
+                                                                                !url.endsWith('.doc') &&
+                                                                                !url.endsWith('.docx') &&
+                                                                                !url.endsWith('.txt');
+                                                                        }).length === 2 ? 'h-48 sm:h-72' :
                                                                             viewReport.media.filter((m: any) => {
                                                                                 const url = m.file_url.toLowerCase();
                                                                                 return m.media_type !== 'Document' &&
@@ -798,15 +808,7 @@ const AdminReport = () => {
                                                                                     !url.endsWith('.doc') &&
                                                                                     !url.endsWith('.docx') &&
                                                                                     !url.endsWith('.txt');
-                                                                            }).length === 2 ? 'h-48 sm:h-72' :
-                                                                                viewReport.media.filter((m: any) => {
-                                                                                    const url = m.file_url.toLowerCase();
-                                                                                    return m.media_type !== 'Document' &&
-                                                                                        !url.endsWith('.pdf') &&
-                                                                                        !url.endsWith('.doc') &&
-                                                                                        !url.endsWith('.docx') &&
-                                                                                        !url.endsWith('.txt');
-                                                                                }).length === 3 && idx === 0 ? 'row-span-2 h-[24rem] sm:h-[36rem]' : 'h-48 sm:h-72'
+                                                                            }).length === 3 && idx === 0 ? 'row-span-2 h-[24rem] sm:h-[36rem]' : 'h-48 sm:h-72'
                                                                         }`}
                                                                     onClick={() => {
                                                                         const filtered = viewReport.media.filter((m: any) => {
@@ -895,6 +897,22 @@ const AdminReport = () => {
                                                             <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-bold rounded-md">Injured</span>
                                                         </div>
                                                     </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Action Audit Trail (Timeline) */}
+                                            <div className="pt-4">
+                                                <h5 className="text-[11px] font-black text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    Operational Audit Trail
+                                                </h5>
+                                                <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm">
+                                                    <RescueTimeline
+                                                        history={viewReport.history || []}
+                                                        currentStatusId={viewReport.status_id || 1}
+                                                    />
                                                 </div>
                                             </div>
 

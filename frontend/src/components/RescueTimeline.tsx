@@ -23,48 +23,48 @@ interface RescueTimelineProps {
 }
 
 const statusConfig: Record<number, { label: string, color: string, icon: React.ReactNode }> = {
-    1: { 
-        label: 'Reported', 
+    1: {
+        label: 'Reported',
         color: 'orange',
         icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
     },
-    2: { 
-        label: 'Verified', 
+    2: {
+        label: 'Verified',
         color: 'blue',
         icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
     },
-    4: { 
-        label: 'Verified', 
-        color: 'blue',
-        icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+    4: {
+        label: 'Approved',
+        color: 'orange',
+        icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
     },
-    5: { 
-        label: 'Dispatched', 
+    5: {
+        label: 'Dispatched',
         color: 'indigo',
         icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
     },
-    7: { 
-        label: 'Picked Up', 
+    7: {
+        label: 'Picked Up',
         color: 'amber',
         icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
     },
-    8: { 
-        label: 'Under Observation', 
+    8: {
+        label: 'Under Observation',
         color: 'purple',
         icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
     },
-    9: { 
-        label: 'Impounded', 
+    9: {
+        label: 'Impounded',
         color: 'rose',
         icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
     },
-    6: { 
-        label: 'Resolved', 
+    6: {
+        label: 'Resolved',
         color: 'green',
         icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
     },
-    10: { 
-        label: 'Released', 
+    10: {
+        label: 'Released',
         color: 'emerald',
         icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
     }
@@ -74,8 +74,8 @@ const RescueTimeline: React.FC<RescueTimelineProps> = ({ history, currentStatusI
     const [filter, setFilter] = useState<number | 'all'>('all');
     const [activeMedia, setActiveMedia] = useState<Media | null>(null);
 
-    const filteredHistory = filter === 'all' 
-        ? history 
+    const filteredHistory = filter === 'all'
+        ? history
         : history.filter(entry => entry.report_status_id === filter);
 
     const uniqueStages = Array.from(new Set(history.map(e => e.report_status_id)));
@@ -90,8 +90,8 @@ const RescueTimeline: React.FC<RescueTimelineProps> = ({ history, currentStatusI
                     </div>
                     <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Filter by Stage</span>
                 </div>
-                <select 
-                    value={filter} 
+                <select
+                    value={filter}
                     onChange={(e) => setFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
                     className="bg-transparent text-[10px] font-black text-[#F97316] uppercase tracking-widest outline-none cursor-pointer"
                 >
@@ -150,10 +150,10 @@ const RescueTimeline: React.FC<RescueTimelineProps> = ({ history, currentStatusI
 
                                         <div className="flex items-center gap-3 mb-6 p-3 bg-gray-50/50 rounded-2xl border border-gray-50/50">
                                             {entry.updater_photo ? (
-                                                <img 
-                                                    src={entry.updater_photo} 
-                                                    className="w-6 h-6 rounded-lg object-cover border border-gray-100 shadow-sm" 
-                                                    alt={entry.updater_name} 
+                                                <img
+                                                    src={entry.updater_photo}
+                                                    className="w-6 h-6 rounded-lg object-cover border border-gray-100 shadow-sm"
+                                                    alt={entry.updater_name}
                                                 />
                                             ) : (
                                                 <div className="w-6 h-6 rounded-lg bg-white flex items-center justify-center text-[10px] font-black text-gray-400 border border-gray-100 shadow-sm">
@@ -167,8 +167,8 @@ const RescueTimeline: React.FC<RescueTimelineProps> = ({ history, currentStatusI
                                         {entry.media && entry.media.length > 0 && (
                                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                                 {entry.media.map(media => (
-                                                    <div 
-                                                        key={media.media_id} 
+                                                    <div
+                                                        key={media.media_id}
                                                         onClick={() => setActiveMedia(media)}
                                                         className="relative aspect-square rounded-2xl overflow-hidden cursor-pointer group/media border border-gray-100 shadow-sm"
                                                     >
@@ -209,7 +209,8 @@ const RescueTimeline: React.FC<RescueTimelineProps> = ({ history, currentStatusI
             )}
 
             {/* Custom Styles for Tailwind colors if they don't exist dynamically */}
-            <style dangerouslySetInnerHTML={{ __html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 .border-orange-50 { border-color: rgba(249, 115, 22, 0.1); }
                 .text-orange-600 { color: #ea580c; }
                 .bg-orange-50 { background-color: rgba(249, 115, 22, 0.05); }

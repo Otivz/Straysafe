@@ -5,6 +5,7 @@ from app.database import get_db
 # Import Rescue (not RescueRequest) to match the DB "rescues" table
 from app.models.report import Rescue, Report, RescueAssignment, StatusHistory
 from app.models.user import User
+from app.models.notification import Notification
 from app.schemas.rescue import RescueRequestCreate, RescueRequestResponse, RescueRequestUpdate
 
 router = APIRouter(
@@ -167,9 +168,10 @@ def update_rescue_request(rescue_id: int, request_in: RescueRequestUpdate, db: S
             # Rescue: 1:Pending, 2:Approved, 3:Rejected, 4:Started, 5:Dispatched, 6:Resolved
             report_to_rescue_map = {
                 1: 1, # Reported -> Pending
-                2: 2, # Verified/Approved -> Approved
+                2: 2, # Verified -> Approved/Active
+                11: 1, # Forwarded -> Pending
                 3: 3, # Rejected -> Rejected
-                4: 4, # Forwarded -> Started
+                4: 2, # Approved by Barangay -> Active
                 5: 5, # Dispatched -> Dispatched
                 7: 5, # Picked Up -> Still Dispatched
                 9: 5, # Impounded -> Still Dispatched
@@ -194,11 +196,31 @@ def update_rescue_request(rescue_id: int, request_in: RescueRequestUpdate, db: S
             )
             db.add(db_history)
 
-            # Update the associated Report's current status
+            # Update the associated Report's current status and condition
             if db_rescue.report_id:
                 report_obj = db.query(Report).filter(Report.report_id == db_rescue.report_id).first()
                 if report_obj:
                     report_obj.current_status_id = report_status_id
+                    if "animal_condition" in update_data:
+                        report_obj.condition = update_data["animal_condition"]
+
+                    # Create Notification for Resident
+                    status_names = {
+                        1: "Reported", 2: "Verified", 3: "Rejected",
+                        4: "Approved by Barangay", 5: "Dispatched", 6: "Resolved",
+                        7: "Picked Up", 8: "Under Observation", 9: "Impounded", 
+                        10: "Released", 11: "Forwarded to Barangay"
+                    }
+                    status_name = status_names.get(report_status_id, "Updated")
+                    
+                    new_notif = Notification(
+                        user_id=report_obj.user_id,
+                        title="Incident Status Update",
+                        message=f"Your report #{report_obj.report_id} has been updated to: {status_name}.",
+                        type="status_update",
+                        related_id=report_obj.report_id
+                    )
+                    db.add(new_notif)
 
         db.commit()
         db.refresh(db_rescue)

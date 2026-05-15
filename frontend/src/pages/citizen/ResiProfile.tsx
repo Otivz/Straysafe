@@ -73,18 +73,7 @@ const ResiProfile = () => {
         }
     };
 
-    const handleDeleteReport = async (reportId: number) => {
-        if (!window.confirm('Are you sure you want to delete this report?')) return;
-        try {
-            const response = await axios.delete(`http://localhost:8000/reports/${reportId}`);
-            if (response.status === 200) {
-                fetchUserReports();
-            }
-        } catch (error) {
-            console.error('Error deleting report:', error);
-            alert('Failed to delete report');
-        }
-    };
+
 
     const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -110,6 +99,12 @@ const ResiProfile = () => {
     const handleMobileSearch = (query: string) => {
         setSearchQuery(query);
         setIsMobileSearchOpen(false);
+    };
+
+    const statusMap: Record<number, string> = {
+        1: 'Pending Verification', 2: 'Verified', 3: 'Rejected',
+        4: 'Approved by Barangay', 5: 'Rescue Dispatched', 6: 'Resolved',
+        7: 'Picked Up', 8: 'Under Observation', 9: 'Impounded', 10: 'Released'
     };
 
     const filteredReports = reports.filter((r) => {
@@ -275,10 +270,28 @@ const ResiProfile = () => {
                     <div className="flex-1">
                         <div className="bg-white border border-gray-200 rounded-lg shadow-sm mb-6">
                             <div className="px-8 py-6 border-b border-gray-100">
-                                <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wider relative inline-block">
-                                    My Reports
-                                    <div className="absolute -bottom-[25px] left-0 right-0 h-1 bg-[#F97316]"></div>
-                                </h2>
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                    <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wider relative inline-block">
+                                        My Reports
+                                        <div className="absolute -bottom-[25px] left-0 right-0 h-1 bg-[#F97316]"></div>
+                                    </h2>
+                                    
+                                    {/* Search Input for Reports */}
+                                    <div className="relative w-full sm:w-64">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <svg className="h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            placeholder="Filter reports..."
+                                            className="block w-full pl-10 pr-3 py-2 border border-gray-100 rounded-xl text-[11px] bg-gray-50/50 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F97316]/10 focus:border-[#F97316] transition-all font-bold text-[#1a1208]"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -349,19 +362,6 @@ const ResiProfile = () => {
                                                             </svg>
                                                             View Details
                                                         </button>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleDeleteReport(report.report_id);
-                                                                setOpenMenuId(null);
-                                                            }}
-                                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 transition-colors border-t border-gray-50"
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                            </svg>
-                                                            Delete
-                                                        </button>
                                                     </div>
                                                 )}
                                             </div>
@@ -379,16 +379,49 @@ const ResiProfile = () => {
                                                     </svg>
                                                 </div>
                                             )}
-                                        </div>
-                                        <div className="p-4 flex-1 flex flex-col">
-                                            <h3 className="text-sm font-medium text-gray-800 line-clamp-2 mb-4 hover:text-[#F97316] transition-colors cursor-pointer">
-                                                I sighted {report.animal_count} {report.animal_type}(s) near {report.landmark || 'unknown location'}. Status is {report.status}.
-                                            </h3>
-                                            <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
-                                                <div className="text-right ml-auto">
-                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Priority</p>
-                                                    <p className="text-sm font-bold text-gray-800 uppercase">{report.priority_level}</p>
+
+                                            {report.status_id === 6 && (
+                                                <div className="absolute inset-0 bg-green-600/20 backdrop-blur-[2px] flex items-center justify-center">
+                                                    <div className="bg-white/90 px-4 py-2 rounded-full shadow-lg border border-green-100 flex items-center gap-2">
+                                                        <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                                        <span className="text-[10px] font-black text-green-700 uppercase tracking-widest">Case Resolved</span>
+                                                    </div>
                                                 </div>
+                                            )}
+                                        </div>
+                                        <div className="p-5 flex-1 flex flex-col">
+                                            <div className="flex justify-between items-start mb-3">
+                                                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${report.status_id === 6 ? 'bg-green-50 text-green-600 border-green-100' :
+                                                        report.status_id === 1 ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                                                            'bg-blue-50 text-blue-600 border-blue-100'
+                                                    }`}>
+                                                    {statusMap[report.status_id]}
+                                                </span>
+                                                <span className="text-[9px] font-bold text-gray-400">#STR-{report.report_id.toString().padStart(4, '0')}</span>
+                                            </div>
+                                            <h3 className="text-[13px] font-bold text-gray-800 line-clamp-2 mb-4 leading-snug">
+                                                {report.description || `Sighting near ${report.landmark || 'Selera Homes'}`}
+                                            </h3>
+
+                                            <div className="mt-auto space-y-4">
+                                                <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Priority</span>
+                                                        <span className={`text-[11px] font-black uppercase ${report.priority_level === 'High' ? 'text-red-500' : 'text-orange-500'}`}>{report.priority_level}</span>
+                                                    </div>
+                                                    <div className="flex flex-col text-right">
+                                                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Animals</span>
+                                                        <span className="text-[11px] font-black text-gray-800">{report.animal_count} Sighted</span>
+                                                    </div>
+                                                </div>
+
+                                                <button
+                                                    onClick={() => navigate('/resident-home', { state: { editReport: report, isViewMode: true, from: '/resident/profile' } })}
+                                                    className="w-full py-3 bg-[#F97316] text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-[#EA580C] transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-100"
+                                                >
+                                                    View Intelligence
+                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                                </button>
                                             </div>
                                         </div>
                                     </div>

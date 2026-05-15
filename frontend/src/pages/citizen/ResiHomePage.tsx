@@ -62,8 +62,9 @@ const reportStatusMap: Record<number, string> = {
     1: 'Pending Verification',
     2: 'Verified',
     3: 'Rejected',
-    4: 'Forwarded to Barangay',
-    5: 'Team Dispatched',
+    4: 'Approved by Barangay',
+    11: 'Forwarded to Barangay',
+    5: 'Rescue Dispatched',
     6: 'Resolved',
     7: 'Picked Up',
     8: 'Under Observation',
@@ -802,12 +803,12 @@ const ResiHomePage = () => {
                                                 const files = Array.from(e.target.files || []);
                                                 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
                                                 const oversized = files.filter(f => f.size > MAX_SIZE);
-                                                
+
                                                 if (oversized.length > 0) {
                                                     alert(`File(s) too large: ${oversized.map(f => f.name).join(', ')}. Max size is 10MB.`);
                                                     return;
                                                 }
-                                                
+
                                                 setFormData(prev => ({
                                                     ...prev,
                                                     mediaFiles: [...prev.mediaFiles, ...files]
@@ -1007,7 +1008,7 @@ const ResiHomePage = () => {
                     filteredReports.map((report) => {
                         const statusMap: Record<number, string> = {
                             1: 'Pending Verification', 2: 'Verified', 3: 'Rejected',
-                            4: 'Forwarded to Barangay', 5: 'In Action', 6: 'Resolved',
+                            4: 'Approved by Barangay', 11: 'Forwarded to Barangay', 5: 'Rescue Dispatched', 6: 'Resolved',
                             7: 'Picked Up', 8: 'Under Observation', 9: 'Impounded', 10: 'Released'
                         };
                         const categoryMap: Record<number, string> = {
@@ -1046,7 +1047,7 @@ const ResiHomePage = () => {
                                                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); handleEditClick(report, true); }}
-                                                                className="w-full flex items-center gap-3 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-[#F97316] hover:bg-orange-50 transition-colors"
+                                                                className="w-full flex items-center gap-3 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-blue-600 hover:bg-blue-50 transition-colors"
                                                             >
                                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -1054,15 +1055,29 @@ const ResiHomePage = () => {
                                                                 </svg>
                                                                 View Details
                                                             </button>
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); handleDeleteReport(report.report_id); setOpenMenuId(null); }}
-                                                                className="w-full flex items-center gap-3 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 transition-colors"
-                                                            >
-                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                                </svg>
-                                                                Delete Report
-                                                            </button>
+
+                                                            {report.status_id === 1 && (
+                                                                <>
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); handleEditClick(report, false); }}
+                                                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-[#F97316] hover:bg-orange-50 transition-colors border-t border-gray-50"
+                                                                    >
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                        </svg>
+                                                                        Edit Details
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); handleDeleteReport(report.report_id); setOpenMenuId(null); }}
+                                                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 transition-colors border-t border-gray-50"
+                                                                    >
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                        </svg>
+                                                                        Delete Report
+                                                                    </button>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
@@ -1104,10 +1119,12 @@ const ResiHomePage = () => {
                                                 </div>
                                             </div>
                                             <span className={`px-3 py-1 shrink-0 text-[9px] font-black uppercase tracking-widest rounded-full border shadow-sm ${report.status_id === 1 ? 'bg-orange-50 text-[#F97316] border-orange-100' :
-                                                report.status_id === 6 ? 'bg-green-50 text-green-600 border-green-100' :
-                                                    report.status_id === 7 || report.status_id === 8 ? 'bg-purple-50 text-purple-600 border-purple-100' :
-                                                        report.status_id === 9 || report.status_id === 10 ? 'bg-teal-50 text-teal-600 border-teal-100' :
-                                                            'bg-blue-50 text-blue-600 border-blue-100'
+                                                report.status_id === 11 ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                                                    report.status_id === 4 ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                                                        report.status_id === 6 ? 'bg-green-50 text-green-600 border-green-100' :
+                                                            report.status_id === 7 || report.status_id === 8 ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                                                                report.status_id === 9 || report.status_id === 10 ? 'bg-teal-50 text-teal-600 border-teal-100' :
+                                                                    'bg-blue-50 text-blue-600 border-blue-100'
                                                 }`}>
                                                 {statusName}
                                             </span>
@@ -1129,9 +1146,12 @@ const ResiHomePage = () => {
                                                         className="h-full bg-orange-500 transition-all duration-700"
                                                         style={{
                                                             width: `${(() => {
-                                                                const stages = [1, 4, 5, 7, 9, 6];
-                                                                const currentIndex = stages.indexOf(report.status_id);
-                                                                return currentIndex === -1 ? 0 : (currentIndex / (stages.length - 1)) * 100;
+                                                                const statusIndexMap: Record<number, number> = {
+                                                                    1: 0, 2: 1, 11: 1.5, 4: 2, 5: 3, 7: 4, 9: 5, 6: 6
+                                                                };
+                                                                const logicalIndex = statusIndexMap[report.status_id] ?? 0;
+                                                                const totalStages = 6; // (7 circles - 1)
+                                                                return (logicalIndex / totalStages) * 100;
                                                             })()}%`
                                                         }}
                                                     />
@@ -1139,13 +1159,17 @@ const ResiHomePage = () => {
 
                                                 {[
                                                     { id: 1, label: 'Reported', sub: 'Citizen Post' },
-                                                    { id: 4, label: 'Verified', sub: 'Forwarded' },
+                                                    { id: 2, label: 'Verified', sub: 'Leader Vetted' },
+                                                    { id: 4, label: 'Approved', sub: 'Accepted by Barangay' },
                                                     { id: 5, label: 'Dispatched', sub: 'On the way' },
                                                     { id: 7, label: 'Picked Up', sub: 'Secured' },
                                                     { id: 9, label: 'Impounded', sub: 'At Shelter' },
                                                     { id: 6, label: 'Resolved', sub: 'Complete' }
                                                 ].map((stage, idx) => {
-                                                    const isCompleted = [1, 4, 5, 7, 9, 6].indexOf(report.status_id) >= idx;
+                                                    const logicalSequence = [1, 2, 11, 4, 5, 7, 9, 6];
+                                                    const currentStatusIdx = logicalSequence.indexOf(report.status_id);
+                                                    const stageIdx = logicalSequence.indexOf(stage.id);
+                                                    const isCompleted = currentStatusIdx >= stageIdx;
                                                     const isCurrent = report.status_id === stage.id;
                                                     const isSelected = selectedStage[report.report_id] === stage.id;
                                                     const hasHistory = report.history?.some((h: any) => h.status_id === stage.id);
@@ -1194,7 +1218,8 @@ const ResiHomePage = () => {
                                                     const stageId = selectedStage[report.report_id];
                                                     const stageData = [
                                                         { id: 1, label: 'Reported', sub: 'Citizen Post' },
-                                                        { id: 4, label: 'Verified', sub: 'Forwarded to Barangay' },
+                                                        { id: 2, label: 'Verified', sub: 'Subdivision Leader has vetted this report' },
+                                                        { id: 4, label: 'Approved', sub: 'Barangay has accepted the rescue request' },
                                                         { id: 5, label: 'Dispatched', sub: 'Team is on the way' },
                                                         { id: 7, label: 'Picked Up', sub: 'Animal successfully secured' },
                                                         { id: 9, label: 'Impounded', sub: 'Transferred to municipal shelter' },
@@ -1216,8 +1241,14 @@ const ResiHomePage = () => {
                                                         <div className="bg-[#FAFAF9] rounded-[2.5rem] border border-orange-100 overflow-hidden shadow-sm">
                                                             <div className="p-8 pb-4 flex justify-between items-start">
                                                                 <div>
-                                                                    <p className="text-[10px] font-black text-orange-600 uppercase tracking-[0.2em] mb-1">Operational Stage {([1, 4, 5, 7, 9, 6].indexOf(stageId!) + 1)}</p>
+                                                                    <p className="text-[10px] font-black text-orange-600 uppercase tracking-[0.2em] mb-1">Operational Stage {([1, 2, 4, 5, 7, 9, 6].indexOf(stageId!) + 1)}</p>
                                                                     <h4 className="text-xl font-black text-[#1a1208] uppercase tracking-tight">{stageData?.label}</h4>
+                                                                    {stageId === 2 && historyItem?.updater_name && (
+                                                                        <p className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-widest flex items-center gap-2">
+                                                                            <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                                                                            Verified by {historyItem.updater_name}
+                                                                        </p>
+                                                                    )}
                                                                 </div>
                                                                 {historyItem && (
                                                                     <span className="text-[10px] font-bold text-gray-400 bg-white px-4 py-1.5 rounded-full border border-gray-50 shadow-sm">
@@ -1341,34 +1372,34 @@ const ResiHomePage = () => {
                                             </div>
                                         )}
 
-                                                                {/* Quick Info Grid - Always 3 Columns */}
-                                                                <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6 bg-[#FAFAF9] p-4 rounded-3xl border border-gray-50">
-                                                                    <div className="flex flex-col gap-0.5">
-                                                                        <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest">{categoryName}</span>
-                                                                        <span className="text-[10px] sm:text-[11px] font-bold text-[#4a3b28] truncate">{report.landmark || 'Not specified'}</span>
-                                                                    </div>
-                                                                    <div className="flex flex-col gap-0.5 border-l border-gray-100 pl-3 sm:pl-4">
-                                                                        <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest">Animals</span>
-                                                                        <span className="text-[10px] sm:text-[11px] font-bold text-[#4a3b28] truncate">{report.animal_count} sighted</span>
-                                                                    </div>
-                                                                    <div className="flex flex-col gap-0.5 border-l border-gray-100 pl-3 sm:pl-4">
-                                                                        <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest">Priority</span>
-                                                                        <span className={`text-[10px] sm:text-[11px] font-black uppercase tracking-wider truncate ${report.priority_level === 'High' ? 'text-red-500' : 'text-[#F97316]'}`}>
-                                                                            {report.priority_level}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
+                                        {/* Quick Info Grid - Always 3 Columns */}
+                                        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6 bg-[#FAFAF9] p-4 rounded-3xl border border-gray-50">
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest">{categoryName}</span>
+                                                <span className="text-[10px] sm:text-[11px] font-bold text-[#4a3b28] truncate">{report.landmark || 'Not specified'}</span>
+                                            </div>
+                                            <div className="flex flex-col gap-0.5 border-l border-gray-100 pl-3 sm:pl-4">
+                                                <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest">Animals</span>
+                                                <span className="text-[10px] sm:text-[11px] font-bold text-[#4a3b28] truncate">{report.animal_count} sighted</span>
+                                            </div>
+                                            <div className="flex flex-col gap-0.5 border-l border-gray-100 pl-3 sm:pl-4">
+                                                <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest">Priority</span>
+                                                <span className={`text-[10px] sm:text-[11px] font-black uppercase tracking-wider truncate ${report.priority_level === 'High' ? 'text-red-500' : 'text-[#F97316]'}`}>
+                                                    {report.priority_level}
+                                                </span>
+                                            </div>
+                                        </div>
 
-                                                                {/* View More Button - PROMINENT PLACEMENT */}
-                                                                <div className="mb-8">
-                                                                    <button 
-                                                                        onClick={() => setViewingDetailedReport(report)}
-                                                                        className="w-full py-4 bg-gray-900 text-white rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-gray-200 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
-                                                                    >
-                                                                        View Rescue Timeline & Full Intelligence
-                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                                                                    </button>
-                                                                </div>
+                                        {/* View More Button - PROMINENT PLACEMENT */}
+                                        <div className="mb-8">
+                                            <button
+                                                onClick={() => setViewingDetailedReport(report)}
+                                                className="w-full py-4 bg-[#F97316] text-white rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-orange-100 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+                                            >
+                                                View Rescue Timeline & Full Intelligence
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                            </button>
+                                        </div>
 
                                         <div className="rounded-2xl sm:rounded-[2rem] overflow-hidden border border-gray-100 h-40 sm:h-52 relative shadow-inner">
                                             <MapContainer
@@ -1660,7 +1691,7 @@ const ResiHomePage = () => {
             {viewingDetailedReport && (
                 <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 sm:p-6 md:p-10">
                     {/* Backdrop */}
-                    <div 
+                    <div
                         className="absolute inset-0 bg-[#1a1208]/80 backdrop-blur-xl animate-in fade-in duration-500"
                         onClick={() => setViewingDetailedReport(null)}
                     />
@@ -1682,7 +1713,7 @@ const ResiHomePage = () => {
                                     </div>
                                 </div>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => setViewingDetailedReport(null)}
                                 className="p-4 bg-gray-50 text-gray-400 hover:text-gray-900 rounded-2xl transition-all"
                             >
@@ -1700,10 +1731,10 @@ const ResiHomePage = () => {
                                         {(() => {
                                             const originalMedia = viewingDetailedReport.media?.filter((m: any) => !m.is_evidence) || [];
                                             return (
-                                                <img 
-                                                    src={originalMedia[0]?.file_url || 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?q=80&w=2069&auto=format&fit=crop'} 
-                                                    className="w-full h-full object-cover" 
-                                                    alt="Animal sighting" 
+                                                <img
+                                                    src={originalMedia[0]?.file_url || 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?q=80&w=2069&auto=format&fit=crop'}
+                                                    className="w-full h-full object-cover"
+                                                    alt="Animal sighting"
                                                 />
                                             );
                                         })()}
@@ -1726,6 +1757,25 @@ const ResiHomePage = () => {
                                         <div className="bg-white p-6 rounded-3xl border border-gray-100">
                                             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Priority</p>
                                             <p className="text-sm font-black text-red-600 uppercase">{viewingDetailedReport.priority_level}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Subject Identification */}
+                                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
+                                        <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em] mb-6">Subject Identification</h4>
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Breed / Variety</span>
+                                                <span className="text-xs font-black text-gray-900 uppercase">{viewingDetailedReport.animal_breed || 'Unknown'}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Coat Color</span>
+                                                <span className="text-xs font-black text-gray-900 uppercase">{viewingDetailedReport.animal_color || 'Unknown'}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center py-2">
+                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Estimated Size</span>
+                                                <span className="text-xs font-black text-gray-900 uppercase">{viewingDetailedReport.estimated_size || 'Medium'}</span>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -1775,8 +1825,8 @@ const ResiHomePage = () => {
                                     </div>
 
                                     {/* The Timeline Component */}
-                                    <RescueTimeline 
-                                        history={viewingDetailedReport.history || []} 
+                                    <RescueTimeline
+                                        history={viewingDetailedReport.history || []}
                                         currentStatusId={viewingDetailedReport.status_id}
                                     />
                                 </div>
@@ -1786,7 +1836,7 @@ const ResiHomePage = () => {
                         {/* Footer */}
                         <div className="px-10 py-6 bg-white border-t border-gray-100 flex justify-between items-center shrink-0">
                             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.2em]">© 2026 STRAYSAFE MISSION CONTROL</p>
-                            <button 
+                            <button
                                 onClick={() => setViewingDetailedReport(null)}
                                 className="px-8 py-3 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
                             >
