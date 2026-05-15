@@ -13,6 +13,7 @@ interface TimelineEntry {
     remarks: string;
     created_at: string;
     updater_name?: string;
+    updater_photo?: string;
     media?: Media[];
 }
 
@@ -21,7 +22,7 @@ interface RescueTimelineProps {
     currentStatusId: number;
 }
 
-const statusConfig: Record<number, { label: string, color: string, icon: JSX.Element }> = {
+const statusConfig: Record<number, { label: string, color: string, icon: React.ReactNode }> = {
     1: { 
         label: 'Reported', 
         color: 'orange',
@@ -128,6 +129,11 @@ const RescueTimeline: React.FC<RescueTimelineProps> = ({ history, currentStatusI
                                                 <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-${config.color}-50 text-${config.color}-600 border border-${config.color}-100`}>
                                                     {config.label}
                                                 </span>
+                                                {entry.report_status_id === currentStatusId && index === 0 && (
+                                                    <span className="ml-2 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-green-500 text-white shadow-sm">
+                                                        Active
+                                                    </span>
+                                                )}
                                                 <h4 className="text-sm font-black text-gray-900 mt-2 uppercase tracking-tight">
                                                     {entry.remarks}
                                                 </h4>
@@ -143,9 +149,17 @@ const RescueTimeline: React.FC<RescueTimelineProps> = ({ history, currentStatusI
                                         </div>
 
                                         <div className="flex items-center gap-3 mb-6 p-3 bg-gray-50/50 rounded-2xl border border-gray-50/50">
-                                            <div className="w-6 h-6 rounded-lg bg-white flex items-center justify-center text-[10px] font-black text-gray-400 border border-gray-100 shadow-sm">
-                                                {entry.updater_name?.charAt(0) || 'S'}
-                                            </div>
+                                            {entry.updater_photo ? (
+                                                <img 
+                                                    src={entry.updater_photo} 
+                                                    className="w-6 h-6 rounded-lg object-cover border border-gray-100 shadow-sm" 
+                                                    alt={entry.updater_name} 
+                                                />
+                                            ) : (
+                                                <div className="w-6 h-6 rounded-lg bg-white flex items-center justify-center text-[10px] font-black text-gray-400 border border-gray-100 shadow-sm">
+                                                    {entry.updater_name?.charAt(0) || 'S'}
+                                                </div>
+                                            )}
                                             <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Updated by {entry.updater_name || 'System'}</span>
                                         </div>
 
