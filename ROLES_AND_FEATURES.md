@@ -40,17 +40,18 @@ The validation layer. Leaders ensure that reports are legitimate before they rea
 The field operations layer. Personnel handle the physical rescue and management of animals.
 
 ### 📍 Current Features
-*   **Mission Dispatch:** Receive verified rescue requests and assign specific personnel to handle them.
+*   **Operation Command Center:** A next-gen tactical hub with real-time tactical oversight and mission control.
+*   **AI-Prioritized Incident Feed:** Automated detection and sorting of reports by priority (High/Critical) and condition (Injured/Sick) using AI analytics.
+*   **Resource Availability Tracking:** Real-time monitoring of available teams, field personnel, and operational readiness.
+*   **Active Mission Tracker:** Live 6-stage lifecycle tracking for field rescues with visual progress indicators.
 *   **Immersive Navigation:** Map-based routing from the Barangay Hall or current location to the incident site.
-*   **Operational Status Updates:** Update the report through strict stages: *Dispatched → Picked Up → Impounded → Resolved*.
-*   **Evidence Documentation:** Upload photos/videos at each stage of the rescue to ensure accountability.
 *   **Intelligence Heatmaps:** View high-density areas to identify where stray animal populations are growing.
-*   **Report History:** A dedicated archive for all successfully resolved operations (Status ID 6).
+*   **Evidence Documentation:** Upload and manage visual evidence at each stage of the rescue to ensure accountability.
 
 ### 🚀 Possible Future Features
-*   **Shelter Management:** Track available space and health status of animals in the impounding area.
-*   **Live Team Tracking:** View the real-time location of field teams during active missions.
-*   **AI Risk Analysis:** Integration of image recognition to automatically assess animal health or aggression levels.
+*   **Advanced Shelter Management:** Deep integration for tracking medical records and behavioral health of impounded animals.
+*   **Live GPS Telemetry:** Integration of real-time GPS coordinates from staff mobile devices directly onto the command map.
+*   **Automated Dispatching:** AI-driven assignment of the closest available team based on proximity to the high-priority incident.
 
 ---
 
@@ -74,6 +75,8 @@ The governance layer. Admins ensure the system is secure, functional, and data-d
 
 | Module | Citizen | Subd Leader | Brgy Staff | Admin |
 | :--- | :---: | :---: | :---: | :---: |
+| **Operation Hub** | ❌ | ❌ | ✅ Command | ❌ |
+| **AI Priority Feed** | ❌ | ❌ | ✅ Advanced | ❌ |
 | **Incident Reporting** | ✅ Create | ✅ Validate | ❌ | ❌ |
 | **Rescue Dispatch** | ❌ | ❌ | ✅ Full | ❌ |
 | **Heatmap Analytics** | ❌ | ❌ | ✅ Local | ✅ Global |
