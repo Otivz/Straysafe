@@ -41,10 +41,76 @@ const categoryMap: Record<number, string> = {
     4: 'Roaming Pack', 5: 'Animal Rescue Needed'
 };
 
+const sampleReports: Report[] = [
+    {
+        report_id: 101,
+        category_id: 2, // Aggressive Stray
+        status_id: 1, // Pending
+        priority_level: 'High',
+        latitude: 14.8013,
+        longitude: 121.0031,
+        landmark: 'Near Playground Block 5',
+        animal_count: 1,
+        animal_type: 'Dog',
+        breed: 'German Shepherd mix',
+        condition: 'Healthy but agitated',
+        behavior_tags: 'agitated,barking',
+        description: 'A large German Shepherd mix was spotted barking aggressively at children near the Block 5 playground. Residents are keeping their children indoors until Barangay rescue arrives.',
+        visibility: 'Public',
+        created_at: new Date(Date.now() - 3600000 * 2).toISOString(), // 2 hours ago
+        user_id: 10,
+        reporter_name: 'Maria Santos',
+        media: [],
+        comments: []
+    },
+    {
+        report_id: 102,
+        category_id: 1, // Injured Animal
+        status_id: 5, // Rescue In Progress
+        priority_level: 'Medium',
+        latitude: 14.8052,
+        longitude: 121.0045,
+        landmark: 'Clubhouse Entrance',
+        animal_count: 1,
+        animal_type: 'Cat',
+        breed: 'Puspin',
+        condition: 'Injured front leg',
+        behavior_tags: 'limping,scared',
+        description: 'Found a stray puspin cat limping near the subdivision clubhouse entrance. The cat has a minor scrape on its front left paw and appears scared but friendly.',
+        visibility: 'Public',
+        created_at: new Date(Date.now() - 3600000 * 5).toISOString(), // 5 hours ago
+        user_id: 12,
+        reporter_name: 'John Doe',
+        media: [],
+        comments: []
+    },
+    {
+        report_id: 103,
+        category_id: 3, // Possible Rabies Risk
+        status_id: 6, // Resolved
+        priority_level: 'Emergency',
+        latitude: 14.8069,
+        longitude: 121.0039,
+        landmark: 'near Gate 2',
+        animal_count: 1,
+        animal_type: 'Dog',
+        breed: 'Stray mix',
+        condition: 'Extremely aggressive, possible rabies',
+        behavior_tags: 'hostile,rabid',
+        description: 'Suspected rabid stray dog spotted near Gate 2. Dog was hostile and foaming at the mouth. Dispatched barangay rescue team and resolved successfully.',
+        visibility: 'Public',
+        created_at: new Date(Date.now() - 3600000 * 24).toISOString(), // 1 day ago
+        user_id: 1,
+        reporter_name: 'Kyla Joy Arriola',
+        media: [],
+        comments: []
+    }
+];
+
 const SubdReports = () => {
     const navigate = useNavigate();
 
-    const [reports, setReports] = useState<Report[]>([]);
+    const [reports, setReports] = useState<Report[]>(sampleReports);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
@@ -142,9 +208,14 @@ const SubdReports = () => {
             const uniqueReports = sortedData.filter((report: any, index: number, self: any[]) =>
                 index === self.findIndex((t: any) => t.report_id === report.report_id)
             );
-            setReports(uniqueReports);
+            if (uniqueReports.length === 0) {
+                setReports(sampleReports);
+            } else {
+                setReports(uniqueReports);
+            }
         } catch (error) {
             console.error('Error fetching reports:', error);
+            setReports(sampleReports);
         } finally {
             setLoading(false);
         }
@@ -417,13 +488,12 @@ const SubdReports = () => {
                             </div>
                         </div>
 
-                        {/* Table */}
-                        {/* Data Table Section */}
                         <DataTable
                             loading={loading}
                             data={filteredReports}
                             emptyMessage="No incident reports found."
                             loadingMessage="Synchronizing reports..."
+                            onRowClick={(rep) => setViewingReportId(rep.report_id)}
                             columns={[
                                 {
                                     header: "ID",
