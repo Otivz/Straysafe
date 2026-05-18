@@ -8,6 +8,7 @@ import AdminReport from '../pages/Admin/AdminReport';
 import AdminHeatMap from '../pages/Admin/AdminHeatMap';
 import AdminLogs from '../pages/Admin/AdminLogs';
 import AdminPetManagement from '../pages/Admin/AdminPetManagement';
+import PetRecords from '../pages/Admin/PetRecords';
 import ProtectedRoute from '../components/ProtectedRoute';
 
 import CommunityStaffLogin from '../pages/Subd_Leaders/CommunityStaffLogin';
@@ -16,6 +17,8 @@ import SubdReports from '../pages/Subd_Leaders/SubdReports';
 import EscelatedMissions from '../pages/Subd_Leaders/EscelatedMissions';
 import SubdHeatMap from '../pages/Subd_Leaders/SubdHeatMap';
 import EndorsementArch from '../pages/Subd_Leaders/EndorsementArch';
+import SubdPetRecords from '../pages/Subd_Leaders/SubdPetRecords';
+import SubdHazardAlert from '../pages/Subd_Leaders/SubdHazardAlert';
 
 import LandingPage from '../pages/citizen/LandingPage';
 import ResidentsLogin from '../pages/citizen/ResidentsLogin';
@@ -92,6 +95,7 @@ const AppRoutes = () => {
             {/* Protected Admin Routes */}
             <Route element={<ProtectedRoute />}>
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                <Route path="/admin/pet-records" element={<PetRecords />} />
                 <Route path="/admin/users" element={<AdminUserManagement />} />
                 <Route path="/admin/account-settings" element={<AdminAccountSettings />} />
                 <Route path="/admin/incidents" element={<AdminReport />} />
@@ -107,6 +111,8 @@ const AppRoutes = () => {
             <Route path="/subd/escalated" element={<EscelatedMissions />} />
             <Route path="/subd/heatmap" element={<SubdHeatMap />} />
             <Route path="/subd/endorsements" element={<EndorsementArch />} />
+            <Route path="/subd/pet-records" element={<SubdPetRecords />} />
+            <Route path="/subd/hazard-alert" element={<SubdHazardAlert />} />
 
             {/* Barangay Staff Routes */}
             <Route path="/brgy/dashboard" element={<BrgyDashboard />} />

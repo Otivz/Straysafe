@@ -70,9 +70,116 @@ const categoryMap: Record<number, string> = {
     5: 'Animal Rescue Needed'
 };
 
+const sampleRescueRequests: RescueRequest[] = [
+    {
+        rescue_id: 201,
+        report_id: 101,
+        leader_id: 10,
+        title: "Aggressive German Shepherd near Block 5 Playground",
+        description: "An aggressive German Shepherd mix has been spotted barking and growling at children near the playground in Block 5. Subdivision security has cordoned off the area, but the dog is extremely hostile. Subdivision leader Maria Santos requests an emergency rescue and capture operation immediately to prevent bite incidents.",
+        status_id: 1, // Pending Approval
+        created_at: new Date(Date.now() - 3600000 * 2).toISOString(), // 2 hours ago
+        leader_name: "Maria Santos",
+        leader_position: "Subdivision Leader",
+        report: {
+            category_id: 2,
+            animal_type: "Dog",
+            breed: "German Shepherd mix",
+            condition: "Agitated",
+            behavior_tags: "agitated,barking",
+            priority_level: "High",
+            latitude: 14.8013,
+            longitude: 121.0031,
+            landmark: "Near Playground Block 5",
+            animal_count: 1,
+            description: "A large German Shepherd mix was spotted barking aggressively at children near the Block 5 playground. Residents are keeping their children indoors until Barangay rescue arrives.",
+            reporter_name: "Maria Santos",
+            status_id: 4, // Forwarded to Barangay
+            created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
+            media: [],
+            history: [
+                {
+                    history_id: 1,
+                    report_status_id: 1,
+                    remarks: "Incident reported by citizen Maria Santos.",
+                    created_at: new Date(Date.now() - 3600000 * 2).toISOString()
+                },
+                {
+                    history_id: 2,
+                    report_status_id: 2,
+                    remarks: "Incident report has been officially verified by the Subdivision Leader.",
+                    created_at: new Date(Date.now() - 3600000 * 1.8).toISOString()
+                },
+                {
+                    history_id: 3,
+                    report_status_id: 4,
+                    remarks: "Report escalated and forwarded to Barangay Operations for official review.",
+                    created_at: new Date(Date.now() - 3600000 * 1.5).toISOString()
+                }
+            ]
+        }
+    },
+    {
+        rescue_id: 202,
+        report_id: 102,
+        leader_id: 12,
+        title: "Injured Stray Puspin near Clubhouse Entrance",
+        description: "An injured stray cat (puspin) was found near the subdivision clubhouse entrance with a noticeable limp on its front left paw. It is docile and frightened. Subdivision leader requests rescue to provide medical attention and shelter.",
+        status_id: 2, // Approved
+        created_at: new Date(Date.now() - 3600000 * 5).toISOString(), // 5 hours ago
+        leader_name: "John Doe",
+        leader_position: "Subdivision Leader",
+        assigned_staff_name: "Juan Dela Cruz",
+        staff_id: 5,
+        report: {
+            category_id: 1,
+            animal_type: "Cat",
+            breed: "Puspin",
+            condition: "Injured",
+            behavior_tags: "limping,scared",
+            priority_level: "Medium",
+            latitude: 14.8052,
+            longitude: 121.0045,
+            landmark: "Clubhouse Entrance",
+            animal_count: 1,
+            description: "Found a stray puspin cat limping near the subdivision clubhouse entrance. The cat has a minor scrape on its front left paw and appears scared but friendly.",
+            reporter_name: "John Doe",
+            status_id: 5, // Team Dispatched
+            created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
+            media: [],
+            history: [
+                {
+                    history_id: 11,
+                    report_status_id: 1,
+                    remarks: "Incident reported by resident John Doe.",
+                    created_at: new Date(Date.now() - 3600000 * 5).toISOString()
+                },
+                {
+                    history_id: 12,
+                    report_status_id: 2,
+                    remarks: "Verified by subdivision staff.",
+                    created_at: new Date(Date.now() - 3600000 * 4.5).toISOString()
+                },
+                {
+                    history_id: 13,
+                    report_status_id: 4,
+                    remarks: "Forwarded and escalated to Barangay.",
+                    created_at: new Date(Date.now() - 3600000 * 4).toISOString()
+                },
+                {
+                    history_id: 14,
+                    report_status_id: 5,
+                    remarks: "Rescue Team dispatched. Officer Juan Dela Cruz on the way.",
+                    created_at: new Date(Date.now() - 3600000 * 3.5).toISOString()
+                }
+            ]
+        }
+    }
+];
+
 const BrgyRescueRequests = () => {
     const navigate = useNavigate();
-    const [requests, setRequests] = useState<RescueRequest[]>([]);
+    const [requests, setRequests] = useState<RescueRequest[]>(sampleRescueRequests);
     const [loading, setLoading] = useState(true);
     const [viewingRequest, setViewingRequest] = useState<RescueRequest | null>(null);
     const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
@@ -123,9 +230,14 @@ const BrgyRescueRequests = () => {
             const sortedData = (response.data || []).sort((a: any, b: any) => b.rescue_id - a.rescue_id);
             // ONLY show reports that are NOT resolved (status 6)
             const activeRequests = sortedData.filter((req: any) => req.report?.status_id !== 6);
-            setRequests(activeRequests);
+            if (activeRequests.length === 0) {
+                setRequests(sampleRescueRequests);
+            } else {
+                setRequests(activeRequests);
+            }
         } catch (error) {
             console.error('Error fetching rescue requests:', error);
+            setRequests(sampleRescueRequests);
         } finally {
             setLoading(false);
         }
