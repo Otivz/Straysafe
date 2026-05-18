@@ -25,7 +25,7 @@ def update_notification(notification_id: int, notification_update: NotificationU
     if not db_notification:
         raise HTTPException(status_code=404, detail="Notification not found")
     
-    db_notification.is_read = notification_update.is_read
+    db_notification.is_read = notification_update.is_read  # type: ignore
     db.commit()
     db.refresh(db_notification)
     return db_notification

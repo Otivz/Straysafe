@@ -17,6 +17,9 @@ interface EscalatedMission {
 const EscelatedMissions = () => {
     const [loading] = useState(false);
 
+
+    const [selectedMission, setSelectedMission] = useState<EscalatedMission | null>(null);
+
     // Mock Data for UI demonstration
     const mockMissions: EscalatedMission[] = [
         {
@@ -61,7 +64,9 @@ const EscelatedMissions = () => {
         }
     };
 
-    const [selectedMission, setSelectedMission] = useState<EscalatedMission | null>(null);
+    const handleViewTracker = (mission: EscalatedMission) => {
+        setSelectedMission(mission);
+    };
 
     interface TimelineStep {
         label: string;
@@ -180,6 +185,7 @@ const EscelatedMissions = () => {
         }
 
         return { steps, assignedTeam };
+
     };
 
     return (
@@ -285,7 +291,7 @@ const EscelatedMissions = () => {
                                         key: "action",
                                         render: (m) => (
                                             <button 
-                                                onClick={() => setSelectedMission(m)}
+                                                onClick={() => handleViewTracker(m)}
                                                 className="text-xs font-bold text-[#F97316] hover:text-[#EA580C] uppercase tracking-widest transition-colors"
                                             >
                                                 View Tracker

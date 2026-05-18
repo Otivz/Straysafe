@@ -73,21 +73,20 @@ Barangay staff handle rescue operations and case management.
 Barangay Staff — Action Layer
 Manages rescue operations and case lifecycle
 Features
-• Receive validated rescue requests
-• Approve or reject rescue operations
+• Operation Command Center: Real-time tactical oversight for all field operations
+• AI-Prioritized Incident Feed: Automatic sorting of cases by medical urgency and aggression
+• Receive validated rescue requests and manage dispatch
 • Generate rescue request and endorsement letters
-• Dispatch response team to the field
+• Dispatch response team with real-time mission tracking
 • Perform field rescue and animal pickup
-• Provide real-time animal status and location updates using visual evidence
 • Manage post-rescue states: Observation and Impoundment
 Actions / Status
-→ Pending (Awaiting Approval)
-→ Approved (Case Active)
-→ Rescue In Progress (Team Dispatched)
-→ Picked Up (Success)
-→ Under Observation (Medical/Behavioral Check)
-→ Impounded (Shelter/Facility)
-→ Resolved (Closed/Released)
+→ Reported (Initial Submission)
+→ Verified (Validation Layer Complete)
+→ Dispatched (Rescue Team Active)
+→ Picked Up (Animal Secured)
+→ Impounded (Shelter/Facility Management)
+→ Resolved (Case Closed/Resolution reached)
 
 
 D.  Admin (System Controller)
@@ -96,12 +95,12 @@ Admin oversees the entire system, ensuring operational integrity and data accura
 Admin — System Controller
 Full system oversight, configuration, and management
 Features
+• Pet Management Registry: Oversee all registered pets, vaccination status, and ownership history
 • Manage users with Role-Based Access Control (RBAC)
 • Add, edit, and deactivate accounts
 • Monitor all reports and rescue cases system-wide
 • View heatmaps and analytics dashboards
 • Configure system settings and parameters
-• Monitor barangay and subdivision performance
 • Access audit logs and complete records
 
 
@@ -160,26 +159,32 @@ B  Validation Module
 • Fake report filtering
 • Escalation workflow management
 C  Rescue Management Module
+• Operation Command Center for tactical mission control
+• AI-Assisted Prioritization Feed
 • Rescue approval and dispatch management
-• Case lifecycle tracking
-• Real-time status updates with image/video evidence and location tracking
+• Case lifecycle tracking (6-stage model)
+• Real-time status updates with visual evidence
 • Rescue documentation and records
 D  AI-Assisted Module
 • Animal classification (dog/cat)
-• Condition detection
-• Automatic priority scoring
+• Condition detection (Injured/Sick/Normal)
+• Automatic priority scoring and sorting
 E  Monitoring & Dashboard Module
 • Interactive map visualization
 • Heatmaps for stray density
 • Analytics charts and hotspot monitoring
-F  Notification Module
+F  Pet Management Module
+• Global registry of registered pets
+• Lost & Found status tracking
+• Vaccination and health history oversight
+G  Notification Module
 • Status updates and new report alerts
 • Priority alerts for urgent cases
 • Rescue and pickup notifications
-G  User Management Module
+H  User Management Module
 • Role-Based Access Control (RBAC)
 • Account administration and role assignment
-H  History & Records Module
+I  History & Records Module
 • Incident logs and rescue history
 • Case tracking records and audit trails
 

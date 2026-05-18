@@ -7,6 +7,7 @@ import AdminAccountSettings from '../pages/Admin/AdminAccountSettings';
 import AdminReport from '../pages/Admin/AdminReport';
 import AdminHeatMap from '../pages/Admin/AdminHeatMap';
 import AdminLogs from '../pages/Admin/AdminLogs';
+import AdminPetManagement from '../pages/Admin/AdminPetManagement';
 import PetRecords from '../pages/Admin/PetRecords';
 import ProtectedRoute from '../components/ProtectedRoute';
 
@@ -31,6 +32,7 @@ import BrgyHeatMap from '../pages/Barangay_Staff/BrgyHeatMap';
 import BrgyRescueHistory from '../pages/Barangay_Staff/BrgyRescueHistory';
 import BrgyMonitoring from '../pages/Barangay_Staff/BrgyMonitoring';
 import BrgyStaff from '../pages/Barangay_Staff/BrgyStaff';
+import BrgyOperation from '../pages/Barangay_Staff/BrgyOperation';
 
 
 const AppRoutes = () => {
@@ -99,6 +101,7 @@ const AppRoutes = () => {
                 <Route path="/admin/incidents" element={<AdminReport />} />
                 <Route path="/admin/heatmap" element={<AdminHeatMap />} />
                 <Route path="/admin/logs" element={<AdminLogs />} />
+                <Route path="/admin/pets" element={<AdminPetManagement />} />
             </Route>
 
             {/* Protected Barangay/Subdivision Routes */}
@@ -113,6 +116,7 @@ const AppRoutes = () => {
 
             {/* Barangay Staff Routes */}
             <Route path="/brgy/dashboard" element={<BrgyDashboard />} />
+            <Route path="/brgy/operations" element={<BrgyOperation />} />
             <Route path="/brgy/rescue-requests" element={<BrgyRescueRequests />} />
             <Route path="/brgy/map-direction" element={<BrgyMapDirection />} />
             <Route path="/brgy/heatmap" element={<BrgyHeatMap />} />
