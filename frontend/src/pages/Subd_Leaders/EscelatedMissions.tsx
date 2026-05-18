@@ -61,6 +61,127 @@ const EscelatedMissions = () => {
         }
     };
 
+    const [selectedMission, setSelectedMission] = useState<EscalatedMission | null>(null);
+
+    interface TimelineStep {
+        label: string;
+        status: 'Pending' | 'In Progress' | 'Resolved' | 'Not Started';
+        timestamp: string;
+        note?: string;
+    }
+
+    const getTimelineData = (mission: EscalatedMission) => {
+        const steps: TimelineStep[] = [];
+        let assignedTeam = 'N/A';
+
+        // Step 1: Report Received (Always completed for escalated missions)
+        steps.push({
+            label: 'Report Received',
+            status: 'Resolved',
+            timestamp: '2024-05-10 08:30 AM',
+            note: `Initial report registered successfully by ${mission.reporter}.`
+        });
+
+        if (mission.barangay_status === 'Pending') {
+            steps.push({
+                label: 'Endorsed to Barangay',
+                status: 'Pending',
+                timestamp: mission.escalated_date,
+                note: 'Awaiting barangay acknowledgment and team assignment.'
+            });
+            steps.push({
+                label: 'Rescue Team Assigned',
+                status: 'Not Started',
+                timestamp: '-'
+            });
+            steps.push({
+                label: 'Rescue In Progress',
+                status: 'Not Started',
+                timestamp: '-'
+            });
+            steps.push({
+                label: 'Mission Resolved',
+                status: 'Not Started',
+                timestamp: '-'
+            });
+        } else if (mission.barangay_status === 'In Progress') {
+            assignedTeam = 'Alpha Rescue Squad';
+            steps.push({
+                label: 'Endorsed to Barangay',
+                status: 'Resolved',
+                timestamp: mission.escalated_date,
+                note: 'Endorsed to Barangay Operations Hub.'
+            });
+            steps.push({
+                label: 'Rescue Team Assigned',
+                status: 'Resolved',
+                timestamp: '2024-05-12 11:00 AM',
+                note: 'Dispatched Alpha Rescue Squad.'
+            });
+            steps.push({
+                label: 'Rescue In Progress',
+                status: 'In Progress',
+                timestamp: '2024-05-12 11:15 AM',
+                note: `Team has arrived at ${mission.landmark} and is conducting operations.`
+            });
+            steps.push({
+                label: 'Mission Resolved',
+                status: 'Not Started',
+                timestamp: '-'
+            });
+        } else if (mission.barangay_status === 'Resolved') {
+            assignedTeam = 'Bravo Rescue Team';
+            steps.push({
+                label: 'Endorsed to Barangay',
+                status: 'Resolved',
+                timestamp: mission.escalated_date,
+                note: 'Endorsed to Barangay Operations Hub.'
+            });
+            steps.push({
+                label: 'Rescue Team Assigned',
+                status: 'Resolved',
+                timestamp: '2024-05-10 09:00 AM',
+                note: 'Dispatched Bravo Rescue Team.'
+            });
+            steps.push({
+                label: 'Rescue In Progress',
+                status: 'Resolved',
+                timestamp: '2024-05-10 09:30 AM',
+                note: `Team conducted rescue operation near ${mission.landmark}.`
+            });
+            steps.push({
+                label: 'Mission Resolved',
+                status: 'Resolved',
+                timestamp: '2024-05-10 10:15 AM',
+                note: 'Mission resolved successfully. Animal relocated to safety.'
+            });
+        } else if (mission.barangay_status === 'Rejected') {
+            steps.push({
+                label: 'Endorsed to Barangay',
+                status: 'Pending',
+                timestamp: mission.escalated_date,
+                note: 'Endorsement rejected. Review required.'
+            });
+            steps.push({
+                label: 'Rescue Team Assigned',
+                status: 'Not Started',
+                timestamp: '-'
+            });
+            steps.push({
+                label: 'Rescue In Progress',
+                status: 'Not Started',
+                timestamp: '-'
+            });
+            steps.push({
+                label: 'Mission Resolved',
+                status: 'Not Started',
+                timestamp: '-'
+            });
+        }
+
+        return { steps, assignedTeam };
+    };
+
     return (
         <div className="flex h-screen bg-[#F8FAFC]">
             <SubdSidebar />
@@ -162,8 +283,11 @@ const EscelatedMissions = () => {
                                     {
                                         header: "Action",
                                         key: "action",
-                                        render: () => (
-                                            <button className="text-xs font-bold text-[#F97316] hover:text-[#EA580C] uppercase tracking-widest transition-colors">
+                                        render: (m) => (
+                                            <button 
+                                                onClick={() => setSelectedMission(m)}
+                                                className="text-xs font-bold text-[#F97316] hover:text-[#EA580C] uppercase tracking-widest transition-colors"
+                                            >
                                                 View Tracker
                                             </button>
                                         )
@@ -192,6 +316,164 @@ const EscelatedMissions = () => {
                     </div>
                 </main>
             </div>
+
+            {/* Mission Tracker Modal */}
+            {selectedMission && (() => {
+                const timeline = getTimelineData(selectedMission);
+                return (
+                    <div 
+                        onClick={() => setSelectedMission(null)}
+                        className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300"
+                    >
+                        {/* Modal container */}
+                        <div 
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300"
+                        >
+                            {/* Modal Header */}
+                            <header className="px-8 py-6 border-b border-gray-50 flex items-center justify-between bg-white shrink-0">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-black bg-orange-50 text-[#F97316] px-2 py-1 rounded-md uppercase tracking-widest">
+                                            Mission Tracker
+                                        </span>
+                                        <span className="text-xs font-mono text-gray-400 font-bold">
+                                            Report #{selectedMission.report_id}
+                                        </span>
+                                    </div>
+                                    <h2 className="text-xl font-black text-gray-900 mt-1 tracking-tight">
+                                        {selectedMission.mission_id}
+                                    </h2>
+                                </div>
+                                <button 
+                                    onClick={() => setSelectedMission(null)}
+                                    className="w-10 h-10 rounded-full border border-gray-100 flex items-center justify-center text-gray-400 hover:text-[#B35D25] hover:bg-orange-50/50 transition-all shrink-0"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </header>
+
+                            {/* Modal Scrollable Body */}
+                            <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
+                                
+                                {/* Info Cards Grid */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="bg-gray-50/50 border border-gray-100 p-5 rounded-2xl">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Mission Title</p>
+                                        <p className="text-sm font-bold text-gray-800 leading-tight">{selectedMission.title}</p>
+                                    </div>
+                                    <div className="bg-gray-50/50 border border-gray-100 p-5 rounded-2xl">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Report Location</p>
+                                        <p className="text-sm font-bold text-gray-800 leading-tight">{selectedMission.landmark}</p>
+                                    </div>
+                                    <div className="bg-gray-50/50 border border-gray-100 p-5 rounded-2xl">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Reporter Name</p>
+                                        <p className="text-sm font-bold text-gray-800 leading-tight">{selectedMission.reporter}</p>
+                                    </div>
+                                    <div className="bg-gray-50/50 border border-gray-100 p-5 rounded-2xl">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Escalated Date & Time</p>
+                                        <p className="text-sm font-bold text-gray-800 leading-tight">{selectedMission.escalated_date}</p>
+                                    </div>
+                                    <div className="bg-gray-50/50 border border-gray-100 p-5 rounded-2xl">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Current Status</p>
+                                        <span className={`inline-flex px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border mt-1 ${getStatusStyle(selectedMission.barangay_status)}`}>
+                                            {selectedMission.barangay_status}
+                                        </span>
+                                    </div>
+                                    <div className="bg-gray-50/50 border border-gray-100 p-5 rounded-2xl">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Assigned Rescue Team</p>
+                                        <p className={`text-sm font-black mt-1 ${timeline.assignedTeam !== 'N/A' ? 'text-blue-600' : 'text-gray-400'}`}>
+                                            {timeline.assignedTeam}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Divider */}
+                                <div className="border-t border-gray-100/85"></div>
+
+                                {/* Progress Timeline */}
+                                <div className="space-y-6">
+                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Mission Timeline</h3>
+                                    <div className="pl-2">
+                                        {timeline.steps.map((step, idx) => {
+                                            const isLast = idx === timeline.steps.length - 1;
+                                            const isCompleted = step.status === 'Resolved';
+                                            const isInProgress = step.status === 'In Progress';
+                                            const isPending = step.status === 'Pending';
+                                            const isNotStarted = step.status === 'Not Started';
+
+                                            let circleBg = 'bg-gray-50 border-gray-200 text-gray-400';
+                                            let lineBg = 'bg-gray-100';
+
+                                            if (isCompleted) {
+                                                circleBg = 'bg-green-500 text-white border-green-500 shadow-lg shadow-green-500/20';
+                                                lineBg = 'bg-green-500';
+                                            } else if (isInProgress) {
+                                                circleBg = 'bg-blue-500 text-white border-blue-500 shadow-lg shadow-blue-500/20';
+                                                lineBg = 'bg-gray-100';
+                                            } else if (isPending) {
+                                                circleBg = 'bg-[#F97316] text-white border-[#F97316] shadow-lg shadow-orange-500/20';
+                                                lineBg = 'bg-gray-100';
+                                            }
+
+                                            return (
+                                                <div key={idx} className="flex items-start relative pb-8 last:pb-0">
+                                                    {/* Vertical Line */}
+                                                    {!isLast && (
+                                                        <div className={`absolute left-[15px] top-[30px] bottom-0 w-[2px] ${lineBg} transition-all duration-300`}></div>
+                                                    )}
+
+                                                    {/* Icon / Circle */}
+                                                    <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center z-10 shrink-0 font-bold text-xs ${circleBg}`}>
+                                                        {isCompleted ? (
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                            </svg>
+                                                        ) : isInProgress ? (
+                                                            <span className="relative flex h-2 w-2">
+                                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-[10px]">{idx + 1}</span>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Content */}
+                                                    <div className="ml-4 flex-1">
+                                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
+                                                            <h4 className={`text-sm font-extrabold ${isNotStarted ? 'text-gray-400 font-semibold' : 'text-gray-900'}`}>{step.label}</h4>
+                                                            {!isNotStarted && step.timestamp && (
+                                                                <span className="text-[10px] font-bold text-gray-400 font-mono bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">{step.timestamp}</span>
+                                                            )}
+                                                        </div>
+                                                        {step.note && (
+                                                            <p className={`text-xs leading-relaxed ${isNotStarted ? 'text-gray-300 font-medium' : 'text-gray-500 font-medium'}`}>{step.note}</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                            </div>
+                            
+                            {/* Footer */}
+                            <footer className="px-8 py-5 border-t border-gray-50 bg-gray-50/30 flex justify-end shrink-0">
+                                <button 
+                                    onClick={() => setSelectedMission(null)}
+                                    className="px-6 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all"
+                                >
+                                    Close Tracker
+                                </button>
+                            </footer>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 };
