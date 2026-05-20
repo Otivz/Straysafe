@@ -276,9 +276,9 @@ const SubdReports = () => {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            // 2. Update status to Forwarded (11)
+            // 2. Update status to Forwarded (4)
             await axios.patch(`${API_URL}/${escalatingReportId}/status`, {
-                status_id: 11,
+                status_id: 4,
                 user_id: currentUserId,
                 remarks: "Report forwarded to Barangay Operations for official review and approval."
             });
