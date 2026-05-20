@@ -1,9 +1,5 @@
 import AdminSidebar from '../../components/AdminSidebar';
 import AdminNavbar from '../../components/Navbars/AdminNavbar';
-
-import MapComponent from '../../components/MapComponent';
-
-
 const AdminDashboard = () => {
     return (
         <div className="min-h-screen w-full flex bg-[#F8F9FA] font-sans text-gray-800">
@@ -228,46 +224,6 @@ const AdminDashboard = () => {
                             </div>
 
 
-
-                            {/* Live Activity Heatmap Section */}
-                            <div className="bg-white rounded-3xl shadow-[0_2px_14px_rgba(0,0,0,0.02)] overflow-hidden flex flex-col p-6">
-                                <div className="flex justify-between items-center mb-6">
-                                    <div>
-                                        <h3 className="text-lg font-bold text-gray-900">Live Activity Heatmap</h3>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Stray Density & Hotspots</p>
-                                    </div>
-                                    <div className="flex items-center space-x-3 text-xs bg-gray-50 rounded px-2.5 py-1">
-                                        <span className="text-[9px] text-gray-400 font-bold uppercase">Filter:</span>
-                                        <span className="font-bold text-gray-700 uppercase tracking-wider text-[10px]">Last 24 Hours</span>
-                                    </div>
-                                </div>
-
-                                <div className="w-full h-[500px] rounded-2xl overflow-hidden relative border border-gray-100 shadow-lg bg-gray-50 shrink-0">
-                                    <MapComponent
-                                        center={[14.8093, 121.0028]}
-                                        zoom={16}
-                                        markers={[{
-                                            id: -1,
-                                            lat: 14.806906,
-                                            lng: 121.0039297,
-                                            title: "Command Center HQ",
-                                            category: "HQ",
-                                            time: "Base"
-                                        }]}
-                                    />
-
-                                    {/* Peak Hotspot Box */}
-                                    <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-xl z-[1000] border border-white/50">
-                                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest flex items-center">
-                                            Peak Hotspot <span className="text-red-500 ml-1 font-black">+12.4%</span>
-                                        </p>
-                                        <p className="text-sm font-black text-gray-900 mt-1">San Vicente District</p>
-                                        <div className="w-full h-1 bg-gray-100 mt-2 rounded-full overflow-hidden">
-                                            <div className="w-[82%] h-full bg-[#B45309] rounded-full"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
 
                         </div>
 
