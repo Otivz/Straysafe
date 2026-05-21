@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminSidebar from '../../components/AdminSidebar';
 import AdminNavbar from '../../components/Navbars/AdminNavbar';
-import DataTable from '../../components/DataTable';
 
 const AdminPetManagement = () => {
     const navigate = useNavigate();

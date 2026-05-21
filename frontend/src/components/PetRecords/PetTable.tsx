@@ -72,9 +72,17 @@ const pets: PetRecord[] = [
 interface PetTableProps {
     onSelectPet: (pet: PetRecord) => void;
     selectedPetId: string | null;
+    searchTerm: string;
 }
 
-const PetTable: React.FC<PetTableProps> = ({ onSelectPet, selectedPetId }) => {
+const PetTable: React.FC<PetTableProps> = ({ onSelectPet, selectedPetId, searchTerm }) => {
+    const filteredPets = pets.filter(pet => 
+        pet.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pet.breed.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pet.ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pet.idNumber.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
         <div className="bg-white rounded-3xl shadow-[0_2px_14px_rgba(0,0,0,0.02)] border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
@@ -89,16 +97,39 @@ const PetTable: React.FC<PetTableProps> = ({ onSelectPet, selectedPetId }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {pets.map((pet) => {
-                            const isSelected = selectedPetId === pet.id;
-                            return (
-                                <tr 
-                                    key={pet.id} 
-                                    onClick={() => onSelectPet(pet)}
-                                    className={`group cursor-pointer transition-all duration-300 border-b border-gray-50 last:border-0 ${
-                                        isSelected ? 'bg-orange-50/50' : 'hover:bg-[#B35D25]/5 hover:shadow-sm'
-                                    }`}
-                                >
+                        {filteredPets.length === 0 ? (
+                            <tr>
+                                <td colSpan={5} className="px-6 py-20 text-center">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-gray-300">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
+                                        </div>
+                                        <p className="text-gray-400 font-bold">No pets found matching "{searchTerm}"</p>
+                                        <button 
+                                            onClick={() => {
+                                                // Since we don't have a direct way to reset searchTerm from here easily without a callback, 
+                                                // we just suggest trying a different search or let the user clear it manually.
+                                            }}
+                                            className="text-[#B35D25] text-xs font-black uppercase tracking-widest hover:underline mt-2"
+                                        >
+                                            Try a different search
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : (
+                            filteredPets.map((pet) => {
+                                const isSelected = selectedPetId === pet.id;
+                                return (
+                                    <tr 
+                                        key={pet.id} 
+                                        onClick={() => onSelectPet(pet)}
+                                        className={`group cursor-pointer transition-all duration-300 border-b border-gray-50 last:border-0 ${
+                                            isSelected ? 'bg-orange-50/50' : 'hover:bg-[#B35D25]/5 hover:shadow-sm'
+                                        }`}
+                                    >
                                     <td className="px-6 py-4 pl-8">
                                         <div className="flex items-center gap-4">
                                             <div className="relative rounded-xl overflow-hidden group-hover:shadow-lg group-hover:shadow-[#B35D25]/20 transition-all duration-300">
@@ -133,8 +164,9 @@ const PetTable: React.FC<PetTableProps> = ({ onSelectPet, selectedPetId }) => {
                                         </button>
                                     </td>
                                 </tr>
-                            );
-                        })}
+                            )
+                        })
+                    )}
                     </tbody>
                 </table>
             </div>
