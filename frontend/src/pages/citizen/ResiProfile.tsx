@@ -102,9 +102,19 @@ const ResiProfile = () => {
     };
 
     const statusMap: Record<number, string> = {
-        1: 'Pending Verification', 2: 'Verified', 3: 'Rejected',
-        4: 'Approved by Barangay', 5: 'Rescue Dispatched', 6: 'Resolved',
-        7: 'Picked Up', 8: 'Under Observation', 9: 'Impounded', 10: 'Released'
+        1: 'Reported', 
+        2: 'Verified', 
+        3: 'Rejected',
+        4: 'Escalated to Barangay', 
+        5: 'Rescue In Progress', 
+        6: 'Picked Up',
+        7: 'Under Observation', 
+        8: 'Impounded', 
+        9: 'Claimed by Owner', 
+        10: 'Released', 
+        11: 'Resolved', 
+        12: 'Deceased',
+        13: 'Approved'
     };
 
     const filteredReports = reports.filter((r) => {
@@ -380,7 +390,7 @@ const ResiProfile = () => {
                                                 </div>
                                             )}
 
-                                            {report.status_id === 6 && (
+                                            {report.status_id === 11 && (
                                                 <div className="absolute inset-0 bg-green-600/20 backdrop-blur-[2px] flex items-center justify-center">
                                                     <div className="bg-white/90 px-4 py-2 rounded-full shadow-lg border border-green-100 flex items-center gap-2">
                                                         <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
@@ -391,9 +401,12 @@ const ResiProfile = () => {
                                         </div>
                                         <div className="p-5 flex-1 flex flex-col">
                                             <div className="flex justify-between items-start mb-3">
-                                                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${report.status_id === 6 ? 'bg-green-50 text-green-600 border-green-100' :
-                                                        report.status_id === 1 ? 'bg-orange-50 text-orange-600 border-orange-100' :
-                                                            'bg-blue-50 text-blue-600 border-blue-100'
+                                                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${report.status_id === 1 ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                                                        report.status_id === 2 ? 'bg-cyan-50 text-cyan-600 border-cyan-100' :
+                                                        report.status_id === 4 ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                                                        report.status_id === 13 ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                                                        report.status_id === 11 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                        'bg-blue-50 text-blue-600 border-blue-100'
                                                     }`}>
                                                     {statusMap[report.status_id]}
                                                 </span>

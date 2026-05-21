@@ -33,6 +33,7 @@ class Report(Base):
     estimated_size: Mapped[Optional[str]] = mapped_column(Enum('Small', 'Medium', 'Large'), nullable=True)
 
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    condition: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     latitude = Column(Numeric(10, 8), nullable=False)
     longitude = Column(Numeric(11, 8), nullable=False)

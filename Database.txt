@@ -329,10 +329,10 @@ CREATE TABLE report_status(
 );
 
 INSERT INTO report_status(status_name) VALUES
-('Pending Verification'),
+('Reported'),
 ('Verified'),
 ('Rejected'),
-('Forwarded to Barangay'),
+('Escalated to Barangay'),
 ('Team Dispatched'),
 ('Picked Up'),
 ('Under Observation'),
@@ -340,7 +340,8 @@ INSERT INTO report_status(status_name) VALUES
 ('Claimed by Owner'),
 ('Released'),
 ('Resolved'),
-('Deceased');
+('Deceased'),
+('Approved');
 
 -- =========================================
 -- LETTER STATUS
@@ -677,4 +678,93 @@ CREATE TABLE notifications(
     FOREIGN KEY(user_id)
     REFERENCES users(user_id)
     ON DELETE CASCADE
+);
+
+-- =========================================
+-- RESCUE STATUS
+-- =========================================
+CREATE TABLE rescue_status(
+    status_id INT AUTO_INCREMENT PRIMARY KEY,
+    status_name VARCHAR(50) UNIQUE NOT NULL
+);
+
+INSERT INTO rescue_status(status_name) VALUES
+('Pending'),
+('Approved'),
+('Rejected'),
+('Started'),
+('Dispatched'),
+('Resolved');
+
+-- =========================================
+-- RESCUES
+-- =========================================
+CREATE TABLE rescues(
+    rescue_id INT AUTO_INCREMENT PRIMARY KEY,
+    report_id INT NOT NULL,
+    staff_id INT NULL,
+    status_id INT DEFAULT 1,
+    notes TEXT,
+    started_at TIMESTAMP NULL,
+    completed_at TIMESTAMP NULL,
+    leader_id INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY(report_id) REFERENCES reports(report_id) ON DELETE CASCADE,
+    FOREIGN KEY(staff_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    FOREIGN KEY(status_id) REFERENCES rescue_status(status_id),
+    FOREIGN KEY(leader_id) REFERENCES users(user_id) ON DELETE SET NULL
+);
+
+-- =========================================
+-- RESCUE ASSIGNMENTS
+-- =========================================
+CREATE TABLE rescue_assignments(
+    assignment_id INT AUTO_INCREMENT PRIMARY KEY,
+    rescue_id INT NOT NULL,
+    staff_id INT NOT NULL,
+    assigned_by INT NOT NULL,
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    assignment_status ENUM('Assigned', 'In Transit', 'On Site', 'Completed', 'Cancelled') DEFAULT 'Assigned',
+    remarks TEXT,
+
+    FOREIGN KEY(rescue_id) REFERENCES rescues(rescue_id) ON DELETE CASCADE,
+    FOREIGN KEY(staff_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY(assigned_by) REFERENCES users(user_id)
+);
+
+-- =========================================
+-- STATUS HISTORY
+-- =========================================
+CREATE TABLE status_history(
+    history_id INT AUTO_INCREMENT PRIMARY KEY,
+    report_id INT NULL,
+    rescue_id INT NULL,
+    report_status_id INT NULL,
+    rescue_status_id INT NULL,
+    updated_by INT NULL,
+    remarks TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY(report_id) REFERENCES reports(report_id) ON DELETE CASCADE,
+    FOREIGN KEY(rescue_id) REFERENCES rescues(rescue_id) ON DELETE CASCADE,
+    FOREIGN KEY(report_status_id) REFERENCES report_status(status_id),
+    FOREIGN KEY(rescue_status_id) REFERENCES rescue_status(status_id),
+    FOREIGN KEY(updated_by) REFERENCES users(user_id) ON DELETE SET NULL
+);
+
+-- =========================================
+-- REPORT MEDIA
+-- =========================================
+CREATE TABLE report_media(
+    media_id INT AUTO_INCREMENT PRIMARY KEY,
+    report_id INT NOT NULL,
+    history_id INT NULL,
+    file_url VARCHAR(255) NOT NULL,
+    media_type VARCHAR(50) DEFAULT 'image',
+    is_evidence BOOLEAN DEFAULT FALSE,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY(report_id) REFERENCES reports(report_id) ON DELETE CASCADE,
+    FOREIGN KEY(history_id) REFERENCES status_history(history_id) ON DELETE SET NULL
 );

@@ -164,18 +164,18 @@ def update_rescue_request(rescue_id: int, request_in: RescueRequestUpdate, db: S
             report_status_id = update_data["status_id"]
             
             # Map Report Status ID → Rescue Status ID
-            # Report: 1:Reported, 2:Verified, 3:Rejected, 4:Forwarded, 5:In Action, 7:Picked Up, 6:Resolved
+            # Report: 1:Reported, 2:Verified, 3:Rejected, 4:Escalated, 13:Approved, 5:In Action, 7:Picked Up, 11:Resolved
             # Rescue: 1:Pending, 2:Approved, 3:Rejected, 4:Started, 5:Dispatched, 6:Resolved
             report_to_rescue_map = {
                 1: 1, # Reported -> Pending
-                2: 2, # Verified -> Approved/Active
-                11: 1, # Forwarded -> Pending
-                3: 3, # Rejected -> Rejected
-                4: 2, # Approved by Barangay -> Active
+                2: 1, # Verified -> Pending
+                4: 1, # Escalated -> Pending
+                13: 2, # Approved by Barangay -> Approved
                 5: 5, # Dispatched -> Dispatched
-                7: 5, # Picked Up -> Still Dispatched
-                9: 5, # Impounded -> Still Dispatched
-                6: 6  # Resolved -> Resolved
+                6: 5, # Picked Up -> Still Dispatched
+                7: 5, # Under Observation -> Still Dispatched
+                11: 6, # Resolved -> Resolved
+                12: 6  # Deceased -> Resolved (Operational end)
             }
             
             rescue_status_id = report_to_rescue_map.get(report_status_id)
@@ -207,9 +207,9 @@ def update_rescue_request(rescue_id: int, request_in: RescueRequestUpdate, db: S
                     # Create Notification for Resident
                     status_names = {
                         1: "Reported", 2: "Verified", 3: "Rejected",
-                        4: "Approved by Barangay", 5: "Dispatched", 6: "Resolved",
-                        7: "Picked Up", 8: "Under Observation", 9: "Impounded", 
-                        10: "Released", 11: "Forwarded to Barangay"
+                        4: "Escalated", 13: "Approved by Barangay", 5: "Dispatched", 
+                        6: "Resolved", 11: "Resolved", 7: "Picked Up", 
+                        8: "Under Observation", 9: "Impounded", 10: "Released"
                     }
                     status_name = status_names.get(report_status_id, "Updated")
                     

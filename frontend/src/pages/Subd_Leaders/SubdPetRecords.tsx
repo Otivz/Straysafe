@@ -11,6 +11,7 @@ import Button from '../../components/Button';
 const SubdPetRecords = () => {
     const [selectedPet, setSelectedPet] = useState<PetRecord | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const handleSelectPet = (pet: PetRecord) => {
         setSelectedPet(pet);
@@ -95,13 +96,15 @@ const SubdPetRecords = () => {
                                     <input 
                                         type="text" 
                                         placeholder="Search pets, owners, ID..." 
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
                                         className="pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#B35D25]/20 focus:border-[#B35D25] transition-all w-64 shadow-sm"
                                     />
                                 </div>
                                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Showing 1-10 of 428</p>
                             </div>
                         </div>
-                        <PetTable onSelectPet={handleSelectPet} selectedPetId={selectedPet?.id || null} />
+                        <PetTable onSelectPet={handleSelectPet} selectedPetId={selectedPet?.id || null} searchTerm={searchTerm} />
                     </div>
 
                     {/* Add Pet Modal */}
