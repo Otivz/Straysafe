@@ -59,17 +59,19 @@ const isInsideSeleraHomes = (lat: number, lng: number) => {
 };
 
 const reportStatusMap: Record<number, string> = {
-    1: 'Pending Verification',
-    2: 'Verified',
+    1: 'Reported', 
+    2: 'Verified', 
     3: 'Rejected',
-    4: 'Approved by Barangay',
-    11: 'Forwarded to Barangay',
-    5: 'Rescue Dispatched',
-    6: 'Resolved',
-    7: 'Picked Up',
-    8: 'Under Observation',
-    9: 'Impounded',
-    10: 'Released'
+    4: 'Escalated to Barangay', 
+    5: 'Rescue In Progress', 
+    6: 'Picked Up',
+    7: 'Under Observation', 
+    8: 'Impounded', 
+    9: 'Claimed by Owner', 
+    10: 'Released', 
+    11: 'Resolved', 
+    12: 'Deceased',
+    13: 'Approved'
 };
 
 const categoryMap: Record<number, string> = {
@@ -1007,9 +1009,18 @@ const ResiHomePage = () => {
                 ) : (
                     filteredReports.map((report) => {
                         const statusMap: Record<number, string> = {
-                            1: 'Pending Verification', 2: 'Verified', 3: 'Rejected',
-                            4: 'Approved by Barangay', 11: 'Forwarded to Barangay', 5: 'Rescue Dispatched', 6: 'Resolved',
-                            7: 'Picked Up', 8: 'Under Observation', 9: 'Impounded', 10: 'Released'
+                            1: 'Pending Verification', 
+                            2: 'Verified', 
+                            3: 'Rejected',
+                            4: 'Approved', 
+                            5: 'Rescue In Progress', 
+                            6: 'Picked Up',
+                            7: 'Under Observation', 
+                            8: 'Impounded', 
+                            9: 'Claimed by Owner', 
+                            10: 'Released', 
+                            11: 'Resolved', 
+                            12: 'Deceased'
                         };
                         const categoryMap: Record<number, string> = {
                             1: 'Injured Animal', 2: 'Aggressive Stray', 3: 'Possible Rabies Risk',
@@ -1119,12 +1130,13 @@ const ResiHomePage = () => {
                                                 </div>
                                             </div>
                                             <span className={`px-3 py-1 shrink-0 text-[9px] font-black uppercase tracking-widest rounded-full border shadow-sm ${report.status_id === 1 ? 'bg-orange-50 text-[#F97316] border-orange-100' :
-                                                report.status_id === 11 ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
-                                                    report.status_id === 4 ? 'bg-orange-50 text-orange-600 border-orange-100' :
-                                                        report.status_id === 6 ? 'bg-green-50 text-green-600 border-green-100' :
-                                                            report.status_id === 7 || report.status_id === 8 ? 'bg-purple-50 text-purple-600 border-purple-100' :
-                                                                report.status_id === 9 || report.status_id === 10 ? 'bg-teal-50 text-teal-600 border-teal-100' :
-                                                                    'bg-blue-50 text-blue-600 border-blue-100'
+                                                report.status_id === 2 ? 'bg-cyan-50 text-cyan-600 border-cyan-100' :
+                                                report.status_id === 4 ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                                                report.status_id === 13 ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                                                report.status_id === 11 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                report.status_id === 7 || report.status_id === 8 ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                                                report.status_id === 9 || report.status_id === 10 ? 'bg-teal-50 text-teal-600 border-teal-100' :
+                                                'bg-blue-50 text-blue-600 border-blue-100'
                                                 }`}>
                                                 {statusName}
                                             </span>
@@ -1147,10 +1159,10 @@ const ResiHomePage = () => {
                                                         style={{
                                                             width: `${(() => {
                                                                 const statusIndexMap: Record<number, number> = {
-                                                                    1: 0, 2: 1, 11: 1.5, 4: 2, 5: 3, 7: 4, 9: 5, 6: 6
+                                                                    1: 0, 2: 1, 4: 2, 13: 3, 5: 4, 7: 5, 8: 6, 11: 7
                                                                 };
                                                                 const logicalIndex = statusIndexMap[report.status_id] ?? 0;
-                                                                const totalStages = 6; // (7 circles - 1)
+                                                                const totalStages = 7;
                                                                 return (logicalIndex / totalStages) * 100;
                                                             })()}%`
                                                         }}
@@ -1160,13 +1172,14 @@ const ResiHomePage = () => {
                                                 {[
                                                     { id: 1, label: 'Reported', sub: 'Citizen Post' },
                                                     { id: 2, label: 'Verified', sub: 'Leader Vetted' },
-                                                    { id: 4, label: 'Approved', sub: 'Accepted by Barangay' },
-                                                    { id: 5, label: 'Dispatched', sub: 'On the way' },
+                                                    { id: 4, label: 'Escalated', sub: 'Peer Verified' },
+                                                    { id: 13, label: 'Approved', sub: 'Barangay Auth' },
+                                                    { id: 5, label: 'Rescue', sub: 'En Route' },
                                                     { id: 7, label: 'Picked Up', sub: 'Secured' },
-                                                    { id: 9, label: 'Impounded', sub: 'At Shelter' },
-                                                    { id: 6, label: 'Resolved', sub: 'Complete' }
+                                                    { id: 8, label: 'Impounded', sub: 'At Shelter' },
+                                                    { id: 11, label: 'Resolved', sub: 'Complete' }
                                                 ].map((stage, idx) => {
-                                                    const logicalSequence = [1, 2, 11, 4, 5, 7, 9, 6];
+                                                    const logicalSequence = [1, 2, 4, 13, 5, 7, 8, 11];
                                                     const currentStatusIdx = logicalSequence.indexOf(report.status_id);
                                                     const stageIdx = logicalSequence.indexOf(stage.id);
                                                     const isCompleted = currentStatusIdx >= stageIdx;

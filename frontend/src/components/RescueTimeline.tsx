@@ -10,6 +10,7 @@ interface Media {
 interface TimelineEntry {
     history_id: number;
     report_status_id: number;
+    rescue_status_id?: number;
     remarks: string;
     created_at: string;
     updater_name?: string;
@@ -34,31 +35,26 @@ const statusConfig: Record<number, { label: string, color: string, icon: React.R
         icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
     },
     4: {
+        label: 'Escalated',
+        color: 'purple',
+        icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+    },
+    13: {
         label: 'Approved',
         color: 'orange',
-        icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+        icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
     },
     5: {
         label: 'Dispatched',
         color: 'indigo',
         icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
     },
-    7: {
+    6: {
         label: 'Picked Up',
         color: 'amber',
         icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
     },
-    8: {
-        label: 'Under Observation',
-        color: 'purple',
-        icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-    },
-    9: {
-        label: 'Impounded',
-        color: 'rose',
-        icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
-    },
-    6: {
+    11: {
         label: 'Resolved',
         color: 'green',
         icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
@@ -68,6 +64,15 @@ const statusConfig: Record<number, { label: string, color: string, icon: React.R
         color: 'emerald',
         icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
     }
+};
+
+const rescueStatusLabels: Record<number, string> = {
+    1: 'Pending Approval',
+    2: 'Approved',
+    3: 'Rejected',
+    4: 'Operation Started',
+    5: 'Dispatched',
+    6: 'Resolved'
 };
 
 const RescueTimeline: React.FC<RescueTimelineProps> = ({ history, currentStatusId }) => {
@@ -114,6 +119,8 @@ const RescueTimeline: React.FC<RescueTimelineProps> = ({ history, currentStatusI
                 ) : (
                     filteredHistory.map((entry, index) => {
                         const config = statusConfig[entry.report_status_id] || statusConfig[1];
+                        const displayLabel = entry.rescue_status_id ? rescueStatusLabels[entry.rescue_status_id] : config.label;
+                        
                         return (
                             <div key={entry.history_id} className="relative group animate-in slide-in-from-left-4 duration-500" style={{ animationDelay: `${index * 100}ms` }}>
                                 {/* Timeline Node */}
@@ -127,7 +134,7 @@ const RescueTimeline: React.FC<RescueTimelineProps> = ({ history, currentStatusI
                                         <div className="flex justify-between items-start mb-4">
                                             <div>
                                                 <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-${config.color}-50 text-${config.color}-600 border border-${config.color}-100`}>
-                                                    {config.label}
+                                                    {displayLabel}
                                                 </span>
                                                 {entry.report_status_id === currentStatusId && index === 0 && (
                                                     <span className="ml-2 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-green-500 text-white shadow-sm">

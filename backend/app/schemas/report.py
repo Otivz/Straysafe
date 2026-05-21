@@ -13,6 +13,7 @@ class ReportBase(BaseModel):
     animal_color: Optional[str] = None
     estimated_size: Optional[str] = None
     description: Optional[str] = None
+    condition: Optional[str] = None
     latitude: float
     longitude: float
     animal_count: Optional[int] = 1

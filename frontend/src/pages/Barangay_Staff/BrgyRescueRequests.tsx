@@ -50,16 +50,19 @@ const statusMap: Record<number, string> = {
 };
 
 const reportStatusMap: Record<number, string> = {
-    1: 'Pending Verification',
-    2: 'Verified',
+    1: 'Reported', 
+    2: 'Verified', 
     3: 'Rejected',
-    4: 'Forwarded to Barangay',
-    5: 'Team Dispatched',
-    6: 'Resolved',
-    7: 'Picked Up',
-    8: 'Under Observation',
-    9: 'Impounded',
-    10: 'Released'
+    4: 'Escalated to Barangay', 
+    13: 'Approved',
+    5: 'Rescue In Progress', 
+    6: 'Picked Up',
+    7: 'Under Observation', 
+    8: 'Impounded', 
+    9: 'Claimed by Owner', 
+    10: 'Released', 
+    11: 'Resolved', 
+    12: 'Deceased'
 };
 
 const categoryMap: Record<number, string> = {
@@ -228,8 +231,8 @@ const BrgyRescueRequests = () => {
             const response = await axios.get('http://localhost:8000/rescue-requests/');
             // Sort by rescue_id descending to show new requests at the top
             const sortedData = (response.data || []).sort((a: any, b: any) => b.rescue_id - a.rescue_id);
-            // ONLY show reports that are NOT resolved (status 6)
-            const activeRequests = sortedData.filter((req: any) => req.report?.status_id !== 6);
+            // ONLY show reports that are NOT resolved (status 11)
+            const activeRequests = sortedData.filter((req: any) => req.report?.status_id !== 11);
             if (activeRequests.length === 0) {
                 setRequests(sampleRescueRequests);
             } else {
@@ -433,23 +436,15 @@ const BrgyRescueRequests = () => {
                                     key: "status",
                                     render: (req) => {
                                         const reportStatus = req.report?.status_id;
-                                        if (req.status_id === 2 && reportStatus) {
-                                            const label = reportStatusMap[reportStatus] || "Approved";
-                                            let colorClass = "bg-blue-50 text-blue-600 border border-blue-100";
-                                            if (reportStatus === 6) colorClass = "bg-green-50 text-green-600 border border-green-100";
-                                            if (reportStatus === 3) colorClass = "bg-red-50 text-red-600 border border-red-100";
-                                            return (
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${colorClass}`}>
-                                                    {label}
-                                                </span>
-                                            );
-                                        }
-                                        let label = statusMap[req.status_id] || "Pending";
-                                        let colorClass = "bg-orange-50 text-orange-600 border border-orange-100";
-                                        if (req.status_id === 3) {
-                                            label = "Rejected";
-                                            colorClass = "bg-red-50 text-red-600 border border-red-100";
-                                        }
+                                        const label = reportStatusMap[reportStatus || 0] || statusMap[req.status_id] || "Pending";
+                                        
+                                        let colorClass = "bg-orange-50 text-orange-600 border border-orange-100"; // Default
+                                        if (reportStatus === 13) colorClass = "bg-indigo-50 text-indigo-600 border border-indigo-100";
+                                        if (reportStatus === 5) colorClass = "bg-blue-600 text-white";
+                                        if (reportStatus === 6) colorClass = "bg-amber-50 text-amber-600 border border-amber-100";
+                                        if (reportStatus === 11) colorClass = "bg-green-50 text-green-600 border border-green-100";
+                                        if (reportStatus === 3 || reportStatus === 12) colorClass = "bg-red-50 text-red-600 border border-red-100";
+
                                         return (
                                             <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${colorClass}`}>
                                                 {label}
@@ -503,7 +498,7 @@ const BrgyRescueRequests = () => {
                                             className="h-full bg-orange-500 transition-all duration-700"
                                             style={{
                                                 width: `${(() => {
-                                                    const stages = [1, 2, 4, 5, 7, 9, 6];
+                                                    const stages = [1, 2, 4, 13, 5, 6, 11];
                                                     const currentIndex = stages.indexOf(viewingRequest.report?.status_id);
                                                     return currentIndex === -1 ? 0 : (currentIndex / (stages.length - 1)) * 100;
                                                 })()}%`
@@ -514,14 +509,14 @@ const BrgyRescueRequests = () => {
                                     {[
                                         { id: 1, label: 'Reported' },
                                         { id: 2, label: 'Verified' },
-                                        { id: 4, label: 'Approved' },
+                                        { id: 4, label: 'Escalated' },
+                                        { id: 13, label: 'Approved' },
                                         { id: 5, label: 'Dispatched' },
-                                        { id: 7, label: 'Picked Up' },
-                                        { id: 9, label: 'Impounded' },
-                                        { id: 6, label: 'Resolved' }
+                                        { id: 6, label: 'Picked Up' },
+                                        { id: 11, label: 'Resolved' }
                                     ].map((stage, idx) => {
                                         const displayStatusId = statusToUpdate?.statusId || viewingRequest.report?.status_id || 1;
-                                        const stages = [1, 2, 4, 5, 7, 9, 6];
+                                        const stages = [1, 2, 4, 13, 5, 6, 11];
                                         const currentIndex = stages.indexOf(displayStatusId);
                                         const optIndex = stages.indexOf(stage.id);
 
@@ -693,7 +688,7 @@ const BrgyRescueRequests = () => {
                                         <Button
                                             variant="primary"
                                             className="flex-1 !bg-orange-600 hover:!bg-orange-700 !rounded-2xl py-4 flex flex-col items-center gap-1 shadow-lg shadow-orange-100"
-                                            onClick={() => openStatusUpdate(viewingRequest.rescue_id, viewingRequest.report_id, 4)}
+                                            onClick={() => openStatusUpdate(viewingRequest.rescue_id, viewingRequest.report_id, 13)}
                                         >
                                             <span className="text-[11px] font-black uppercase tracking-widest">Approve Report Request</span>
                                             <span className="text-[9px] opacity-70 font-medium">Status will change to 'Approved'</span>
@@ -722,14 +717,14 @@ const BrgyRescueRequests = () => {
                                     {[
                                         { id: 1, label: 'Reported', sub: 'Citizen Post' },
                                         { id: 2, label: 'Verified', sub: 'Leader Vetted' },
-                                        { id: 4, label: 'Approved', sub: 'Accepted by Barangay' },
+                                        { id: 4, label: 'Escalated', sub: 'Subd Request' },
+                                        { id: 13, label: 'Approved', sub: 'Barangay Accepted' },
                                         { id: 5, label: 'Dispatched', sub: 'On the way' },
-                                        { id: 7, label: 'Picked Up', sub: 'Animal secured' },
-                                        { id: 9, label: 'Impounded', sub: 'At shelter' },
-                                        { id: 6, label: 'Resolved', sub: 'Operation complete' }
+                                        { id: 6, label: 'Picked Up', sub: 'Animal secured' },
+                                        { id: 11, label: 'Resolved', sub: 'Operation complete' }
                                     ].map((opt) => {
                                         // Define the strict order of stages for the progress bar
-                                        const stages = [1, 2, 4, 5, 7, 9, 6];
+                                        const stages = [1, 2, 4, 13, 5, 6, 11];
 
                                         // Use the status being updated to if the modal is open, otherwise use current status
                                         const displayStatusId = statusToUpdate?.statusId || viewingRequest.report?.status_id || 1;

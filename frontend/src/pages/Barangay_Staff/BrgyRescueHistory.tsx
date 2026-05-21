@@ -66,8 +66,8 @@ const BrgyRescueHistory = () => {
         try {
             setLoading(true);
             const response = await axios.get('http://localhost:8000/rescue-requests/');
-            // ONLY show reports that ARE resolved (status 6)
-            const resolvedReports = (response.data || []).filter((req: any) => req.report?.status_id === 6);
+            // ONLY show reports that ARE resolved (status 11)
+            const resolvedReports = (response.data || []).filter((req: any) => req.report?.status_id === 11);
             setHistory(resolvedReports);
         } catch (error) {
             console.error('Error fetching history:', error);
@@ -282,7 +282,7 @@ const BrgyRescueHistory = () => {
                                 header: "Status",
                                 key: "status",
                                 render: (rescue) => (
-                                    <StatusBadge status={rescue.status_id === 6 ? 'Resolved' : 'Dispatched'} />
+                                    <StatusBadge status={rescue.status_id === 11 ? 'Resolved' : 'Dispatched'} />
                                 )
                             },
                             {

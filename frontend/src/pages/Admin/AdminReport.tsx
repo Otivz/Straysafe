@@ -96,9 +96,19 @@ import DataTable from '../../components/DataTable';
 import RescueTimeline from '../../components/RescueTimeline';
 
 const statusMap: Record<number, string> = {
-    1: 'Pending', 2: 'Verified', 3: 'Rejected',
-    4: 'Approved by Barangay', 5: 'Rescue Dispatched', 6: 'Resolved',
-    7: 'Picked Up', 8: 'Under Observation', 9: 'Impounded', 10: 'Released'
+    1: 'Reported', 
+    2: 'Verified', 
+    3: 'Rejected',
+    4: 'Escalated to Barangay', 
+    5: 'Rescue In Progress', 
+    6: 'Picked Up',
+    7: 'Under Observation', 
+    8: 'Impounded', 
+    9: 'Claimed by Owner', 
+    10: 'Released', 
+    11: 'Resolved', 
+    12: 'Deceased',
+    13: 'Approved'
 };
 const categoryMap: Record<number, string> = {
     1: 'Injured Animal', 2: 'Aggressive Stray', 3: 'Possible Rabies Risk',
@@ -357,11 +367,16 @@ const AdminReport = () => {
 
     const getStatusColor = (status: string) => {
         switch (status.toLowerCase()) {
+            case 'reported':
             case 'pending verification':
             case 'pending': return 'bg-amber-50 text-amber-600 border-amber-100';
+            case 'verified': return 'bg-cyan-50 text-cyan-600 border-cyan-100';
+            case 'escalated to barangay': return 'bg-purple-50 text-purple-600 border-purple-100';
+            case 'approved': return 'bg-indigo-50 text-indigo-600 border-indigo-100';
             case 'in action':
-            case 'ongoing': return 'bg-blue-50 text-blue-600 border-blue-100';
-            case 'resolved': return 'bg-green-50 text-green-600 border-green-100';
+            case 'ongoing':
+            case 'rescue in progress': return 'bg-blue-50 text-blue-600 border-blue-100';
+            case 'resolved': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
             default: return 'bg-gray-50 text-gray-600 border-gray-100';
         }
     };
@@ -552,7 +567,7 @@ const AdminReport = () => {
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                handleUpdateStatus(rep.report_id, 6);
+                                                                handleUpdateStatus(rep.report_id, 11);
                                                                 setOpenMenuId(null);
                                                             }}
                                                             className="w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-green-600 hover:bg-green-50 transition-colors"
@@ -617,7 +632,7 @@ const AdminReport = () => {
                                                         className="h-full bg-orange-500 transition-all duration-700"
                                                         style={{
                                                             width: `${(() => {
-                                                                const stages = [1, 4, 5, 7, 9, 6];
+                                                                const stages = [1, 2, 4, 13, 5, 7, 8, 11];
                                                                 const currentIndex = stages.indexOf(viewReport.status_id);
                                                                 return currentIndex === -1 ? 0 : (currentIndex / (stages.length - 1)) * 100;
                                                             })()}%`
@@ -627,13 +642,15 @@ const AdminReport = () => {
 
                                                 {[
                                                     { id: 1, label: 'Reported' },
-                                                    { id: 4, label: 'Verified' },
-                                                    { id: 5, label: 'Dispatched' },
-                                                    { id: 7, label: 'Picked Up' },
-                                                    { id: 9, label: 'Impounded' },
-                                                    { id: 6, label: 'Resolved' }
+                                                    { id: 2, label: 'Verified' },
+                                                    { id: 4, label: 'Escalated' },
+                                                    { id: 13, label: 'Approved' },
+                                                    { id: 5, label: 'Rescue' },
+                                                    { id: 7, label: 'Observation' },
+                                                    { id: 8, label: 'Impounded' },
+                                                    { id: 11, label: 'Resolved' }
                                                 ].map((stage, idx) => {
-                                                    const stages = [1, 4, 5, 7, 9, 6];
+                                                    const stages = [1, 2, 4, 13, 5, 7, 8, 11];
                                                     const isCompleted = stages.indexOf(viewReport.status_id) >= idx;
                                                     const isCurrent = viewReport.status_id === stage.id;
 
@@ -1108,7 +1125,7 @@ const AdminReport = () => {
                                                     {viewReport.status_id !== 6 && (
                                                         <button
                                                             onClick={() => {
-                                                                handleUpdateStatus(viewReport.report_id, 6);
+                                                                handleUpdateStatus(viewReport.report_id, 11);
                                                                 setViewingReportId(null);
                                                             }}
                                                             className="w-full py-3 border border-gray-100 rounded-2xl text-[10px] font-bold text-gray-400 hover:bg-green-50 hover:text-green-600 hover:border-green-100 transition-all uppercase tracking-widest"

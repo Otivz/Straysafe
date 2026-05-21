@@ -32,9 +32,19 @@ interface Report {
 }
 
 const statusMap: Record<number, string> = {
-    1: 'Pending', 2: 'Verified', 3: 'Rejected',
-    4: 'Escalated to Barangay', 5: 'Rescue In Progress', 6: 'Resolved',
-    7: 'Picked Up', 8: 'Under Observation', 9: 'Impounded'
+    1: 'Reported', 
+    2: 'Verified', 
+    3: 'Rejected',
+    4: 'Escalated to Barangay', 
+    13: 'Approved',
+    5: 'Rescue In Progress', 
+    6: 'Picked Up',
+    7: 'Under Observation', 
+    8: 'Impounded', 
+    9: 'Claimed by Owner', 
+    10: 'Released', 
+    11: 'Resolved', 
+    12: 'Deceased'
 };
 const categoryMap: Record<number, string> = {
     1: 'Injured Animal', 2: 'Aggressive Stray', 3: 'Possible Rabies Risk',
@@ -87,7 +97,7 @@ const sampleReports: Report[] = [
     {
         report_id: 103,
         category_id: 3, // Possible Rabies Risk
-        status_id: 6, // Resolved
+        status_id: 11, // Resolved
         priority_level: 'Emergency',
         latitude: 14.8069,
         longitude: 121.0039,
@@ -414,12 +424,22 @@ const SubdReports = () => {
 
     const getStatusColor = (status: string) => {
         switch (status.toLowerCase()) {
-            case 'pending verification':
-            case 'pending': return 'bg-amber-50 text-amber-600 border-amber-100';
+            case 'reported':
+                return 'bg-amber-50 text-amber-600 border-amber-100';
+            case 'verified':
+                return 'bg-blue-50 text-blue-600 border-blue-100';
+            case 'escalated to barangay':
+                return 'bg-purple-50 text-purple-600 border-purple-100';
+            case 'approved':
+                return 'bg-indigo-50 text-indigo-600 border-indigo-100';
             case 'in action':
-            case 'ongoing': return 'bg-blue-50 text-blue-600 border-blue-100';
-            case 'resolved': return 'bg-green-50 text-green-600 border-green-100';
-            default: return 'bg-gray-50 text-gray-600 border-gray-100';
+            case 'ongoing':
+            case 'rescue in progress':
+                return 'bg-orange-50 text-orange-600 border-orange-100';
+            case 'resolved': 
+                return 'bg-green-50 text-green-600 border-green-100';
+            default: 
+                return 'bg-gray-50 text-gray-600 border-gray-100';
         }
     };
 
@@ -477,11 +497,11 @@ const SubdReports = () => {
                                     onChange={(e) => setStatusFilter(e.target.value)}
                                     options={[
                                         { value: 'all', label: 'All Status' },
-                                        { value: 'Pending', label: 'Pending' },
+                                        { value: 'Reported', label: 'Reported' },
                                         { value: 'Verified', label: 'Verified' },
                                         { value: 'Escalated to Barangay', label: 'Escalated' },
-                                        { value: 'Rescue In Progress', label: 'In Progress' },
-                                        { value: 'Resolved', label: 'Resolved' }
+                                        { value: 'Approved', label: 'Approved' },
+                                        { value: 'Rescue In Progress', label: 'In Progress' }
                                     ]}
                                     className="w-[140px]"
                                 />
@@ -605,11 +625,11 @@ const SubdReports = () => {
                                                         </svg>
                                                         View Report
                                                     </button>
-                                                    {rep.status_id !== 6 && (
+                                                    {rep.status_id !== 11 && (
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                handleUpdateStatus(rep.report_id, 6);
+                                                                handleUpdateStatus(rep.report_id, 11);
                                                                 setOpenMenuId(null);
                                                             }}
                                                             className="w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-green-600 hover:bg-green-50 transition-colors"
@@ -1159,14 +1179,24 @@ const SubdReports = () => {
                                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                                                         </svg>
-                                                        ESCALATE TO BARANGAY FOR RESCUE
+                                                        ESCALATE TO BARANGAY
                                                     </button>
                                                 )}
 
-                                                {viewReport.status_id !== 6 && (
+                                                {/* STEP 3: PENDING BARANGAY (After escalation) */}
+                                                {viewReport.status_id === 4 && (
+                                                    <div className="w-full py-4 bg-gray-100 text-gray-500 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 border border-gray-200">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        Pending Barangay Review
+                                                    </div>
+                                                )}
+
+                                                {viewReport.status_id !== 11 && (
                                                     <button
                                                         onClick={() => {
-                                                            handleUpdateStatus(viewReport.report_id, 6);
+                                                            handleUpdateStatus(viewReport.report_id, 11);
                                                             setViewingReportId(null);
                                                         }}
                                                         className="w-full py-3 border border-gray-100 rounded-2xl text-[10px] font-bold text-gray-400 hover:bg-green-50 hover:text-green-600 hover:border-green-100 transition-all uppercase tracking-widest"
